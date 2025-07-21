@@ -145,14 +145,14 @@ public class DataModelsTests
         {
             HostPort = 8080,
             ContainerPort = 80,
-            Protocol = ProtocolType.TCP,
+            Protocol = DeckProtocolType.TCP,
             HostIP = "127.0.0.1"
         };
 
         // Assert
         portMapping.HostPort.Should().Be(8080);
         portMapping.ContainerPort.Should().Be(80);
-        portMapping.Protocol.Should().Be(ProtocolType.TCP);
+        portMapping.Protocol.Should().Be(DeckProtocolType.TCP);
         portMapping.HostIP.Should().Be("127.0.0.1");
     }
 
@@ -233,10 +233,10 @@ public class DataModelsTests
         containerStatuses.Should().Contain(ContainerStatus.Error);
 
         // Assert Protocol Types
-        var protocolTypes = Enum.GetValues<ProtocolType>();
-        protocolTypes.Should().Contain(ProtocolType.TCP);
-        protocolTypes.Should().Contain(ProtocolType.UDP);
-        protocolTypes.Should().Contain(ProtocolType.SCTP);
+        var protocolTypes = Enum.GetValues<DeckProtocolType>();
+        protocolTypes.Should().Contain(DeckProtocolType.TCP);
+        protocolTypes.Should().Contain(DeckProtocolType.UDP);
+        protocolTypes.Should().Contain(DeckProtocolType.SCTP);
 
         // Assert Mount Types
         var mountTypes = Enum.GetValues<MountType>();
