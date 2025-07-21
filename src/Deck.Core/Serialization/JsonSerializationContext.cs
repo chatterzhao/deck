@@ -68,6 +68,21 @@ namespace Deck.Core.Serialization;
 [JsonSerializable(typeof(List<PortCheckResult>))]
 [JsonSerializable(typeof(List<PortResolutionSuggestion>))]
 [JsonSerializable(typeof(List<PortUsageInfo>))]
+[JsonSerializable(typeof(FilePermissionResult))]
+[JsonSerializable(typeof(DirectoryPermissionResult))]
+[JsonSerializable(typeof(EnvPermissionResult))]
+[JsonSerializable(typeof(EnvVariableValidation))]
+[JsonSerializable(typeof(ImagePermissionSummary))]
+[JsonSerializable(typeof(ProtectedFile))]
+[JsonSerializable(typeof(ModifiableFile))]
+[JsonSerializable(typeof(DirectoryNameValidationResult))]
+[JsonSerializable(typeof(DirectoryNameInfo))]
+[JsonSerializable(typeof(DirectoryOperationImpact))]
+[JsonSerializable(typeof(PermissionViolation))]
+[JsonSerializable(typeof(PermissionGuidance))]
+[JsonSerializable(typeof(List<EnvVariableValidation>))]
+[JsonSerializable(typeof(List<ProtectedFile>))]
+[JsonSerializable(typeof(List<ModifiableFile>))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
