@@ -6,9 +6,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     
-    <!-- AOT 兼容性 -->
+    <!-- AOT 兼容性和优化 -->
     <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    
+    <!-- AOT 优化设置 -->
+    <OptimizationPreference>speed</OptimizationPreference>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -24,6 +31,16 @@
     <SystemTextJsonVersion>9.0.0</SystemTextJsonVersion>
     <SystemCommandLineVersion>2.0.0-beta4.22272.1</SystemCommandLineVersion>
     <YamlDotNetVersion>16.2.0</YamlDotNetVersion>
+    
+    <!-- Additional packages for enhanced functionality -->
+    <LibGit2SharpVersion>0.30.0</LibGit2SharpVersion>
+    <FluentAssertionsVersion>6.12.2</FluentAssertionsVersion>
+    <MoqVersion>4.20.72</MoqVersion>
+    
+    <!-- Static code analysis -->
+    <SonarAnalyzerVersion>9.32.0.97167</SonarAnalyzerVersion>
+    <StyleCopAnalyzersVersion>1.2.0-beta.556</StyleCopAnalyzersVersion>
+    <MicrosoftCodeAnalysisVersion>4.11.0</MicrosoftCodeAnalysisVersion>
     
     <!-- Test packages -->
     <MicrosoftTestSdkVersion>17.12.0</MicrosoftTestSdkVersion>
