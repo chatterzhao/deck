@@ -22,6 +22,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISystemDetectionService, SystemDetectionService>();
         services.AddSingleton<IPortConflictService, PortConflictService>();
         services.AddSingleton<IImagePermissionService, ImagePermissionService>();
+        services.AddSingleton<INetworkService, NetworkService>();
+        
+        // 注册 HttpClient 用于网络服务
+        services.AddHttpClient<INetworkService, NetworkService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "Deck-Network-Service/1.0");
+        });
         
         // 注册日志服务
         services.AddSingleton<ILoggingService>(provider => 

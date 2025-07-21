@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Deck.Core.Models;
+using Deck.Core.Interfaces;
 
 namespace Deck.Core.Serialization;
 
@@ -83,6 +84,39 @@ namespace Deck.Core.Serialization;
 [JsonSerializable(typeof(List<EnvVariableValidation>))]
 [JsonSerializable(typeof(List<ProtectedFile>))]
 [JsonSerializable(typeof(List<ModifiableFile>))]
+[JsonSerializable(typeof(NetworkConnectivityResult))]
+[JsonSerializable(typeof(ServiceConnectivityResult))]
+[JsonSerializable(typeof(GeolocationInfo))]
+[JsonSerializable(typeof(NetworkFallbackStrategy))]
+[JsonSerializable(typeof(FallbackAction))]
+[JsonSerializable(typeof(AlternativeService))]
+[JsonSerializable(typeof(ProxyConfigurationResult))]
+[JsonSerializable(typeof(ProxyInfo))]
+[JsonSerializable(typeof(ProxyTestResult))]
+[JsonSerializable(typeof(ProxyRecommendation))]
+[JsonSerializable(typeof(RegistryConnectivityResult))]
+[JsonSerializable(typeof(ContainerRegistryRecommendation))]
+[JsonSerializable(typeof(NetworkValidationResult))]
+[JsonSerializable(typeof(NetworkConfigCheck))]
+[JsonSerializable(typeof(NetworkPerformanceCheck))]
+[JsonSerializable(typeof(NetworkSecurityCheck))]
+[JsonSerializable(typeof(OfflineModeResult))]
+[JsonSerializable(typeof(NetworkStatusResult))]
+[JsonSerializable(typeof(NetworkInterface))]
+[JsonSerializable(typeof(NetworkStatistics))]
+[JsonSerializable(typeof(NetworkSpeedResult))]
+[JsonSerializable(typeof(List<ServiceConnectivityResult>))]
+[JsonSerializable(typeof(List<FallbackAction>))]
+[JsonSerializable(typeof(List<AlternativeService>))]
+[JsonSerializable(typeof(List<ProxyTestResult>))]
+[JsonSerializable(typeof(List<ProxyRecommendation>))]
+[JsonSerializable(typeof(List<ContainerRegistryRecommendation>))]
+[JsonSerializable(typeof(List<NetworkConfigCheck>))]
+[JsonSerializable(typeof(List<NetworkPerformanceCheck>))]
+[JsonSerializable(typeof(List<NetworkSecurityCheck>))]
+[JsonSerializable(typeof(List<NetworkInterface>))]
+[JsonSerializable(typeof(List<RegistryFeature>))]
+[JsonSerializable(typeof(NetworkConfigValidationResult))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

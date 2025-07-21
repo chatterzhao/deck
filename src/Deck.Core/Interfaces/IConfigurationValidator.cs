@@ -20,7 +20,7 @@ public interface IConfigurationValidator
     /// <summary>
     /// 验证网络连接性
     /// </summary>
-    Task<NetworkValidationResult> ValidateNetworkConnectivityAsync(string repositoryUrl);
+    Task<NetworkConfigValidationResult> ValidateNetworkConnectivityAsync(string repositoryUrl);
 
     /// <summary>
     /// 获取配置修复建议
@@ -40,9 +40,9 @@ public class ValidationResult
 }
 
 /// <summary>
-/// 网络验证结果
+/// 网络配置验证结果
 /// </summary>
-public class NetworkValidationResult : ValidationResult
+public class NetworkConfigValidationResult : ValidationResult
 {
     public TimeSpan ResponseTime { get; set; }
     public bool IsReachable { get; set; }

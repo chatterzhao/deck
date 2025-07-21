@@ -120,9 +120,9 @@ public class ConfigurationValidator : IConfigurationValidator
         return await Task.FromResult(result);
     }
 
-    public async Task<NetworkValidationResult> ValidateNetworkConnectivityAsync(string repositoryUrl)
+    public async Task<NetworkConfigValidationResult> ValidateNetworkConnectivityAsync(string repositoryUrl)
     {
-        var result = new NetworkValidationResult();
+        var result = new NetworkConfigValidationResult();
         
         try
         {
