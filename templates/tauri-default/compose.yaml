@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  tauri-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Docker registry configuration
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
+        # Build-time tool versions
+        RUST_VERSION: ${RUST_VERSION:-1.76.0}
+        NODEJS_VERSION: ${NODEJS_VERSION:-20.11.1}
+        TAURI_CLI_VERSION: ${TAURI_CLI_VERSION:-1.5.10}
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-22.04}
+        # Network configuration for build optimization
+        APT_MIRROR: ${APT_MIRROR:-mirrors.ustc.edu.cn}
+        CARGO_REGISTRY_INDEX: ${CARGO_REGISTRY_INDEX:-https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git}
+        CARGO_REGISTRY_SPARSE: ${CARGO_REGISTRY_SPARSE:-sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/}
+        CARGO_FALLBACK_REGISTRY: ${CARGO_FALLBACK_REGISTRY:-https://index.crates.io}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        NPM_FALLBACK_REGISTRY: ${NPM_FALLBACK_REGISTRY:-https://registry.npmjs.org}
+        NODEJS_MIRROR: ${NODEJS_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nodejs-release/}
+        NODEJS_FALLBACK: ${NODEJS_FALLBACK:-https://nodejs.org/dist/}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git build-essential pkg-config libssl-dev libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf wget ca-certificates"}
+    container_name: ${PROJECT_NAME:-tauri-app}-dev
+    hostname: ${PROJECT_NAME:-tauri-app}-dev
+    volumes:
+      # Mount project workspace (relative to project root)
+      - ../../../../:${WORKSPACE_PATH:-/workspace}
+      # Persistent cache volumes for faster rebuilds
+      - type: volume
+        source: cargo-cache
+        target: ${CARGO_CACHE_PATH:-/usr/local/cargo/registry}
+      - type: volume
+        source: node-modules-cache  
+        target: ${NODE_MODULES_CACHE_PATH:-/usr/local/node_modules_cache}
+      # Optional: Mount local cache directories if available
+      # Uncomment these lines if you have local cache directories
+      # - ${CARGO_HOME:-./cache/cargo}:${CARGO_CACHE_PATH:-/usr/local/cargo/registry}:cached
+      # - ${NPM_CACHE_DIR:-./cache/npm}:${NODE_MODULES_CACHE_PATH:-/usr/local/node_modules_cache}:cached
+    ports:
+      # Development server ports (runtime configurable)
+      - "${DEV_PORT:-1420}:1420"
+      - "${DEBUG_PORT:-9229}:9229"
+      - "${VITE_PORT:-1421}:1421"
+    env_file:
+      # Load all environment variables from .env
+      - .env
+    environment:
+      # Override specific runtime variables if needed
+      - RUST_LOG=${RUST_LOG:-debug}
+      - NODE_ENV=${NODE_ENV:-development}
+      - PROJECT_NAME=${PROJECT_NAME:-tauri-app}
+    working_dir: ${WORKSPACE_PATH:-/workspace}
+    command: tauri-dev bash
+    stdin_open: true
+    tty: true
+    # Resource limits (runtime configurable)
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-4g}
+          cpus: '${CPU_LIMIT:-2}'
+        reservations:
+          memory: 1g
+          cpus: '0.5'
+    shm_size: ${SHM_SIZE:-512m}
+    # Network configuration
+    # Use host networking for GUI apps, or bridge for better isolation
+    network_mode: bridge
+    # DNS configuration for better network performance
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Health check to ensure container is working
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1420/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Restart policy
+    restart: unless-stopped
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Enable development features
+    cap_add:
+      - SYS_PTRACE  # For debugging with gdb/lldb
+    # Optional: Enable X11 forwarding for GUI apps on Linux
+    # Uncomment these lines for GUI application support
+    # volumes:
+    #   - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    # environment:
+    #   - DISPLAY=${DISPLAY}
+
+volumes:
+  cargo-cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/cache/cargo
+  node-modules-cache:
+    driver: local
+    driver_opts:
+      type: none  
+      o: bind
+      device: ${PWD}/cache/node_modules
+
+# Optional: Define networks for multi-service setups
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

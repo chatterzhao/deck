@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  avalonia-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
+        DOTNET_VERSION: ${DOTNET_VERSION:-9.0}
+        AVALONIA_VERSION: ${AVALONIA_VERSION:-11.3.2}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget build-essential ca-certificates libx11-dev libxext-dev libxrender-dev libgtk-3-dev libfontconfig1-dev"}
+        ANDROID_SDK_VERSION: ${ANDROID_SDK_VERSION:-35}
+        ANDROID_NDK_VERSION: ${ANDROID_NDK_VERSION:-25.2.9519653}
+        ANDROID_BUILD_TOOLS_VERSION: ${ANDROID_BUILD_TOOLS_VERSION:-35.0.0}
+    container_name: ${PROJECT_NAME:-avalonia-app}-dev
+    hostname: ${PROJECT_NAME:-avalonia-app}-dev
+    volumes:
+      # Mount project workspace (relative to project root)
+      - ../../../../:${WORKSPACE_PATH:-/workspace}
+      # Persistent cache volumes for faster rebuilds
+      - type: volume
+        source: nuget-cache
+        target: ${NUGET_PACKAGES:-/opt/nuget-cache}
+      - type: volume
+        source: dotnet-tools-cache
+        target: /root/.dotnet/tools
+      # GUI Application Support (X11 forwarding for Linux)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Optional: Mount local cache directories if available
+      # Uncomment these lines if you have local cache directories
+      # - ${NUGET_CACHE_DIR:-./cache/nuget}:${NUGET_PACKAGES:-/workspace/.nuget/packages}:cached
+    ports:
+      # Development server ports (runtime configurable)
+      - "${DEV_PORT:-5000}:5000"
+      - "${DEBUG_PORT:-9229}:9229"
+      # Web development ports
+      - "${WEB_PORT:-8080}:8080"
+      - "${HTTPS_PORT:-8443}:8443"
+      # Android debugging port
+      - "${ANDROID_DEBUG_PORT:-5037}:5037"
+    env_file:
+      # Load all environment variables from .env
+      - .env
+    environment:
+      # Override specific runtime variables if needed
+      - DOTNET_ENVIRONMENT=${DOTNET_ENVIRONMENT:-Development}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - PROJECT_NAME=${PROJECT_NAME:-avalonia-app}
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      - DOTNET_NOLOGO=1
+      - DOTNET_USE_POLLING_FILE_WATCHER=${DOTNET_USE_POLLING_FILE_WATCHER:-true}
+      - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=${DOTNET_WATCH_RESTART_ON_RUDE_EDIT:-true}
+      # GUI Application Support
+      - DISPLAY=${DISPLAY:-:0}
+      - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_INDIRECT=1
+      - AVALONIA_X11_BACKENDS=x11
+      - AVALONIA_ENABLE_PLATFORM_THREADING=true
+    working_dir: ${WORKSPACE_PATH:-/workspace}
+    command: avalonia-dev bash
+    stdin_open: true
+    tty: true
+    # Resource limits (runtime configurable)
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-4g}
+          cpus: '${CPU_LIMIT:-2}'
+        reservations:
+          memory: 1g
+          cpus: '0.5'
+    shm_size: ${SHM_SIZE:-512m}
+    # Network configuration
+    network_mode: bridge
+    # DNS configuration for better network performance
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Health check to ensure container is working
+    healthcheck:
+      test: ["CMD", "dotnet", "--info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Restart policy
+    restart: unless-stopped
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Enable development features
+    cap_add:
+      - SYS_PTRACE  # For debugging with .NET debugger
+    # Additional GUI support - uncomment if needed
+    # devices:
+    #   - /dev/dri:/dev/dri  # For hardware acceleration
+    # privileged: true  # May be needed for some GUI frameworks
+
+volumes:
+  nuget-cache:
+    driver: local
+  dotnet-tools-cache:
+    driver: local
+
+# Optional: Define networks for multi-service setups
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

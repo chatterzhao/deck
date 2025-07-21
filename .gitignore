@@ -1,0 +1,37 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+
+# 测试结果
+TestResults/
+coverage/
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*.swo
+
+# 项目输出
+artifacts/
+publish/
+build/output/
+
+# macOS
+.DS_Store
+
+# 临时文件
+*.tmp
+*.temp
+
+# Dev Environment
+.deck/templates/
+.deck/images/
+
+dist/
+build/

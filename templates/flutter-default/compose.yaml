@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  flutter-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-3.19.6}
+        DART_VERSION: ${DART_VERSION:-3.3.4}
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-22.04}
+        APT_MIRROR: ${APT_MIRROR:-mirrors.ustc.edu.cn}
+        FLUTTER_DOWNLOAD_URL: ${FLUTTER_DOWNLOAD_URL:-https://github.com/flutter/flutter.git}
+        FLUTTER_MIRROR_URL: ${FLUTTER_MIRROR_URL:-https://storage.flutter-io.cn}
+        FLUTTER_FALLBACK_URL: ${FLUTTER_FALLBACK_URL:-https://github.com/flutter/flutter/releases/download}
+        ANDROID_SDK_VERSION: ${ANDROID_SDK_VERSION:-33}
+        JAVA_VERSION: ${JAVA_VERSION:-17}
+        PUB_HOSTED_URL: ${PUB_HOSTED_URL:-https://mirrors.tuna.tsinghua.edu.cn/dart-pub}
+        FLUTTER_STORAGE_BASE_URL: ${FLUTTER_STORAGE_BASE_URL:-https://mirrors.tuna.tsinghua.edu.cn/flutter}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git unzip xz-utils zip libglu1-mesa ca-certificates build-essential"}
+    volumes:
+      - ../../:/workspace
+      - flutter-cache:/root/.flutter
+      - flutter-pub-cache:/root/.pub-cache
+      - android-sdk-cache:/android-sdk
+    ports:
+      - "${DEV_PORT:-3000}:3000"
+      - "${DEBUG_PORT:-9229}:9229"
+      - "${HOT_RELOAD_PORT:-8080}:8080"
+    env_file:
+      - .env
+    working_dir: /workspace
+    command: bash
+    stdin_open: true
+    tty: true
+    environment:
+      - FLUTTER_ROOT=/flutter
+      - PUB_HOSTED_URL=${PUB_HOSTED_URL:-https://mirrors.tuna.tsinghua.edu.cn/dart-pub}
+      - FLUTTER_STORAGE_BASE_URL=${FLUTTER_STORAGE_BASE_URL:-https://mirrors.tuna.tsinghua.edu.cn/flutter}
+
+volumes:
+  flutter-cache:
+  flutter-pub-cache:
+  android-sdk-cache:
