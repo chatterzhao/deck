@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
         services.AddSingleton<ISystemDetectionService, SystemDetectionService>();
+        services.AddSingleton<IPortConflictService, PortConflictService>();
         
         // 注册日志服务
         services.AddSingleton<ILoggingService>(provider => 

@@ -171,7 +171,7 @@ public class ServiceValidationResult
     /// <summary>
     /// 端口配置验证
     /// </summary>
-    public List<PortValidationResult> PortValidations { get; set; } = new();
+    public List<ComposePortValidationResult> PortValidations { get; set; } = new();
 
     /// <summary>
     /// 卷挂载验证
@@ -241,9 +241,9 @@ public class ImageValidationResult
 }
 
 /// <summary>
-/// 端口验证结果
+/// Compose端口验证结果
 /// </summary>
-public class PortValidationResult
+public class ComposePortValidationResult
 {
     /// <summary>
     /// 主机端口
@@ -258,7 +258,7 @@ public class PortValidationResult
     /// <summary>
     /// 协议类型
     /// </summary>
-    public ProtocolType Protocol { get; set; }
+    public DeckProtocolType Protocol { get; set; }
 
     /// <summary>
     /// 是否有效
@@ -454,7 +454,7 @@ public class PortConflictResult
     /// <summary>
     /// 协议类型
     /// </summary>
-    public ProtocolType Protocol { get; set; }
+    public DeckProtocolType Protocol { get; set; }
 
     /// <summary>
     /// 是否冲突

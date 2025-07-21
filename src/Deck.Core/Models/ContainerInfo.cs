@@ -193,7 +193,7 @@ public class PortMapping
     /// <summary>
     /// 协议类型
     /// </summary>
-    public ProtocolType Protocol { get; set; } = ProtocolType.TCP;
+    public DeckProtocolType Protocol { get; set; } = DeckProtocolType.TCP;
 
     /// <summary>
     /// 主机IP
@@ -204,7 +204,7 @@ public class PortMapping
 /// <summary>
 /// 协议类型枚举
 /// </summary>
-public enum ProtocolType
+public enum DeckProtocolType
 {
     TCP,
     UDP,
