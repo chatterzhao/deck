@@ -19,16 +19,18 @@ if (!configService.ConfigExists())
     Console.WriteLine("配置文件不存在，正在创建默认配置...");
     var config = await configService.GetConfigAsync();
     Console.WriteLine("✅ 默认配置已创建");
-    Console.WriteLine($"仓库URL: {config.Templates.Repository.Url}");
-    Console.WriteLine($"容器引擎: {config.Container.Engine}");
+    Console.WriteLine($"仓库URL: {config.RemoteTemplates.Repository}");
+    Console.WriteLine($"仓库分支: {config.RemoteTemplates.Branch}");
+    Console.WriteLine($"自动更新: {config.RemoteTemplates.AutoUpdate}");
 }
 else
 {
     Console.WriteLine("配置文件已存在，正在加载...");
     var config = await configService.GetConfigAsync();
     Console.WriteLine("✅ 配置文件加载成功");
-    Console.WriteLine($"仓库URL: {config.Templates.Repository.Url}");
-    Console.WriteLine($"容器引擎: {config.Container.Engine}");
+    Console.WriteLine($"仓库URL: {config.RemoteTemplates.Repository}");
+    Console.WriteLine($"仓库分支: {config.RemoteTemplates.Branch}");
+    Console.WriteLine($"自动更新: {config.RemoteTemplates.AutoUpdate}");
 }
 
 Console.WriteLine("配置文件功能测试完成！");

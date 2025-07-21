@@ -117,44 +117,29 @@ public class ConfigurationService : IConfigurationService
         var result = new ConfigValidationResult { IsValid = true };
 
         // 验证仓库URL
-        if (string.IsNullOrWhiteSpace(config.Templates.Repository.Url))
+        if (string.IsNullOrWhiteSpace(config.RemoteTemplates.Repository))
         {
             result.Errors.Add("模板仓库URL不能为空");
             result.IsValid = false;
         }
-        else if (!Uri.TryCreate(config.Templates.Repository.Url, UriKind.Absolute, out var uri) ||
+        else if (!Uri.TryCreate(config.RemoteTemplates.Repository, UriKind.Absolute, out var uri) ||
                  (uri.Scheme != "https" && uri.Scheme != "http"))
         {
-            result.Errors.Add($"无效的模板仓库URL: {config.Templates.Repository.Url}");
+            result.Errors.Add($"无效的模板仓库URL: {config.RemoteTemplates.Repository}");
             result.IsValid = false;
         }
 
-        // 验证容器引擎
-        var validEngines = new[] { "podman", "docker" };
-        if (!validEngines.Contains(config.Container.Engine.ToLowerInvariant()))
+        // 验证分支名称
+        if (string.IsNullOrWhiteSpace(config.RemoteTemplates.Branch))
         {
-            result.Errors.Add($"不支持的容器引擎: {config.Container.Engine}，支持的引擎: {string.Join(", ", validEngines)}");
-            result.IsValid = false;
+            result.Warnings.Add("模板仓库分支为空，将使用默认值main");
         }
 
-        // 验证缓存过期时间格式
-        if (!IsValidTimeSpanFormat(config.Templates.CacheExpire))
+        // 验证缓存TTL格式 (如: "24h", "1d", "30m")
+        if (!string.IsNullOrWhiteSpace(config.RemoteTemplates.CacheTtl) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(config.RemoteTemplates.CacheTtl, @"^\d+[hmd]$"))
         {
-            result.Warnings.Add($"无效的缓存过期时间格式: {config.Templates.CacheExpire}，将使用默认值24h");
-        }
-
-        // 验证日志级别
-        var validLogLevels = new[] { "trace", "debug", "info", "warn", "error" };
-        if (!validLogLevels.Contains(config.Logging.Level.ToLowerInvariant()))
-        {
-            result.Warnings.Add($"无效的日志级别: {config.Logging.Level}，将使用默认值info");
-        }
-
-        // 验证语言设置
-        var validLanguages = new[] { "zh-CN", "en-US" };
-        if (!validLanguages.Contains(config.UI.Language))
-        {
-            result.Warnings.Add($"不支持的语言: {config.UI.Language}，将使用默认值zh-CN");
+            result.Warnings.Add($"缓存TTL格式可能无效: {config.RemoteTemplates.CacheTtl}，建议使用格式如 '24h', '1d', '30m'");
         }
 
         _logger.LogDebug("配置验证完成: Valid={IsValid}, Errors={ErrorCount}, Warnings={WarningCount}", 
@@ -167,87 +152,14 @@ public class ConfigurationService : IConfigurationService
     {
         _logger.LogInformation("创建默认配置");
         
-        // 获取当前目录名作为默认项目名
-        var currentDir = Directory.GetCurrentDirectory();
-        var projectName = Path.GetFileName(currentDir);
-
         var config = new DeckConfig
         {
-            Templates = new TemplateConfig
+            RemoteTemplates = new RemoteTemplatesConfig
             {
-                Repository = new RepositoryConfig
-                {
-                    Url = "https://github.com/chatterzhao/deck-templates.git",
-                    Branch = "main",
-                    FallbackUrl = "https://gitee.com/zhaoquan/deck-templates.git"
-                },
-                AutoUpdate = true,
-                CacheExpire = "24h",
-                UpdateOnStart = true
-            },
-            Container = new ContainerEngineConfig
-            {
-                Engine = "podman",
-                AutoInstall = true,
-                CheckOnStart = true,
-                FallbackEngine = "docker"
-            },
-            Network = new NetworkConfig
-            {
-                Proxy = new ProxyConfig
-                {
-                    Http = string.Empty,
-                    Https = string.Empty,
-                    NoProxy = "localhost,127.0.0.1"
-                },
-                DNS = new List<string> { "8.8.8.8", "1.1.1.1" },
-                Mirrors = new MirrorsConfig
-                {
-                    DockerRegistry = "docker.m.daocloud.io",
-                    AptMirror = "mirrors.ustc.edu.cn"
-                }
-            },
-            Project = new ProjectConfig
-            {
-                Name = projectName,
-                WorkspacePath = "/workspace",
-                AutoCreateGitignore = true
-            },
-            Cache = new CacheConfig
-            {
-                EnableBuildCache = true,
-                CacheDirectory = ".deck/cache",
-                MaxCacheSize = "5GB",
-                AutoCleanup = true,
-                CleanupDays = 30
-            },
-            UI = new UIConfig
-            {
-                Language = "zh-CN",
-                ShowTips = true,
-                InteractiveMode = true,
-                ShowPodmanCommands = true
-            },
-            Development = new DevelopmentConfig
-            {
-                AutoPortForward = true,
-                DefaultMemoryLimit = "4g",
-                DefaultCpuLimit = "2",
-                EnableHotReload = true,
-                ShowBuildOutput = true
-            },
-            Security = new SecurityConfig
-            {
-                EnableNoNewPrivileges = true,
-                RestrictedCapabilities = true,
-                ScanTemplates = false
-            },
-            Logging = new LoggingConfig
-            {
-                Level = "info",
-                File = ".deck/logs/deck.log",
-                MaxFileSize = "10MB",
-                KeepFiles = 5
+                Repository = "https://github.com/chatterzhao/deck-templates.git",
+                Branch = "main",
+                CacheTtl = "24h",
+                AutoUpdate = true
             }
         };
 
@@ -265,18 +177,6 @@ public class ConfigurationService : IConfigurationService
         return File.Exists(GetConfigFilePath());
     }
 
-    /// <summary>
-    /// 验证时间跨度格式
-    /// </summary>
-    private static bool IsValidTimeSpanFormat(string timeSpan)
-    {
-        // 简单验证时间格式 (例如: 24h, 30m, 7d)
-        if (string.IsNullOrWhiteSpace(timeSpan))
-            return false;
-
-        var pattern = @"^\d+[hdm]$";
-        return System.Text.RegularExpressions.Regex.IsMatch(timeSpan.ToLowerInvariant(), pattern);
-    }
 
     /// <summary>
     /// 生成带注释的配置文件内容
@@ -286,7 +186,7 @@ public class ConfigurationService : IConfigurationService
         var header = @"# =============================================================================
 # Deck .NET版本配置文件
 # =============================================================================
-# 此文件控制Deck工具的所有配置选项
+# 此文件用于配置远程模板仓库，参考deck-shell的配置设计
 # 更多信息请参考: https://github.com/chatterzhao/deck
 # =============================================================================
 

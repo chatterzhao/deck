@@ -34,9 +34,9 @@ public class ConfigurationServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(config);
-        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.Templates.Repository.Url);
-        Assert.Equal("podman", config.Container.Engine);
-        Assert.True(config.UI.ShowPodmanCommands);
+        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.RemoteTemplates.Repository);
+        Assert.Equal("main", config.RemoteTemplates.Branch);
+        Assert.True(config.RemoteTemplates.AutoUpdate);
         
         // 验证配置文件已创建
         Assert.True(_configurationService.ConfigExists());
@@ -50,26 +50,11 @@ public class ConfigurationServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(config);
-        
-        // 验证模板配置
-        Assert.NotNull(config.Templates);
-        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.Templates.Repository.Url);
-        Assert.Equal("main", config.Templates.Repository.Branch);
-        Assert.True(config.Templates.AutoUpdate);
-        
-        // 验证容器配置
-        Assert.NotNull(config.Container);
-        Assert.Equal("podman", config.Container.Engine);
-        Assert.Equal("docker", config.Container.FallbackEngine);
-        
-        // 验证UI配置
-        Assert.NotNull(config.UI);
-        Assert.Equal("zh-CN", config.UI.Language);
-        Assert.True(config.UI.ShowPodmanCommands);
-        
-        // 验证项目配置
-        Assert.NotNull(config.Project);
-        Assert.False(string.IsNullOrEmpty(config.Project.Name));
+        Assert.NotNull(config.RemoteTemplates);
+        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.RemoteTemplates.Repository);
+        Assert.Equal("main", config.RemoteTemplates.Branch);
+        Assert.Equal("24h", config.RemoteTemplates.CacheTtl);
+        Assert.True(config.RemoteTemplates.AutoUpdate);
     }
 
     [Fact]
@@ -91,7 +76,7 @@ public class ConfigurationServiceTests : IDisposable
     {
         // Arrange
         var config = await _configurationService.CreateDefaultConfigAsync();
-        config.Templates.Repository.Url = "invalid-url";
+        config.RemoteTemplates.Repository = "invalid-url";
 
         // Act
         var result = await _configurationService.ValidateConfigAsync(config);
@@ -102,18 +87,33 @@ public class ConfigurationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateConfigAsync_WithInvalidEngine_ShouldReturnInvalid()
+    public async Task ValidateConfigAsync_WithEmptyRepositoryUrl_ShouldReturnInvalid()
     {
         // Arrange
         var config = await _configurationService.CreateDefaultConfigAsync();
-        config.Container.Engine = "invalid-engine";
+        config.RemoteTemplates.Repository = "";
 
         // Act
         var result = await _configurationService.ValidateConfigAsync(config);
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("不支持的容器引擎"));
+        Assert.Contains(result.Errors, e => e.Contains("模板仓库URL不能为空"));
+    }
+
+    [Fact]
+    public async Task ValidateConfigAsync_WithInvalidCacheTtl_ShouldReturnWarning()
+    {
+        // Arrange
+        var config = await _configurationService.CreateDefaultConfigAsync();
+        config.RemoteTemplates.CacheTtl = "invalid-ttl";
+
+        // Act
+        var result = await _configurationService.ValidateConfigAsync(config);
+
+        // Assert
+        Assert.True(result.IsValid); // 仍然有效，只是有警告
+        Assert.Contains(result.Warnings, w => w.Contains("缓存TTL格式可能无效"));
     }
 
     [Fact]
@@ -130,9 +130,8 @@ public class ConfigurationServiceTests : IDisposable
         Assert.True(File.Exists(configPath));
         
         var content = await File.ReadAllTextAsync(configPath);
-        Assert.Contains("templates:", content);
+        Assert.Contains("remote_templates:", content);
         Assert.Contains("repository:", content);
-        Assert.Contains("url:", content);
         Assert.Contains("github.com/chatterzhao/deck-templates.git", content);
     }
 
@@ -141,8 +140,9 @@ public class ConfigurationServiceTests : IDisposable
     {
         // Arrange
         var originalConfig = await _configurationService.CreateDefaultConfigAsync();
-        originalConfig.Templates.Repository.Url = "https://custom.repo.com/templates.git";
-        originalConfig.Container.Engine = "docker";
+        originalConfig.RemoteTemplates.Repository = "https://custom.repo.com/templates.git";
+        originalConfig.RemoteTemplates.Branch = "develop";
+        originalConfig.RemoteTemplates.AutoUpdate = false;
         
         await _configurationService.SaveConfigAsync(originalConfig);
 
@@ -150,8 +150,9 @@ public class ConfigurationServiceTests : IDisposable
         var loadedConfig = await _configurationService.GetConfigAsync();
 
         // Assert
-        Assert.Equal("https://custom.repo.com/templates.git", loadedConfig.Templates.Repository.Url);
-        Assert.Equal("docker", loadedConfig.Container.Engine);
+        Assert.Equal("https://custom.repo.com/templates.git", loadedConfig.RemoteTemplates.Repository);
+        Assert.Equal("develop", loadedConfig.RemoteTemplates.Branch);
+        Assert.False(loadedConfig.RemoteTemplates.AutoUpdate);
     }
 
     [Fact]
