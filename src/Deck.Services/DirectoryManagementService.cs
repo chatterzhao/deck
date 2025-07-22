@@ -249,7 +249,11 @@ public class DirectoryManagementService : IDirectoryManagementService
             }
 
             var jsonContent = await File.ReadAllTextAsync(metadataPath);
-            var metadata = JsonSerializer.Deserialize<ImageMetadata>(jsonContent);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var metadata = JsonSerializer.Deserialize<ImageMetadata>(jsonContent, options);
 
             return metadata;
         }
