@@ -205,8 +205,8 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     // 添加 images 命令
     AddImagesCommand(rootCommand, services);
     
-    // 添加 config 命令
-    AddConfigCommand(rootCommand, services);
+    // 添加 custom 命令 (替换原有 config 命令)
+    AddCustomCommand(rootCommand, services);
     
     // 添加 templates 命令
     AddTemplatesCommand(rootCommand, services);
@@ -235,17 +235,28 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     rootCommand.AddCommand(doctorCommand);
     
     // 添加 clean 命令
-    var cleanCommand = new Command("clean", "清理旧资源")
+    var cleanCommand = new Command("clean", "三层配置清理选择")
     {
         new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量")
     };
-    cleanCommand.SetHandler((int keepCount) =>
+    cleanCommand.SetHandler(async (int keepCount) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Clean");
         logger.LogInformation("Clean command called with keep-count: {KeepCount}", keepCount);
-        Console.WriteLine($"🧹 清理资源... (保留: {keepCount} 个)");
-        // TODO: 实现 clean 命令逻辑
-        Console.WriteLine("Clean 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var cleaningService = services.GetRequiredService<ICleaningService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new CleanCommand(consoleDisplay, interactiveSelection, cleaningService, directoryManagement, loggingService);
+        var success = await command.ExecuteAsync(keepCount);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, cleanCommand.Options.Cast<Option<int>>().First());
     rootCommand.AddCommand(cleanCommand);
     
@@ -366,55 +377,111 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
     rootCommand.AddCommand(imagesCommand);
 }
 
-static void AddConfigCommand(RootCommand rootCommand, IServiceProvider services)
+static void AddCustomCommand(RootCommand rootCommand, IServiceProvider services)
 {
-    var configCommand = new Command("config", "配置管理命令");
+    var customCommand = new Command("custom", "自定义配置管理命令");
     
-    // config list 子命令
+    // custom list 子命令
     var listCommand = new Command("list", "列出用户自定义配置");
-    listCommand.SetHandler(() =>
+    listCommand.SetHandler(async () =>
     {
-        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Config.List");
-        logger.LogInformation("Config list command called");
-        Console.WriteLine("📋 列出配置...");
-        // TODO: 实现 config list 命令逻辑
-        Console.WriteLine("Config list 命令暂未实现");
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Custom.List");
+        logger.LogInformation("Custom list command called");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var fileSystem = services.GetRequiredService<IFileSystemService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new CustomCommand(consoleDisplay, interactiveSelection, directoryManagement, fileSystem, loggingService);
+        var success = await command.ExecuteListAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
-    configCommand.AddCommand(listCommand);
+    customCommand.AddCommand(listCommand);
     
-    // config create 子命令
-    var createCommand = new Command("create", "创建新配置")
+    // custom create 子命令
+    var createCommand = new Command("create", "创建新的自定义配置")
     {
         new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
         new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    createCommand.SetHandler((string? configName, string? envType) =>
+    createCommand.SetHandler(async (string? configName, string? envType) =>
     {
-        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Config.Create");
-        logger.LogInformation("Config create command called with config-name: {ConfigName}, env-type: {EnvType}", 
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Custom.Create");
+        logger.LogInformation("Custom create command called with config-name: {ConfigName}, env-type: {EnvType}", 
             configName ?? "interactive-input", envType ?? "interactive-select");
-        Console.WriteLine($"🆕 创建配置... (名称: {configName ?? "交互式输入"}, 类型: {envType ?? "交互式选择"})");
-        // TODO: 实现 config create 命令逻辑
-        Console.WriteLine("Config create 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var fileSystem = services.GetRequiredService<IFileSystemService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new CustomCommand(consoleDisplay, interactiveSelection, directoryManagement, fileSystem, loggingService);
+        var success = await command.ExecuteCreateAsync(configName, envType);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, createCommand.Arguments.Cast<Argument<string?>>().First(), createCommand.Arguments.Cast<Argument<string?>>().Last());
-    configCommand.AddCommand(createCommand);
+    customCommand.AddCommand(createCommand);
     
-    // config edit 子命令
-    var editCommand = new Command("edit", "编辑配置")
+    // custom edit 子命令
+    var editCommand = new Command("edit", "编辑自定义配置")
     {
         new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    editCommand.SetHandler((string? configName) =>
+    editCommand.SetHandler(async (string? configName) =>
     {
-        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Config.Edit");
-        logger.LogInformation("Config edit command called with config-name: {ConfigName}", configName ?? "interactive-select");
-        Console.WriteLine($"✏️  编辑配置... ({configName ?? "交互式选择"})");
-        // TODO: 实现 config edit 命令逻辑
-        Console.WriteLine("Config edit 命令暂未实现");
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Custom.Edit");
+        logger.LogInformation("Custom edit command called with config-name: {ConfigName}", configName ?? "interactive-select");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var fileSystem = services.GetRequiredService<IFileSystemService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new CustomCommand(consoleDisplay, interactiveSelection, directoryManagement, fileSystem, loggingService);
+        var success = await command.ExecuteEditAsync(configName);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, editCommand.Arguments.Cast<Argument<string?>>().First());
-    configCommand.AddCommand(editCommand);
+    customCommand.AddCommand(editCommand);
     
-    rootCommand.AddCommand(configCommand);
+    // custom clean 子命令
+    var cleanCommand = new Command("clean", "清理自定义配置");
+    cleanCommand.SetHandler(async () =>
+    {
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Custom.Clean");
+        logger.LogInformation("Custom clean command called");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var fileSystem = services.GetRequiredService<IFileSystemService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new CustomCommand(consoleDisplay, interactiveSelection, directoryManagement, fileSystem, loggingService);
+        var success = await command.ExecuteCleanAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
+    });
+    customCommand.AddCommand(cleanCommand);
+    
+    rootCommand.AddCommand(customCommand);
 }
 
 static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider services)
@@ -423,51 +490,123 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
     
     // templates list 子命令
     var listCommand = new Command("list", "列出可用模板");
-    listCommand.SetHandler(() =>
+    listCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Templates.List");
         logger.LogInformation("Templates list command called");
-        Console.WriteLine("📋 列出模板...");
-        // TODO: 实现 templates list 命令逻辑
-        Console.WriteLine("Templates list 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var configurationService = services.GetRequiredService<IConfigurationService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var success = await command.ExecuteListAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     templatesCommand.AddCommand(listCommand);
     
     // templates update 子命令
-    var updateCommand = new Command("update", "更新模板");
-    updateCommand.SetHandler(() =>
+    var updateCommand = new Command("update", "更新远程模板");
+    updateCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Templates.Update");
         logger.LogInformation("Templates update command called");
-        Console.WriteLine("🔄 更新模板...");
-        // TODO: 实现 templates update 命令逻辑
-        Console.WriteLine("Templates update 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var configurationService = services.GetRequiredService<IConfigurationService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var success = await command.ExecuteUpdateAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     templatesCommand.AddCommand(updateCommand);
     
     // templates config 子命令
     var configCommand = new Command("config", "显示模板配置");
-    configCommand.SetHandler(() =>
+    configCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Templates.Config");
         logger.LogInformation("Templates config command called");
-        Console.WriteLine("⚙️  模板配置...");
-        // TODO: 实现 templates config 命令逻辑
-        Console.WriteLine("Templates config 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var configurationService = services.GetRequiredService<IConfigurationService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var success = await command.ExecuteConfigAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     templatesCommand.AddCommand(configCommand);
     
     // templates sync 子命令
-    var syncCommand = new Command("sync", "手动同步模板");
-    syncCommand.SetHandler(() =>
+    var syncCommand = new Command("sync", "手动同步模板到项目");
+    syncCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Templates.Sync");
         logger.LogInformation("Templates sync command called");
-        Console.WriteLine("🔄 同步模板...");
-        // TODO: 实现 templates sync 命令逻辑
-        Console.WriteLine("Templates sync 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var configurationService = services.GetRequiredService<IConfigurationService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var success = await command.ExecuteSyncAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     templatesCommand.AddCommand(syncCommand);
+    
+    // templates clean 子命令
+    var cleanCommand = new Command("clean", "清理模板 (不推荐)");
+    cleanCommand.SetHandler(async () =>
+    {
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Templates.Clean");
+        logger.LogInformation("Templates clean command called");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var configurationService = services.GetRequiredService<IConfigurationService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var success = await command.ExecuteCleanAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
+    });
+    templatesCommand.AddCommand(cleanCommand);
     
     rootCommand.AddCommand(templatesCommand);
 }
@@ -486,8 +625,9 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine("  shell [image-name]    进入容器");
     Console.WriteLine();
     Console.WriteLine("  custom list           列出用户自定义配置");
-    Console.WriteLine("  config create         创建新配置");
-    Console.WriteLine("  config edit           编辑配置");
+    Console.WriteLine("  custom create         创建新的自定义配置");
+    Console.WriteLine("  custom edit           编辑自定义配置");
+    Console.WriteLine("  custom clean          清理自定义配置");
     Console.WriteLine();
     Console.WriteLine("  images list           列出已构建镜像");
     Console.WriteLine("  images clean          清理旧镜像");
@@ -495,10 +635,13 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine("  images help           显示镜像目录权限说明");
     Console.WriteLine();
     Console.WriteLine("  templates list        列出可用模板");
-    Console.WriteLine("  templates update      更新模板");
+    Console.WriteLine("  templates update      更新远程模板");
+    Console.WriteLine("  templates config      显示模板配置");
+    Console.WriteLine("  templates sync        手动同步模板");
+    Console.WriteLine("  templates clean       清理模板 (不推荐)");
     Console.WriteLine();
     Console.WriteLine("  doctor                系统诊断");
-    Console.WriteLine("  clean                 清理资源");
+    Console.WriteLine("  clean                 三层配置清理选择");
     Console.WriteLine("  install podman        安装 Podman");
     Console.WriteLine();
     Console.WriteLine("  help                  显示帮助信息");
@@ -509,7 +652,7 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine($"  {programName} start tauri              # 启动 Tauri 环境");
     Console.WriteLine($"  {programName} stop my-app-20241215     # 停止指定镜像");
     Console.WriteLine($"  {programName} logs -f                  # 实时查看日志");
-    Console.WriteLine($"  {programName} config create tauri-dev  # 创建新配置");
+    Console.WriteLine($"  {programName} custom create tauri-dev  # 创建自定义配置");
     Console.WriteLine();
     Console.WriteLine("更多信息请访问: https://github.com/your-org/deck-tool");
     Console.WriteLine();
