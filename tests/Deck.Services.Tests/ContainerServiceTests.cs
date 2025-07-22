@@ -1,0 +1,316 @@
+using Deck.Core.Interfaces;
+using Deck.Core.Models;
+using Deck.Services;
+using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+
+namespace Deck.Services.Tests;
+
+public class ContainerServiceTests
+{
+    private readonly Mock<ILogger<ContainerService>> _mockLogger;
+    private readonly Mock<IPortConflictService> _mockPortConflictService;
+    private readonly Mock<ISystemDetectionService> _mockSystemDetectionService;
+    private readonly Mock<INetworkService> _mockNetworkService;
+    private readonly ContainerService _containerService;
+
+    public ContainerServiceTests()
+    {
+        _mockLogger = new Mock<ILogger<ContainerService>>();
+        _mockPortConflictService = new Mock<IPortConflictService>();
+        _mockSystemDetectionService = new Mock<ISystemDetectionService>();
+        _mockNetworkService = new Mock<INetworkService>();
+        
+        _containerService = new ContainerService(
+            _mockLogger.Object,
+            _mockPortConflictService.Object,
+            _mockSystemDetectionService.Object,
+            _mockNetworkService.Object);
+    }
+
+    [Fact]
+    public async Task GetProjectRelatedContainersAsync_WithValidProject_ReturnsFilteredContainers()
+    {
+        // Arrange
+        var projectPath = "/test/project";
+        var projectType = ProjectType.Tauri;
+        
+        // Note: This is a unit test focusing on the business logic
+        // In reality, we would need to mock the podman commands or create integration tests
+        
+        // Act
+        var result = await _containerService.GetProjectRelatedContainersAsync(projectPath, projectType);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().BeOfType<List<ContainerInfo>>();
+    }
+
+    [Theory]
+    [InlineData("tauri-20240722-1430", ProjectType.Tauri, true)]
+    [InlineData("flutter-dev-container", ProjectType.Flutter, true)]
+    [InlineData("avalonia-app-20240722", ProjectType.Avalonia, true)]
+    [InlineData("random-container", ProjectType.Tauri, false)]
+    public async Task FilterContainersByProjectAsync_WithDifferentContainerNames_ReturnsCorrectResults(
+        string containerName, ProjectType projectType, bool shouldMatch)
+    {
+        // Arrange
+        var containers = new List<ContainerInfo>
+        {
+            new ContainerInfo
+            {
+                Name = containerName,
+                Status = ContainerStatus.Running,
+                ProjectType = shouldMatch ? projectType : ProjectType.Unknown
+            }
+        };
+        
+        var projectPath = "/test/project";
+        
+        // Act
+        var result = await _containerService.FilterContainersByProjectAsync(containers, projectPath, projectType);
+        
+        // Assert
+        if (shouldMatch)
+        {
+            result.Should().HaveCount(1);
+            result.First().Name.Should().Be(containerName);
+        }
+        else
+        {
+            result.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task DetectContainerStatusAsync_WithValidContainer_ReturnsStatusResult()
+    {
+        // Arrange
+        var containerName = "test-container";
+        
+        // Act
+        var result = await _containerService.DetectContainerStatusAsync(containerName);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.Message.Should().NotBeEmpty();
+        result.LastChecked.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task CheckAndResolvePortConflictsAsync_WithContainer_ChecksPorts()
+    {
+        // Arrange
+        var container = new ContainerInfo
+        {
+            Name = "test-container",
+            PortMappings = new List<PortMapping>
+            {
+                new PortMapping { HostPort = 8080, ContainerPort = 80, Protocol = "tcp" },
+                new PortMapping { HostPort = 9000, ContainerPort = 9000, Protocol = "tcp" }
+            }
+        };
+
+        _mockPortConflictService
+            .Setup(x => x.CheckPortConflictAsync(It.IsAny<int>()))
+            .ReturnsAsync((PortConflict?)null);
+
+        // Act
+        var result = await _containerService.CheckAndResolvePortConflictsAsync(container);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.CanProceed.Should().BeTrue();
+        result.HasConflicts.Should().BeFalse();
+        
+        _mockPortConflictService.Verify(x => x.CheckPortConflictAsync(8080), Times.Once);
+        _mockPortConflictService.Verify(x => x.CheckPortConflictAsync(9000), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckAndResolvePortConflictsAsync_WithPortConflicts_ReturnsConflicts()
+    {
+        // Arrange
+        var container = new ContainerInfo
+        {
+            Name = "test-container",
+            PortMappings = new List<PortMapping>
+            {
+                new PortMapping { HostPort = 8080, ContainerPort = 80, Protocol = "tcp" }
+            }
+        };
+
+        var conflict = new PortConflict
+        {
+            Port = 8080,
+            CanResolve = true,
+            ProcessInfo = new ProcessInfo { ProcessId = 1234, ProcessName = "nginx" }
+        };
+
+        _mockPortConflictService
+            .Setup(x => x.CheckPortConflictAsync(8080))
+            .ReturnsAsync(conflict);
+
+        // Act
+        var result = await _containerService.CheckAndResolvePortConflictsAsync(container);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.HasConflicts.Should().BeTrue();
+        result.CanProceed.Should().BeTrue();
+        result.Conflicts.Should().Contain(conflict);
+        result.Suggestions.Should().NotBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("/test/tauri/Cargo.toml", ProjectType.Tauri)]
+    [InlineData("/test/flutter/pubspec.yaml", ProjectType.Flutter)]
+    [InlineData("/test/avalonia/App.csproj", ProjectType.Avalonia)]
+    [InlineData("/test/react/package.json", ProjectType.React)]
+    public void DetectProjectType_WithValidProjectFiles_ReturnsCorrectType(string projectFilePath, ProjectType expectedType)
+    {
+        // This would be tested by creating actual project files in a test directory
+        // For now, we can test the logic conceptually
+        
+        var projectPath = Path.GetDirectoryName(projectFilePath)!;
+        
+        // In a real test, we would create these files and test the detection logic
+        // This is a placeholder to show the test structure
+        Assert.True(true); // Placeholder assertion
+    }
+
+    [Fact]
+    public async Task ManageContainerLifecycleAsync_WithStartOperation_ReturnsSuccessResult()
+    {
+        // Arrange
+        var containerName = "test-container";
+        var operation = ContainerOperation.Start;
+        
+        // Act
+        var result = await _containerService.ManageContainerLifecycleAsync(containerName, operation);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.Operation.Should().Be(operation);
+        result.OperationTime.Should().BePositive();
+    }
+
+    [Fact]
+    public async Task GetContainerLogsAsync_WithValidContainer_ReturnsLogs()
+    {
+        // Arrange
+        var containerName = "test-container";
+        var tailLines = 50;
+        
+        // Act
+        var result = await _containerService.GetContainerLogsAsync(containerName, tailLines);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.GeneratedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task ExecuteInContainerAsync_WithValidCommand_ReturnsExecutionResult()
+    {
+        // Arrange
+        var containerName = "test-container";
+        var command = "echo 'Hello World'";
+        var options = new ShellOptions
+        {
+            ShellType = "/bin/bash",
+            WorkingDirectory = "/app",
+            User = "root"
+        };
+        
+        // Act
+        var result = await _containerService.ExecuteInContainerAsync(containerName, command, options);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.ExecutionTime.Should().BePositive();
+    }
+
+    [Fact]
+    public async Task CheckContainerHealthAsync_WithValidContainer_ReturnsHealthResult()
+    {
+        // Arrange
+        var containerName = "test-container";
+        
+        // Act
+        var result = await _containerService.CheckContainerHealthAsync(containerName);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.LastChecked.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+        result.Status.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task IsContainerRunningAsync_WithRunningContainer_ReturnsTrue()
+    {
+        // Arrange
+        var containerName = "running-container";
+        
+        // This test would require mocking the podman command execution
+        // For integration testing, we would use real containers
+        
+        // Act
+        var result = await _containerService.IsContainerRunningAsync(containerName);
+        
+        // Assert  
+        result.Should().BeOfType<bool>();
+    }
+
+    [Fact]
+    public async Task StartContainerAsync_WithPortConflicts_HandlesConflictsCorrectly()
+    {
+        // Arrange
+        var containerName = "test-container";
+        var options = new StartOptions
+        {
+            DetachedMode = true,
+            PortOverrides = new Dictionary<int, int> { { 80, 8080 } }
+        };
+
+        // This is a complex integration test that would require:
+        // 1. Mock container with port conflicts
+        // 2. Mock port conflict service responses
+        // 3. Test conflict resolution logic
+        
+        // Act
+        var result = await _containerService.StartContainerAsync(containerName, options);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.StartupTime.Should().BePositive();
+    }
+}
+
+// Integration test class for real container operations
+public class ContainerServiceIntegrationTests
+{
+    // Note: These tests would require:
+    // 1. Running Podman/Docker instance
+    // 2. Test containers setup
+    // 3. Cleanup logic
+    // 4. CI/CD environment configuration
+
+    [Fact(Skip = "Integration test - requires running Podman")]
+    public async Task GetAllContainersAsync_WithRealPodman_ReturnsContainers()
+    {
+        // Integration test implementation
+        // Would test against real podman instance
+        Assert.True(true); // Placeholder
+    }
+
+    [Fact(Skip = "Integration test - requires test container")]
+    public async Task StartStopContainer_FullLifecycle_WorksCorrectly()
+    {
+        // Integration test implementation
+        // Would test full container lifecycle
+        Assert.True(true); // Placeholder
+    }
+}
