@@ -37,6 +37,9 @@ public static class ServiceCollectionExtensions
         // 注册三层统一管理服务（简化版本）
         services.AddSingleton<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
         
+        // 注册清理服务
+        services.AddSingleton<ICleaningService, CleaningService>();
+        
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
         {

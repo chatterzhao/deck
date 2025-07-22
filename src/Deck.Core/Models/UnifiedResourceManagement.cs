@@ -349,7 +349,53 @@ public enum CleaningStrategy
     DeleteAll,
     
     [Description("智能提示替代")]
-    SmartSuggestion
+    SmartSuggestion,
+    
+    [Description("保守")]
+    Conservative,
+    
+    [Description("平衡")]
+    Balanced,
+    
+    [Description("激进")]
+    Aggressive,
+    
+    [Description("自定义")]
+    Custom
+}
+
+/// <summary>
+/// 清理类型枚举
+/// </summary>
+public enum CleaningType
+{
+    Templates,
+    Custom,
+    Images,
+    All,
+    Selective
+}
+
+/// <summary>
+/// 清理风险级别枚举
+/// </summary>
+public enum CleaningRisk
+{
+    Low,
+    Medium,
+    High,
+    Critical
+}
+
+/// <summary>
+/// 清理警告级别枚举
+/// </summary>
+public enum CleaningWarningLevel
+{
+    Info,
+    Warning,
+    Error,
+    Critical
 }
 
 /// <summary>
