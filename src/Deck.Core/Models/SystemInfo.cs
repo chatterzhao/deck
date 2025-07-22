@@ -118,19 +118,27 @@ public class ProjectTypeInfo
     /// 项目根目录
     /// </summary>
     public string ProjectRoot { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 检测到的项目文件列表
+    /// </summary>
+    public List<string> ProjectFiles { get; set; } = new();
 }
 
 /// <summary>
-/// 项目类型枚举
+/// 项目类型枚举 - 基于 deck-shell 的项目类型支持
 /// </summary>
 public enum ProjectType
 {
     Tauri,
     Flutter,
     Avalonia,
+    ReactNative,
+    Electron,
+    Node,
+    Rust,
     DotNet,
     Python,
-    Node,
     Unknown
 }
 
