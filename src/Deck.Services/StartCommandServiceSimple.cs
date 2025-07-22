@@ -11,6 +11,7 @@ public class StartCommandServiceSimple : IStartCommandService
 {
     private readonly ILogger<StartCommandServiceSimple> _logger;
     private readonly IConsoleUIService _consoleUIService;
+    private readonly IEnhancedFileOperationsService _enhancedFileOperationsService;
 
     // 目录常量
     private const string DeckDir = ".deck";
@@ -20,10 +21,12 @@ public class StartCommandServiceSimple : IStartCommandService
 
     public StartCommandServiceSimple(
         ILogger<StartCommandServiceSimple> logger,
-        IConsoleUIService consoleUIService)
+        IConsoleUIService consoleUIService,
+        IEnhancedFileOperationsService enhancedFileOperationsService)
     {
         _logger = logger;
         _consoleUIService = consoleUIService;
+        _enhancedFileOperationsService = enhancedFileOperationsService;
     }
 
     public async Task<StartCommandResult> ExecuteAsync(string? envType, CancellationToken cancellationToken = default)
@@ -106,41 +109,130 @@ public class StartCommandServiceSimple : IStartCommandService
         return Task.FromResult(options);
     }
 
-    public Task<StartCommandResult> StartFromImageAsync(string imageName, CancellationToken cancellationToken = default)
+    public async Task<StartCommandResult> StartFromImageAsync(string imageName, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Starting from image: {ImageName}", imageName);
         
         var imagePath = Path.Combine(ImagesDir, imageName);
         if (!Directory.Exists(imagePath))
         {
-            return Task.FromResult(StartCommandResult.Failure($"镜像目录不存在: {imagePath}"));
+            return StartCommandResult.Failure($"镜像目录不存在: {imagePath}");
         }
 
-        _consoleUIService.ShowInfo($"启动镜像: {imageName}");
-        _consoleUIService.ShowWarning("镜像启动功能暂未完全实现");
+        var envFilePath = Path.Combine(imagePath, ".env");
+        if (!File.Exists(envFilePath))
+        {
+            return StartCommandResult.Failure($"环境文件不存在: {envFilePath}");
+        }
+
+        _consoleUIService.ShowInfo($"🚀 启动镜像: {imageName}");
         
-        return Task.FromResult(StartCommandResult.Success(imageName, $"{imageName}-dev"));
+        try
+        {
+            // 处理标准端口管理
+            _consoleUIService.ShowInfo("🔍 检查端口配置...");
+            var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath);
+            if (!portResult.IsSuccess)
+            {
+                return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
+            }
+            
+            // 显示端口警告
+            foreach (var warning in portResult.Warnings)
+            {
+                _consoleUIService.ShowWarning($"⚠️ {warning}");
+            }
+            
+            // 更新 PROJECT_NAME 避免容器名冲突
+            _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
+            var projectNameResult = await _enhancedFileOperationsService.UpdateProjectNameAsync(envFilePath, imageName);
+            if (!projectNameResult.IsSuccess)
+            {
+                _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
+            }
+            
+            var containerName = $"{projectNameResult.UpdatedProjectName ?? imageName}-dev";
+            
+            // 显示开发环境信息（模拟deck-shell的行为）
+            DisplayDevelopmentInfo(portResult.AllPorts);
+            
+            _consoleUIService.ShowSuccess($"✅ 镜像启动准备完成: {imageName}");
+            _consoleUIService.ShowInfo($"📦 容器名称: {containerName}");
+            
+            return StartCommandResult.Success(imageName, containerName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Starting image failed: {ImageName}", imageName);
+            return StartCommandResult.Failure($"启动失败: {ex.Message}");
+        }
     }
 
-    public Task<StartCommandResult> StartFromConfigAsync(string configName, CancellationToken cancellationToken = default)
+    public async Task<StartCommandResult> StartFromConfigAsync(string configName, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Starting from config: {ConfigName}", configName);
 
         var configPath = Path.Combine(CustomDir, configName);
         if (!Directory.Exists(configPath))
         {
-            return Task.FromResult(StartCommandResult.Failure($"配置目录不存在: {configPath}"));
+            return StartCommandResult.Failure($"配置目录不存在: {configPath}");
         }
 
-        _consoleUIService.ShowInfo($"从配置构建: {configName}");
+        var envFilePath = Path.Combine(configPath, ".env");
+        if (!File.Exists(envFilePath))
+        {
+            return StartCommandResult.Failure($"环境文件不存在: {envFilePath}");
+        }
 
-        // 生成镜像名称（配置名称 + 时间戳）
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-        var imageName = $"{configName}-{timestamp}";
+        _consoleUIService.ShowInfo($"🔨 从配置构建: {configName}");
+        
+        try
+        {
+            // 处理标准端口管理
+            _consoleUIService.ShowInfo("🔍 检查端口配置...");
+            var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath);
+            if (!portResult.IsSuccess)
+            {
+                return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
+            }
+            
+            // 显示端口警告
+            foreach (var warning in portResult.Warnings)
+            {
+                _consoleUIService.ShowWarning($"⚠️ {warning}");
+            }
 
-        _consoleUIService.ShowWarning("配置构建功能暂未完全实现");
+            // 生成镜像名称（配置名称 + 时间戳）
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
+            var imageName = $"{configName}-{timestamp}";
+            
+            // 更新 PROJECT_NAME 避免容器名冲突
+            _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
+            var projectNameResult = await _enhancedFileOperationsService.UpdateProjectNameAsync(envFilePath, imageName);
+            if (!projectNameResult.IsSuccess)
+            {
+                _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
+            }
+            
+            var containerName = $"{projectNameResult.UpdatedProjectName ?? imageName}-dev";
+            
+            // 显示开发环境信息
+            DisplayDevelopmentInfo(portResult.AllPorts);
+            
+            _consoleUIService.ShowInfo($"🚧 配置构建功能：Custom → Images 流程");
+            _consoleUIService.ShowWarning("⚠️ 配置构建功能暂未完全实现，需要集成 podman-compose build");
+            
+            _consoleUIService.ShowSuccess($"✅ 配置预处理完成: {configName}");
+            _consoleUIService.ShowInfo($"📦 目标镜像: {imageName}");
+            _consoleUIService.ShowInfo($"📦 容器名称: {containerName}");
 
-        return Task.FromResult(StartCommandResult.Success(imageName, $"{imageName}-dev"));
+            return StartCommandResult.Success(imageName, containerName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Starting from config failed: {ConfigName}", configName);
+            return StartCommandResult.Failure($"启动失败: {ex.Message}");
+        }
     }
 
     public Task<StartCommandResult> StartFromTemplateAsync(string templateName, string? envType, TemplateWorkflowType workflowType, CancellationToken cancellationToken = default)
@@ -448,6 +540,41 @@ public class StartCommandServiceSimple : IStartCommandService
         Directory.CreateDirectory(ImagesDir);
         Directory.CreateDirectory(CustomDir);
         Directory.CreateDirectory(TemplatesDir);
+    }
+
+    /// <summary>
+    /// 显示开发环境信息，模拟deck-shell的行为
+    /// </summary>
+    private void DisplayDevelopmentInfo(Dictionary<string, int> ports)
+    {
+        if (ports.Count == 0) return;
+        
+        _consoleUIService.ShowInfo("📋 开发环境信息：");
+        
+        if (ports.TryGetValue("DEV_PORT", out var devPort))
+        {
+            _consoleUIService.ShowInfo($"  🌐 开发服务：http://localhost:{devPort}");
+        }
+        
+        if (ports.TryGetValue("DEBUG_PORT", out var debugPort))
+        {
+            _consoleUIService.ShowInfo($"  🐛 调试端口：{debugPort}");
+        }
+        
+        if (ports.TryGetValue("WEB_PORT", out var webPort))
+        {
+            _consoleUIService.ShowInfo($"  📱 Web端口：http://localhost:{webPort}");
+        }
+        
+        if (ports.TryGetValue("HTTPS_PORT", out var httpsPort))
+        {
+            _consoleUIService.ShowInfo($"  🔒 HTTPS端口：https://localhost:{httpsPort}");
+        }
+        
+        if (ports.TryGetValue("ANDROID_DEBUG_PORT", out var androidPort))
+        {
+            _consoleUIService.ShowInfo($"  📱 Android调试端口：{androidPort}");
+        }
     }
 
     private static string GetOptionDescription(StartCommandSelectableOption option)
