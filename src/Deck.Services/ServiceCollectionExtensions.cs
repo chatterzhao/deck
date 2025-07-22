@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
         services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
+        services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
         
         // 注册目录管理服务的临时实现
         services.AddSingleton<IDirectoryManagementService, DirectoryManagementServiceStub>();
