@@ -213,13 +213,24 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     
     // 添加 doctor 命令
     var doctorCommand = new Command("doctor", "系统诊断检查");
-    doctorCommand.SetHandler(() =>
+    doctorCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Doctor");
         logger.LogInformation("Doctor command called");
-        Console.WriteLine("🩺 系统诊断中...");
-        // TODO: 实现 doctor 命令逻辑
-        Console.WriteLine("Doctor 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var systemDetectionService = services.GetRequiredService<ISystemDetectionService>();
+        var networkService = services.GetRequiredService<INetworkService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagementService = services.GetRequiredService<IDirectoryManagementService>();
+        
+        var command = new DoctorCommand(consoleDisplay, systemDetectionService, networkService, loggingService, directoryManagementService);
+        var success = await command.ExecuteAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     rootCommand.AddCommand(doctorCommand);
     
