@@ -107,8 +107,15 @@ public class SystemDetectionServiceTests
         
         try
         {
-            // 创建 Tauri 项目标识文件
-            File.WriteAllText(Path.Combine(tempDir, "tauri.conf.json"), "{}");
+            // 创建 Tauri 项目标识文件 (Cargo.toml + package.json 组合)
+            File.WriteAllText(Path.Combine(tempDir, "Cargo.toml"), """
+                [package]
+                name = "test-app"
+                
+                [dependencies]
+                tauri = { version = "1.0" }
+                """);
+            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}");
 
             // Act
             var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
@@ -116,6 +123,7 @@ public class SystemDetectionServiceTests
             // Assert
             result.DetectedTypes.Should().Contain(ProjectType.Tauri);
             result.RecommendedType.Should().Be(ProjectType.Tauri);
+            result.ProjectFiles.Should().Contain("Cargo.toml, package.json");
         }
         finally
         {
@@ -129,18 +137,58 @@ public class SystemDetectionServiceTests
         // Arrange
         var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
         Directory.CreateDirectory(tempDir);
-        Directory.CreateDirectory(Path.Combine(tempDir, "lib"));
         
         try
         {
-            // 创建 Flutter 项目标识文件
-            File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), "name: test_app");
+            // 创建 Flutter 项目标识文件 (pubspec.yaml 包含 flutter)
+            File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), """
+                name: test_app
+                flutter:
+                  sdk: flutter
+                """);
 
             // Act
             var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
 
             // Assert
             result.DetectedTypes.Should().Contain(ProjectType.Flutter);
+            result.RecommendedType.Should().Be(ProjectType.Flutter);
+            result.ProjectFiles.Should().Contain("pubspec.yaml");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task DetectProjectTypeAsync_WithAvaloniaProject_ShouldDetectAvalonia()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+        Directory.CreateDirectory(tempDir);
+        
+        try
+        {
+            // 创建 Avalonia 项目标识文件 (.csproj 包含 Avalonia 引用)
+            File.WriteAllText(Path.Combine(tempDir, "test.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Avalonia" Version="11.0.0" />
+                  </ItemGroup>
+                </Project>
+                """);
+
+            // Act
+            var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
+
+            // Assert
+            result.DetectedTypes.Should().Contain(ProjectType.Avalonia);
+            result.RecommendedType.Should().Be(ProjectType.Avalonia);
+            result.ProjectFiles.Should().Contain("test.csproj");
         }
         finally
         {
@@ -157,7 +205,7 @@ public class SystemDetectionServiceTests
         
         try
         {
-            // 创建 .NET 项目标识文件
+            // 创建普通 .NET 项目标识文件
             File.WriteAllText(Path.Combine(tempDir, "test.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />");
 
             // Act
@@ -165,6 +213,8 @@ public class SystemDetectionServiceTests
 
             // Assert
             result.DetectedTypes.Should().Contain(ProjectType.DotNet);
+            result.RecommendedType.Should().Be(ProjectType.DotNet);
+            result.ProjectFiles.Should().Contain("*.csproj");
         }
         finally
         {
@@ -296,27 +346,158 @@ public class SystemDetectionServiceTests
     }
 
     [Fact]
+    public async Task DetectProjectTypeAsync_WithReactNativeProject_ShouldDetectReactNative()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+        Directory.CreateDirectory(tempDir);
+        Directory.CreateDirectory(Path.Combine(tempDir, "android"));
+        Directory.CreateDirectory(Path.Combine(tempDir, "ios"));
+        
+        try
+        {
+            // 创建 React Native 项目标识文件
+            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}");
+
+            // Act
+            var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
+
+            // Assert
+            result.DetectedTypes.Should().Contain(ProjectType.ReactNative);
+            result.RecommendedType.Should().Be(ProjectType.ReactNative);
+            result.ProjectFiles.Should().Contain("package.json, android/, ios/");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task DetectProjectTypeAsync_WithElectronProject_ShouldDetectElectron()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+        Directory.CreateDirectory(tempDir);
+        
+        try
+        {
+            // 创建 Electron 项目标识文件
+            File.WriteAllText(Path.Combine(tempDir, "package.json"), """
+                {
+                  "main": "main.js",
+                  "dependencies": {
+                    "electron": "^20.0.0"
+                  }
+                }
+                """);
+
+            // Act
+            var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
+
+            // Assert
+            result.DetectedTypes.Should().Contain(ProjectType.Electron);
+            result.RecommendedType.Should().Be(ProjectType.Electron);
+            result.ProjectFiles.Should().Contain("package.json");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public async Task DetectProjectTypeAsync_WithMultipleProjects_ShouldReturnCorrectPriority()
     {
         // Arrange
         var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
         Directory.CreateDirectory(tempDir);
-        Directory.CreateDirectory(Path.Combine(tempDir, "lib"));
         
         try
         {
-            // 创建多个项目类型的标识文件
-            File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), "name: test_app"); // Flutter
-            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}"); // Node.js
-            File.WriteAllText(Path.Combine(tempDir, "test.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />"); // .NET
+            // 创建多个项目类型的标识文件 (测试优先级)
+            File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), """
+                name: test_app
+                flutter:
+                  sdk: flutter
+                """); // Flutter - 优先级2
+            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}"); // Node.js - 优先级6
+            File.WriteAllText(Path.Combine(tempDir, "test.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />"); // .NET - 优先级8
 
             // Act
             var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
 
             // Assert
             result.DetectedTypes.Should().HaveCountGreaterThan(1);
-            // Flutter 应该有更高的优先级
+            result.DetectedTypes.Should().Contain(ProjectType.Flutter);
+            result.DetectedTypes.Should().Contain(ProjectType.DotNet);
+            // Flutter 应该有更高的优先级 (2 vs 8)
             result.RecommendedType.Should().Be(ProjectType.Flutter);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task DetectProjectTypeAsync_WithTauriPriority_ShouldPreferTauri()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+        Directory.CreateDirectory(tempDir);
+        
+        try
+        {
+            // 创建 Tauri + Flutter + .NET 的混合项目 (测试最高优先级)
+            File.WriteAllText(Path.Combine(tempDir, "Cargo.toml"), """
+                [package]
+                name = "test-app"
+                [dependencies]
+                tauri = "1.0"
+                """);
+            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}");
+            File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), """
+                name: test_app
+                flutter:
+                  sdk: flutter
+                """);
+
+            // Act
+            var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
+
+            // Assert
+            result.DetectedTypes.Should().HaveCountGreaterThan(1);
+            result.DetectedTypes.Should().Contain(ProjectType.Tauri);
+            result.DetectedTypes.Should().Contain(ProjectType.Flutter);
+            // Tauri 应该有最高优先级 (1 vs 2)
+            result.RecommendedType.Should().Be(ProjectType.Tauri);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task DetectProjectTypeAsync_WithNoKnownProject_ShouldReturnEmpty()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
+        Directory.CreateDirectory(tempDir);
+        
+        try
+        {
+            // 不创建任何已知的项目标识文件
+            File.WriteAllText(Path.Combine(tempDir, "unknown.txt"), "unknown content");
+
+            // Act
+            var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
+
+            // Assert
+            result.DetectedTypes.Should().BeEmpty();
+            result.RecommendedType.Should().BeNull();
+            result.ProjectFiles.Should().BeEmpty();
         }
         finally
         {

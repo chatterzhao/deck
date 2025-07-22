@@ -72,71 +72,145 @@ public class SystemDetectionService : ISystemDetectionService
         _logger.LogDebug("检测项目类型: {ProjectPath}", projectPath);
 
         var detectedTypes = new List<ProjectType>();
+        var projectFiles = new List<string>();
         ProjectType? recommendedType = null;
 
-        // 基于 deck-shell 的项目类型检测逻辑
-        var detectionRules = new Dictionary<ProjectType, Func<string, bool>>
+        // 基于 deck-shell 的项目类型检测逻辑 (按优先级顺序)
+        // 1. Tauri 项目检测 (最高优先级，Cargo.toml + package.json 组合)
+        if (File.Exists(Path.Combine(projectPath, "Cargo.toml")) && 
+            File.Exists(Path.Combine(projectPath, "package.json")))
         {
-            [ProjectType.Tauri] = path => 
-                File.Exists(Path.Combine(path, "tauri.conf.json")) || 
-                File.Exists(Path.Combine(path, "src-tauri", "tauri.conf.json")),
+            var cargoContent = await File.ReadAllTextAsync(Path.Combine(projectPath, "Cargo.toml"));
+            var packageContent = await File.ReadAllTextAsync(Path.Combine(projectPath, "package.json"));
             
-            [ProjectType.Flutter] = path => 
-                File.Exists(Path.Combine(path, "pubspec.yaml")) && 
-                Directory.Exists(Path.Combine(path, "lib")),
-            
-            [ProjectType.Avalonia] = path => 
-                Directory.GetFiles(path, "*.csproj", SearchOption.TopDirectoryOnly)
-                    .Any(f => File.ReadAllText(f).Contains("Avalonia")),
-            
-            [ProjectType.DotNet] = path => 
-                Directory.GetFiles(path, "*.csproj", SearchOption.TopDirectoryOnly).Length > 0 ||
-                Directory.GetFiles(path, "*.sln", SearchOption.TopDirectoryOnly).Length > 0,
-            
-            [ProjectType.Python] = path => 
-                File.Exists(Path.Combine(path, "requirements.txt")) ||
-                File.Exists(Path.Combine(path, "pyproject.toml")) ||
-                Directory.GetFiles(path, "*.py", SearchOption.TopDirectoryOnly).Length > 0,
-            
-            [ProjectType.Node] = path => 
-                File.Exists(Path.Combine(path, "package.json"))
-        };
-
-        foreach (var rule in detectionRules)
-        {
-            try
+            if (cargoContent.Contains("tauri", StringComparison.OrdinalIgnoreCase) || 
+                packageContent.Contains("tauri", StringComparison.OrdinalIgnoreCase))
             {
-                if (rule.Value(projectPath))
-                {
-                    detectedTypes.Add(rule.Key);
-                    _logger.LogDebug("检测到项目类型: {ProjectType}", rule.Key);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("检测项目类型 {ProjectType} 时出错: {Error}", rule.Key, ex.Message);
+                detectedTypes.Add(ProjectType.Tauri);
+                projectFiles.Add("Cargo.toml, package.json");
+                recommendedType ??= ProjectType.Tauri;
+                _logger.LogDebug("检测到 Tauri 项目: Cargo.toml + package.json 组合");
             }
         }
 
-        // 确定推荐类型（按优先级）
-        var priorityOrder = new[] 
-        { 
-            ProjectType.Tauri, 
-            ProjectType.Flutter, 
-            ProjectType.Avalonia, 
-            ProjectType.DotNet, 
-            ProjectType.Python, 
-            ProjectType.Node 
-        };
+        // 2. Flutter 项目检测 (pubspec.yaml 文件)
+        if (File.Exists(Path.Combine(projectPath, "pubspec.yaml")))
+        {
+            var pubspecContent = await File.ReadAllTextAsync(Path.Combine(projectPath, "pubspec.yaml"));
+            if (pubspecContent.Contains("flutter", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedTypes.Add(ProjectType.Flutter);
+                projectFiles.Add("pubspec.yaml");
+                recommendedType ??= ProjectType.Flutter;
+                _logger.LogDebug("检测到 Flutter 项目: pubspec.yaml");
+            }
+        }
 
-        recommendedType = priorityOrder.FirstOrDefault(detectedTypes.Contains);
+        // 3. Avalonia 项目检测 (.csproj 文件中的 Avalonia 引用)
+        var csprojFiles = Directory.GetFiles(projectPath, "*.csproj", SearchOption.TopDirectoryOnly);
+        foreach (var csprojFile in csprojFiles)
+        {
+            var content = await File.ReadAllTextAsync(csprojFile);
+            if (content.Contains("Avalonia", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedTypes.Add(ProjectType.Avalonia);
+                projectFiles.Add(Path.GetFileName(csprojFile));
+                recommendedType ??= ProjectType.Avalonia;
+                _logger.LogDebug("检测到 Avalonia 项目: {CsprojFile}", Path.GetFileName(csprojFile));
+                break; // 找到一个就够了
+            }
+        }
 
-        return await Task.FromResult(new ProjectTypeInfo
+        // 4. React Native 项目检测
+        if (File.Exists(Path.Combine(projectPath, "package.json")))
+        {
+            var hasReactNativeConfig = File.Exists(Path.Combine(projectPath, "react-native.config.js"));
+            var hasNativeDirs = Directory.Exists(Path.Combine(projectPath, "android")) && 
+                               Directory.Exists(Path.Combine(projectPath, "ios"));
+            
+            if (hasReactNativeConfig || hasNativeDirs)
+            {
+                detectedTypes.Add(ProjectType.ReactNative);
+                projectFiles.Add("package.json, android/, ios/");
+                recommendedType ??= ProjectType.ReactNative;
+                _logger.LogDebug("检测到 React Native 项目");
+            }
+        }
+
+        // 5. Electron 项目检测
+        if (File.Exists(Path.Combine(projectPath, "package.json")))
+        {
+            var packageContent = await File.ReadAllTextAsync(Path.Combine(projectPath, "package.json"));
+            if (packageContent.Contains("electron", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedTypes.Add(ProjectType.Electron);
+                projectFiles.Add("package.json");
+                recommendedType ??= ProjectType.Electron;
+                _logger.LogDebug("检测到 Electron 项目");
+            }
+        }
+
+        // 6. 通用 Node.js 项目检测 (如果前面没有检测到相关类型)
+        if (File.Exists(Path.Combine(projectPath, "package.json")) && 
+            !detectedTypes.Contains(ProjectType.ReactNative) && 
+            !detectedTypes.Contains(ProjectType.Electron))
+        {
+            detectedTypes.Add(ProjectType.Node);
+            projectFiles.Add("package.json");
+            recommendedType ??= ProjectType.Node;
+            _logger.LogDebug("检测到 Node.js 项目");
+        }
+
+        // 7. 通用 Rust 项目检测 (如果前面没有检测到Tauri)
+        if (File.Exists(Path.Combine(projectPath, "Cargo.toml")) && 
+            !detectedTypes.Contains(ProjectType.Tauri))
+        {
+            detectedTypes.Add(ProjectType.Rust);
+            projectFiles.Add("Cargo.toml");
+            recommendedType ??= ProjectType.Rust;
+            _logger.LogDebug("检测到 Rust 项目");
+        }
+
+        // 8. 通用 .NET 项目检测 (如果前面没有检测到Avalonia)
+        if (csprojFiles.Length > 0 && 
+            !detectedTypes.Contains(ProjectType.Avalonia))
+        {
+            detectedTypes.Add(ProjectType.DotNet);
+            projectFiles.Add("*.csproj");
+            recommendedType ??= ProjectType.DotNet;
+            _logger.LogDebug("检测到 .NET 项目");
+        }
+
+        // 9. Python 项目检测
+        var hasPythonFiles = Directory.GetFiles(projectPath, "*.py", SearchOption.TopDirectoryOnly).Length > 0;
+        var hasRequirements = File.Exists(Path.Combine(projectPath, "requirements.txt"));
+        var hasPyproject = File.Exists(Path.Combine(projectPath, "pyproject.toml"));
+
+        if (hasPythonFiles || hasRequirements || hasPyproject)
+        {
+            detectedTypes.Add(ProjectType.Python);
+            var pythonFiles = new List<string>();
+            if (hasRequirements) pythonFiles.Add("requirements.txt");
+            if (hasPyproject) pythonFiles.Add("pyproject.toml");
+            if (hasPythonFiles) pythonFiles.Add("*.py");
+            projectFiles.Add(string.Join(", ", pythonFiles));
+            recommendedType ??= ProjectType.Python;
+            _logger.LogDebug("检测到 Python 项目");
+        }
+
+        // 如果什么都没检测到
+        if (!detectedTypes.Any())
+        {
+            _logger.LogDebug("未检测到已知项目类型");
+        }
+
+        return new ProjectTypeInfo
         {
             DetectedTypes = detectedTypes,
             RecommendedType = recommendedType,
-            ProjectRoot = projectPath
-        });
+            ProjectRoot = projectPath,
+            ProjectFiles = projectFiles
+        };
     }
 
     public async Task<SystemRequirementsResult> CheckSystemRequirementsAsync()
