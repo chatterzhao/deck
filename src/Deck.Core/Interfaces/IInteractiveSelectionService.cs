@@ -93,6 +93,19 @@ public interface IInteractiveSelectionService
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工作流程类型</returns>
     Task<WorkflowType> ShowWorkflowSelectionAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 显示单选菜单 - 简化版本，用于测试兼容性
+    /// </summary>
+    /// <typeparam name="T">可选择项类型</typeparam>
+    /// <param name="prompt">提示信息</param>
+    /// <param name="items">可选择项列表</param>
+    /// <param name="allowCancel">是否允许取消</param>
+    /// <returns>选择的项，如果取消则返回null</returns>
+    Task<SelectableItem<T>?> ShowSingleSelectionAsync<T>(
+        string prompt,
+        List<SelectableItem<T>> items,
+        bool allowCancel);
 }
 
 /// <summary>

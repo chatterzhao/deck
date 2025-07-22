@@ -544,5 +544,43 @@ public class InteractiveSelectionService : IInteractiveSelectionService
         };
     }
 
+    /// <summary>
+    /// 显示单选菜单 - 简化版本，用于测试兼容性
+    /// </summary>
+    public async Task<SelectableItem<T>?> ShowSingleSelectionAsync<T>(
+        string prompt,
+        List<SelectableItem<T>> items,
+        bool allowCancel)
+    {
+        // 将 SelectableItem<T> 转换为 SelectableOption 以适配当前接口
+        var selectableOptions = items.Select(item => new SelectableOption
+        {
+            DisplayName = item.DisplayName,
+            Description = item.Description,
+            IsAvailable = item.IsAvailable,
+            Value = item.Value ?? "",
+            ExtraInfo = item.ExtraInfo
+        }).ToList();
+
+        var selector = new InteractiveSelector<SelectableOption>
+        {
+            Prompt = prompt,
+            Items = selectableOptions,
+            AllowMultiple = false,
+            Required = !allowCancel
+        };
+
+        var result = await ShowSingleSelectionAsync(selector);
+
+        if (result.IsCancelled || result.SelectedItem == null)
+        {
+            return null;
+        }
+
+        // 根据选中的 Value 找回原始的 SelectableItem<T>
+        var selectedValue = result.SelectedItem.Value;
+        return items.FirstOrDefault(item => item.Value == selectedValue);
+    }
+
     #endregion
 }

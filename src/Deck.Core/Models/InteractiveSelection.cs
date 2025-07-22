@@ -44,6 +44,43 @@ public class SelectableOption : ISelectableItem
 }
 
 /// <summary>
+/// 泛型选择项 - 用于测试兼容性
+/// 包装具体类型的选择项，提供类型安全的访问
+/// </summary>
+public class SelectableItem<T> : ISelectableItem
+{
+    /// <summary>
+    /// 默认构造函数 - 支持对象初始化器语法
+    /// </summary>
+    public SelectableItem()
+    {
+        DisplayName = "";
+        Value = "";
+    }
+    
+    /// <summary>
+    /// 构造函数 - 接受项目参数
+    /// </summary>
+    public SelectableItem(T item)
+    {
+        Item = item;
+        DisplayName = item?.ToString() ?? "";
+        Value = item?.ToString() ?? "";
+    }
+    
+    /// <summary>
+    /// 包装的实际项目
+    /// </summary>
+    public T? Item { get; set; }
+
+    public string DisplayName { get; set; }
+    public string? Description { get; set; }
+    public bool IsAvailable { get; set; } = true;
+    public string Value { get; set; }
+    public string? ExtraInfo { get; set; }
+}
+
+/// <summary>
 /// 交互式选择器配置
 /// </summary>
 public class InteractiveSelector<T> where T : ISelectableItem

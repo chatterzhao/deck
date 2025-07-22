@@ -68,9 +68,10 @@ static RootCommand CreateRootCommand(IServiceProvider services)
 static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
 {
     // 添加 start 命令
+    var startEnvTypeArg = new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var startCommand = new Command("start", "智能启动开发环境")
     {
-        new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        startEnvTypeArg
     };
     startCommand.SetHandler(async (string? envType) =>
     {
@@ -98,13 +99,14 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
             logger.LogError(ex, "Start command execution failed");
             Environment.Exit(1);
         }
-    }, startCommand.Arguments.Cast<Argument<string?>>().First());
+    }, startEnvTypeArg);
     rootCommand.AddCommand(startCommand);
     
     // 添加 stop 命令
+    var stopImageNameArg = new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var stopCommand = new Command("stop", "停止开发环境")
     {
-        new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        stopImageNameArg
     };
     stopCommand.SetHandler(async (string? imageName) =>
     {
@@ -123,13 +125,14 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, stopCommand.Arguments.Cast<Argument<string?>>().First());
+    }, stopImageNameArg);
     rootCommand.AddCommand(stopCommand);
     
     // 添加 restart 命令
+    var restartImageNameArg = new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var restartCommand = new Command("restart", "重启开发环境")
     {
-        new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        restartImageNameArg
     };
     restartCommand.SetHandler(async (string? imageName) =>
     {
@@ -148,14 +151,16 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, restartCommand.Arguments.Cast<Argument<string?>>().First());
+    }, restartImageNameArg);
     rootCommand.AddCommand(restartCommand);
     
     // 添加 logs 命令
+    var logsImageNameArg = new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
+    var logsFollowOption = new Option<bool>(["--follow", "-f"], "实时跟踪日志");
     var logsCommand = new Command("logs", "查看容器日志")
     {
-        new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
-        new Option<bool>(["--follow", "-f"], "实时跟踪日志")
+        logsImageNameArg,
+        logsFollowOption
     };
     logsCommand.SetHandler(async (string? imageName, bool follow) =>
     {
@@ -174,13 +179,14 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, logsCommand.Arguments.Cast<Argument<string?>>().First(), logsCommand.Options.Cast<Option<bool>>().First());
+    }, logsImageNameArg, logsFollowOption);
     rootCommand.AddCommand(logsCommand);
     
     // 添加 shell 命令
+    var shellImageNameArg = new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var shellCommand = new Command("shell", "进入容器 shell")
     {
-        new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        shellImageNameArg
     };
     shellCommand.SetHandler(async (string? imageName) =>
     {
@@ -199,7 +205,7 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, shellCommand.Arguments.Cast<Argument<string?>>().First());
+    }, shellImageNameArg);
     rootCommand.AddCommand(shellCommand);
     
     // 添加 images 命令
@@ -235,9 +241,10 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     rootCommand.AddCommand(doctorCommand);
     
     // 添加 clean 命令
+    var cleanKeepOption = new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量");
     var cleanCommand = new Command("clean", "三层配置清理选择")
     {
-        new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量")
+        cleanKeepOption
     };
     cleanCommand.SetHandler(async (int keepCount) =>
     {
@@ -257,13 +264,14 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, cleanCommand.Options.Cast<Option<int>>().First());
+    }, cleanKeepOption);
     rootCommand.AddCommand(cleanCommand);
     
     // 添加 install 命令
+    var installComponentArg = new Argument<string>("component") { Description = "要安装的组件 (如: podman)" };
     var installCommand = new Command("install", "安装系统组件")
     {
-        new Argument<string>("component") { Description = "要安装的组件 (如: podman)" }
+        installComponentArg
     };
     installCommand.SetHandler(async (string component) =>
     {
@@ -282,14 +290,16 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, installCommand.Arguments.Cast<Argument<string>>().First());
+    }, installComponentArg);
     rootCommand.AddCommand(installCommand);
     
     // 添加 ps 命令
+    var psAllOption = new Option<bool>(["-a", "--all"], "显示所有容器状态（包括未创建）");
+    var psEnvOption = new Option<string?>(["--env"], "按环境类型过滤") { Arity = ArgumentArity.ZeroOrOne };
     var psCommand = new Command("ps", "列出容器状态")
     {
-        new Option<bool>(["-a", "--all"], "显示所有容器状态（包括未创建）"),
-        new Option<string?>(["--env"], "按环境类型过滤") { Arity = ArgumentArity.ZeroOrOne }
+        psAllOption,
+        psEnvOption
     };
     psCommand.SetHandler(async (bool showAll, string? envFilter) =>
     {
@@ -309,15 +319,18 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, psCommand.Options.Cast<Option<bool>>().First(), psCommand.Options.Cast<Option<string?>>().Last());
+    }, psAllOption, psEnvOption);
     rootCommand.AddCommand(psCommand);
     
     // 添加 rm 命令
+    var rmContainerNameArg = new Argument<string?>("container-name") { Description = "容器名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
+    var rmForceOption = new Option<bool>(["-f", "--force"], "强制删除（无需确认）");
+    var rmAllOption = new Option<bool>(["--all"], "删除所有容器");
     var rmCommand = new Command("rm", "删除容器")
     {
-        new Argument<string?>("container-name") { Description = "容器名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
-        new Option<bool>(["-f", "--force"], "强制删除（无需确认）"),
-        new Option<bool>(["--all"], "删除所有容器")
+        rmContainerNameArg,
+        rmForceOption,
+        rmAllOption
     };
     rmCommand.SetHandler(async (string? containerName, bool force, bool all) =>
     {
@@ -337,7 +350,7 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, rmCommand.Arguments.Cast<Argument<string?>>().First(), rmCommand.Options.Cast<Option<bool>>().First(), rmCommand.Options.Cast<Option<bool>>().Last());
+    }, rmContainerNameArg, rmForceOption, rmAllOption);
     rootCommand.AddCommand(rmCommand);
 }
 
@@ -368,9 +381,10 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
     imagesCommand.AddCommand(listCommand);
     
     // images clean 子命令
+    var imagesCleanKeepOption = new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量");
     var cleanCommand = new Command("clean", "清理旧镜像")
     {
-        new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量")
+        imagesCleanKeepOption
     };
     cleanCommand.SetHandler(async (int keepCount) =>
     {
@@ -389,13 +403,14 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, cleanCommand.Options.Cast<Option<int>>().First());
+    }, imagesCleanKeepOption);
     imagesCommand.AddCommand(cleanCommand);
     
     // images info 子命令
+    var imagesInfoImageNameArg = new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var infoCommand = new Command("info", "显示镜像详细信息")
     {
-        new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        imagesInfoImageNameArg
     };
     infoCommand.SetHandler(async (string? imageName) =>
     {
@@ -414,7 +429,7 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, infoCommand.Arguments.Cast<Argument<string?>>().First());
+    }, imagesInfoImageNameArg);
     imagesCommand.AddCommand(infoCommand);
     
     // images help 子命令
@@ -470,10 +485,12 @@ static void AddCustomCommand(RootCommand rootCommand, IServiceProvider services)
     customCommand.AddCommand(listCommand);
     
     // custom create 子命令
+    var customCreateConfigNameArg = new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
+    var customCreateEnvTypeArg = new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var createCommand = new Command("create", "创建新的自定义配置")
     {
-        new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
-        new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        customCreateConfigNameArg,
+        customCreateEnvTypeArg
     };
     createCommand.SetHandler(async (string? configName, string? envType) =>
     {
@@ -494,13 +511,14 @@ static void AddCustomCommand(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, createCommand.Arguments.Cast<Argument<string?>>().First(), createCommand.Arguments.Cast<Argument<string?>>().Last());
+    }, customCreateConfigNameArg, customCreateEnvTypeArg);
     customCommand.AddCommand(createCommand);
     
     // custom edit 子命令
+    var customEditConfigNameArg = new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var editCommand = new Command("edit", "编辑自定义配置")
     {
-        new Argument<string?>("config-name") { Description = "配置名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
+        customEditConfigNameArg
     };
     editCommand.SetHandler(async (string? configName) =>
     {
@@ -520,7 +538,7 @@ static void AddCustomCommand(RootCommand rootCommand, IServiceProvider services)
         {
             Environment.Exit(1);
         }
-    }, editCommand.Arguments.Cast<Argument<string?>>().First());
+    }, customEditConfigNameArg);
     customCommand.AddCommand(editCommand);
     
     // custom clean 子命令

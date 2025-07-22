@@ -242,4 +242,37 @@ public interface IConsoleDisplay
     /// <param name="message">消息</param>
     /// <param name="color">颜色</param>
     void ShowIconMessage(string icon, string message, ConsoleColor color = ConsoleColor.Gray);
+    
+    // ===== 测试兼容性方法 =====
+    // 这些方法为了支持现有测试而添加，委托给主要的显示方法
+    
+    /// <summary>
+    /// 显示状态消息 (测试兼容性 - 委托给ShowInfo)
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    void ShowStatusMessage(string message) => ShowInfo(message);
+    
+    /// <summary>
+    /// 显示信息消息 (测试兼容性 - 委托给ShowInfo)
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    void ShowInfoMessage(string message) => ShowInfo(message);
+    
+    /// <summary>
+    /// 显示错误消息 (测试兼容性 - 委托给ShowError)
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    void ShowErrorMessage(string message) => ShowError(message);
+    
+    /// <summary>
+    /// 显示警告消息 (测试兼容性 - 委托给ShowWarning)
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    void ShowWarningMessage(string message) => ShowWarning(message);
+    
+    /// <summary>
+    /// 显示成功消息 (测试兼容性 - 委托给ShowSuccess)
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    void ShowSuccessMessage(string message) => ShowSuccess(message);
 }
