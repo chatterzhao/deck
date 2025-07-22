@@ -1,3 +1,4 @@
+#pragma warning disable CS1998 // 异步方法缺少await运算符
 using Deck.Core.Interfaces;
 using Deck.Core.Models;
 using Microsoft.Extensions.Logging;

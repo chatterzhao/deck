@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
         services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
+        services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         
         // 注册目录管理服务的临时实现
         services.AddSingleton<IDirectoryManagementService, DirectoryManagementServiceStub>();
