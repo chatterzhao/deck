@@ -162,6 +162,11 @@ public class ImageMetadata
 public enum BuildStatus
 {
     /// <summary>
+    /// 准备就绪 - 目录已创建，准备构建
+    /// </summary>
+    Prepared,
+
+    /// <summary>
     /// 构建中
     /// </summary>
     Building,

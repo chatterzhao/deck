@@ -85,6 +85,14 @@ public interface IInteractiveSelectionService
         string title, 
         long total = 100,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 显示工作流程选择
+    /// Templates双工作流程：创建可编辑配置 或 直接构建启动
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工作流程类型</returns>
+    Task<WorkflowType> ShowWorkflowSelectionAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>

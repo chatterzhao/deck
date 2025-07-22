@@ -307,6 +307,45 @@ public class InteractiveSelectionService : IInteractiveSelectionService
         });
     }
 
+    /// <summary>
+    /// 显示工作流程选择
+    /// Templates双工作流程：创建可编辑配置 或 直接构建启动
+    /// </summary>
+    public Task<WorkflowType> ShowWorkflowSelectionAsync(CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{Bold}{Blue}📋 请选择模板使用方式：{Reset}");
+        Console.WriteLine($"  {Green}1) 创建可编辑配置{Reset} - 复制模板到 custom 目录，可修改后使用（适合开发调试）");
+        Console.WriteLine($"  {Green}2) 直接构建启动{Reset} - 使用模板配置立即构建并启动容器（适合快速测试）");
+        Console.WriteLine();
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            Console.Write($"{Cyan}❓ 请选择工作流程 (1-2)：{Reset}");
+            var input = Console.ReadLine()?.Trim();
+
+            if (string.IsNullOrEmpty(input))
+            {
+                continue;
+            }
+
+            if (input == "1")
+            {
+                return Task.FromResult(WorkflowType.CreateEditableConfig);
+            }
+            
+            if (input == "2")
+            {
+                return Task.FromResult(WorkflowType.DirectBuildAndStart);
+            }
+
+            Console.WriteLine($"{Red}❌ 请输入有效的选项 (1 或 2){Reset}");
+        }
+
+        // 默认返回创建可编辑配置
+        return Task.FromResult(WorkflowType.CreateEditableConfig);
+    }
+
     #region Private Helper Methods
 
     private void DisplayHeader(string prompt, SelectionStyle style)

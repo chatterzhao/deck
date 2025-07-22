@@ -604,4 +604,157 @@ public class DirectoryManagementService : IDirectoryManagementService
     }
 
     #endregion
+
+    #region Three Layer Workflow Methods
+
+    /// <summary>
+    /// 生成唯一的Custom配置名称
+    /// </summary>
+    public string GenerateUniqueCustomName(string baseName)
+    {
+        var currentPath = Directory.GetCurrentDirectory();
+        var customDir = Path.Combine(currentPath, DeckDirName, CustomDirName);
+
+        var configName = $"{baseName}-001";
+        var counter = 1;
+
+        while (Directory.Exists(Path.Combine(customDir, configName)))
+        {
+            counter++;
+            configName = $"{baseName}-{counter:D3}";
+        }
+
+        return configName;
+    }
+
+    /// <summary>
+    /// 生成带时间戳的名称
+    /// </summary>
+    public string GenerateTimestampedName(string baseName)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
+        return $"{baseName}-{timestamp}";
+    }
+
+    /// <summary>
+    /// 生成带时间戳的镜像名称
+    /// </summary>
+    public string GenerateTimestampedImageName(string baseName)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
+        return $"{baseName}-{timestamp}";
+    }
+
+    /// <summary>
+    /// 生成镜像名称
+    /// </summary>
+    public string GenerateImageName(string baseName)
+    {
+        return $"{baseName}-build";
+    }
+
+    /// <summary>
+    /// 获取模板目录路径
+    /// </summary>
+    public string GetTemplateDirectory(string templateName)
+    {
+        var currentPath = Directory.GetCurrentDirectory();
+        return Path.Combine(currentPath, DeckDirName, TemplatesDirName, templateName);
+    }
+
+    /// <summary>
+    /// 获取Custom配置路径
+    /// </summary>
+    public string GetCustomConfigPath(string configName)
+    {
+        var currentPath = Directory.GetCurrentDirectory();
+        return Path.Combine(currentPath, DeckDirName, CustomDirName, configName);
+    }
+
+    /// <summary>
+    /// 获取镜像目录路径
+    /// </summary>
+    public string GetImageDirectory(string imageName)
+    {
+        var currentPath = Directory.GetCurrentDirectory();
+        return Path.Combine(currentPath, DeckDirName, ImagesDirName, imageName);
+    }
+
+    /// <summary>
+    /// 从模板创建Custom配置
+    /// </summary>
+    public async Task<bool> CreateCustomFromTemplateAsync(string templateName, string customName, string envType)
+    {
+        try
+        {
+            var templateDir = GetTemplateDirectory(templateName);
+            var customDir = GetCustomConfigPath(customName);
+
+            if (!Directory.Exists(templateDir))
+            {
+                _logger.LogError("模板目录不存在: {TemplateDir}", templateDir);
+                return false;
+            }
+
+            // 创建目标目录
+            Directory.CreateDirectory(customDir);
+
+            // 复制所有文件，包括隐藏文件
+            await _fileSystemService.CopyDirectoryAsync(templateDir, customDir, true);
+
+            // 更新PROJECT_NAME避免冲突
+            var envFile = Path.Combine(customDir, ".env");
+            if (File.Exists(envFile))
+            {
+                await UpdateProjectNameInEnvAsync(envFile, customName);
+            }
+
+            _logger.LogInformation("已从模板创建Custom配置: {TemplateName} -> {CustomName}", templateName, customName);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从模板创建Custom配置失败: {TemplateName}", templateName);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 从Custom配置创建镜像目录
+    /// </summary>
+    public async Task<string> CreateImageFromCustomAsync(string imageName, string customDir)
+    {
+        try
+        {
+            var imageDir = GetImageDirectory(imageName);
+
+            if (!Directory.Exists(customDir))
+            {
+                throw new DirectoryNotFoundException($"Custom配置目录不存在: {customDir}");
+            }
+
+            // 创建镜像目录
+            Directory.CreateDirectory(imageDir);
+
+            // 复制配置文件到镜像目录
+            await _fileSystemService.CopyDirectoryAsync(customDir, imageDir, true);
+
+            // 更新PROJECT_NAME为唯一值
+            var envFile = Path.Combine(imageDir, ".env");
+            if (File.Exists(envFile))
+            {
+                await UpdateProjectNameInEnvAsync(envFile, imageName);
+            }
+
+            _logger.LogInformation("已从Custom配置创建镜像目录: {CustomDir} -> {ImageName}", customDir, imageName);
+            return imageDir;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从Custom配置创建镜像目录失败: {ImageName}", imageName);
+            throw;
+        }
+    }
+
+    #endregion
 }
