@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPortConflictService, PortConflictService>();
         services.AddSingleton<IImagePermissionService, ImagePermissionService>();
         services.AddSingleton<INetworkService, NetworkService>();
+        services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
