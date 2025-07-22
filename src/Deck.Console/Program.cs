@@ -265,15 +265,80 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string>("component") { Description = "要安装的组件 (如: podman)" }
     };
-    installCommand.SetHandler((string component) =>
+    installCommand.SetHandler(async (string component) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Install");
         logger.LogInformation("Install command called with component: {Component}", component);
-        Console.WriteLine($"📦 安装组件... ({component})");
-        // TODO: 实现 install 命令逻辑
-        Console.WriteLine("Install 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var systemDetectionService = services.GetRequiredService<ISystemDetectionService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new InstallCommand(consoleDisplay, systemDetectionService, interactiveSelection, loggingService);
+        var success = await command.ExecuteAsync(component);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, installCommand.Arguments.Cast<Argument<string>>().First());
     rootCommand.AddCommand(installCommand);
+    
+    // 添加 ps 命令
+    var psCommand = new Command("ps", "列出容器状态")
+    {
+        new Option<bool>(["-a", "--all"], "显示所有容器状态（包括未创建）"),
+        new Option<string?>(["--env"], "按环境类型过滤") { Arity = ArgumentArity.ZeroOrOne }
+    };
+    psCommand.SetHandler(async (bool showAll, string? envFilter) =>
+    {
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Ps");
+        logger.LogInformation("Ps command called with showAll: {ShowAll}, envFilter: {EnvFilter}", 
+            showAll, envFilter ?? "none");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new PsCommand(consoleDisplay, directoryManagement, interactiveSelection, loggingService);
+        var success = await command.ExecuteAsync(showAll, envFilter);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
+    }, psCommand.Options.Cast<Option<bool>>().First(), psCommand.Options.Cast<Option<string?>>().Last());
+    rootCommand.AddCommand(psCommand);
+    
+    // 添加 rm 命令
+    var rmCommand = new Command("rm", "删除容器")
+    {
+        new Argument<string?>("container-name") { Description = "容器名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
+        new Option<bool>(["-f", "--force"], "强制删除（无需确认）"),
+        new Option<bool>(["--all"], "删除所有容器")
+    };
+    rmCommand.SetHandler(async (string? containerName, bool force, bool all) =>
+    {
+        var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Rm");
+        logger.LogInformation("Rm command called with container: {Container}, force: {Force}, all: {All}", 
+            containerName ?? "interactive", force, all);
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new RmCommand(consoleDisplay, directoryManagement, interactiveSelection, loggingService);
+        var success = await command.ExecuteAsync(containerName, force, all);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
+    }, rmCommand.Arguments.Cast<Argument<string?>>().First(), rmCommand.Options.Cast<Option<bool>>().First(), rmCommand.Options.Cast<Option<bool>>().Last());
+    rootCommand.AddCommand(rmCommand);
 }
 
 static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
@@ -643,6 +708,8 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine("  doctor                系统诊断");
     Console.WriteLine("  clean                 三层配置清理选择");
     Console.WriteLine("  install podman        安装 Podman");
+    Console.WriteLine("  ps                    列出容器状态");
+    Console.WriteLine("  rm [container]        删除容器");
     Console.WriteLine();
     Console.WriteLine("  help                  显示帮助信息");
     Console.WriteLine("  version               显示版本信息");
@@ -653,6 +720,9 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine($"  {programName} stop my-app-20241215     # 停止指定镜像");
     Console.WriteLine($"  {programName} logs -f                  # 实时查看日志");
     Console.WriteLine($"  {programName} custom create tauri-dev  # 创建自定义配置");
+    Console.WriteLine($"  {programName} ps --all                 # 显示所有容器状态");
+    Console.WriteLine($"  {programName} rm my-container          # 删除指定容器");
+    Console.WriteLine($"  {programName} install podman           # 安装 Podman");
     Console.WriteLine();
     Console.WriteLine("更多信息请访问: https://github.com/your-org/deck-tool");
     Console.WriteLine();
