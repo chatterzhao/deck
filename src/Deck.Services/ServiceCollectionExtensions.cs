@@ -30,6 +30,12 @@ public static class ServiceCollectionExtensions
         // 注册目录管理服务的临时实现
         services.AddSingleton<IDirectoryManagementService, DirectoryManagementServiceStub>();
         
+        // 注册文件系统服务
+        services.AddSingleton<IFileSystemService, FileSystemService>();
+        
+        // 注册三层统一管理服务（简化版本）
+        services.AddSingleton<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
+        
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
         {

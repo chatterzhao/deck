@@ -219,6 +219,32 @@ public enum BorderStyle
 }
 
 /// <summary>
+/// 确认级别枚举 - 用于操作的风险等级
+/// </summary>
+public enum ConfirmationLevel
+{
+    /// <summary>
+    /// 低风险 - 仅提示信息
+    /// </summary>
+    Low,
+    
+    /// <summary>
+    /// 中等风险 - 需要用户确认
+    /// </summary>
+    Medium,
+    
+    /// <summary>
+    /// 高风险 - 需要额外确认步骤
+    /// </summary>
+    High,
+    
+    /// <summary>
+    /// 危险操作 - 需要多步确认和警告
+    /// </summary>
+    Critical
+}
+
+/// <summary>
 /// 镜像选择选项 - 基于 ImageInfo 的可选择项
 /// </summary>
 public class SelectableImage : ISelectableItem
