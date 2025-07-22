@@ -260,13 +260,23 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
     
     // images list 子命令
     var listCommand = new Command("list", "列出已构建镜像");
-    listCommand.SetHandler(() =>
+    listCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Images.List");
         logger.LogInformation("Images list command called");
-        Console.WriteLine("📋 列出镜像...");
-        // TODO: 实现 images list 命令逻辑
-        Console.WriteLine("Images list 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var imagesUnifiedService = services.GetRequiredService<IImagesUnifiedService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new ImagesCommand(consoleDisplay, imagesUnifiedService, interactiveSelection, loggingService);
+        var success = await command.ExecuteListAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     imagesCommand.AddCommand(listCommand);
     
@@ -275,13 +285,23 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
     {
         new Option<int>(["--keep", "-k"], () => 5, "保留最新镜像数量")
     };
-    cleanCommand.SetHandler((int keepCount) =>
+    cleanCommand.SetHandler(async (int keepCount) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Images.Clean");
         logger.LogInformation("Images clean command called with keep-count: {KeepCount}", keepCount);
-        Console.WriteLine($"🧹 清理镜像... (保留: {keepCount} 个)");
-        // TODO: 实现 images clean 命令逻辑
-        Console.WriteLine("Images clean 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var imagesUnifiedService = services.GetRequiredService<IImagesUnifiedService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new ImagesCommand(consoleDisplay, imagesUnifiedService, interactiveSelection, loggingService);
+        var success = await command.ExecuteCleanAsync(keepCount);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, cleanCommand.Options.Cast<Option<int>>().First());
     imagesCommand.AddCommand(cleanCommand);
     
@@ -290,25 +310,45 @@ static void AddImagesCommand(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    infoCommand.SetHandler((string? imageName) =>
+    infoCommand.SetHandler(async (string? imageName) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Images.Info");
         logger.LogInformation("Images info command called with image-name: {ImageName}", imageName ?? "interactive-select");
-        Console.WriteLine($"ℹ️  镜像信息... ({imageName ?? "交互式选择"})");
-        // TODO: 实现 images info 命令逻辑
-        Console.WriteLine("Images info 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var imagesUnifiedService = services.GetRequiredService<IImagesUnifiedService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new ImagesCommand(consoleDisplay, imagesUnifiedService, interactiveSelection, loggingService);
+        var success = await command.ExecuteInfoAsync(imageName);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, infoCommand.Arguments.Cast<Argument<string?>>().First());
     imagesCommand.AddCommand(infoCommand);
     
     // images help 子命令
     var helpCommand = new Command("help", "显示镜像权限帮助");
-    helpCommand.SetHandler(() =>
+    helpCommand.SetHandler(async () =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Images.Help");
         logger.LogInformation("Images help command called");
-        Console.WriteLine("❓ 镜像权限帮助...");
-        // TODO: 实现 images help 命令逻辑
-        Console.WriteLine("Images help 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var imagesUnifiedService = services.GetRequiredService<IImagesUnifiedService>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        
+        var command = new ImagesCommand(consoleDisplay, imagesUnifiedService, interactiveSelection, loggingService);
+        var success = await command.ExecuteHelpAsync();
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     });
     imagesCommand.AddCommand(helpCommand);
     
