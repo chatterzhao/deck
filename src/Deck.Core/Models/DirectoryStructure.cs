@@ -22,9 +22,9 @@ public class ThreeLayerOptions
 }
 
 /// <summary>
-/// 配置选项
+/// 配置选项 - 实现交互式选择接口
 /// </summary>
-public class ConfigurationOption
+public class ConfigurationOption : ISelectableItem
 {
     /// <summary>
     /// 配置名称
@@ -65,6 +65,23 @@ public class ConfigurationOption
     /// 镜像元数据（仅 Images 类型）
     /// </summary>
     public ImageMetadata? Metadata { get; set; }
+
+    // ISelectableItem 实现
+    /// <summary>
+    /// 显示名称（基于 Name）
+    /// </summary>
+    public string DisplayName => Name;
+    
+    /// <summary>
+    /// 选择值（基于 Path）
+    /// </summary>
+    public string Value => Path;
+    
+    /// <summary>
+    /// 额外信息（基于类型和修改时间）
+    /// </summary>
+    public string? ExtraInfo => 
+        $"{Type} | {(LastModified?.ToString("yyyy-MM-dd HH:mm") ?? "Unknown")}";
 }
 
 /// <summary>
