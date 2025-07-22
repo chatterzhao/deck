@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImagePermissionService, ImagePermissionService>();
         services.AddSingleton<INetworkService, NetworkService>();
         services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
+        services.AddSingleton<IRemoteTemplatesService, RemoteTemplatesService>();
         services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
         services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();

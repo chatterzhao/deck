@@ -584,8 +584,9 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
         var configurationService = services.GetRequiredService<IConfigurationService>();
         var networkService = services.GetRequiredService<INetworkService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
+        var remoteTemplatesService = services.GetRequiredService<IRemoteTemplatesService>();
         
-        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService, remoteTemplatesService);
         var success = await command.ExecuteListAsync();
         
         if (!success)
@@ -608,8 +609,9 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
         var configurationService = services.GetRequiredService<IConfigurationService>();
         var networkService = services.GetRequiredService<INetworkService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
+        var remoteTemplatesService = services.GetRequiredService<IRemoteTemplatesService>();
         
-        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService, remoteTemplatesService);
         var success = await command.ExecuteUpdateAsync();
         
         if (!success)
@@ -632,8 +634,9 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
         var configurationService = services.GetRequiredService<IConfigurationService>();
         var networkService = services.GetRequiredService<INetworkService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
+        var remoteTemplatesService = services.GetRequiredService<IRemoteTemplatesService>();
         
-        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService, remoteTemplatesService);
         var success = await command.ExecuteConfigAsync();
         
         if (!success)
@@ -656,8 +659,9 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
         var configurationService = services.GetRequiredService<IConfigurationService>();
         var networkService = services.GetRequiredService<INetworkService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
+        var remoteTemplatesService = services.GetRequiredService<IRemoteTemplatesService>();
         
-        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService, remoteTemplatesService);
         var success = await command.ExecuteSyncAsync();
         
         if (!success)
@@ -680,8 +684,9 @@ static void AddTemplatesCommand(RootCommand rootCommand, IServiceProvider servic
         var configurationService = services.GetRequiredService<IConfigurationService>();
         var networkService = services.GetRequiredService<INetworkService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
+        var remoteTemplatesService = services.GetRequiredService<IRemoteTemplatesService>();
         
-        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService);
+        var command = new TemplatesCommand(consoleDisplay, interactiveSelection, directoryManagement, configurationService, networkService, loggingService, remoteTemplatesService);
         var success = await command.ExecuteCleanAsync();
         
         if (!success)

@@ -16,6 +16,7 @@ public class TemplatesCommand
     private readonly IConfigurationService _configurationService;
     private readonly INetworkService _networkService;
     private readonly ILoggingService _loggingService;
+    private readonly IRemoteTemplatesService _remoteTemplatesService;
     private readonly ILogger _logger;
 
     public TemplatesCommand(
@@ -24,7 +25,8 @@ public class TemplatesCommand
         IDirectoryManagementService directoryManagement,
         IConfigurationService configurationService,
         INetworkService networkService,
-        ILoggingService loggingService)
+        ILoggingService loggingService,
+        IRemoteTemplatesService remoteTemplatesService)
     {
         _consoleDisplay = consoleDisplay;
         _interactiveSelection = interactiveSelection;
@@ -32,6 +34,7 @@ public class TemplatesCommand
         _configurationService = configurationService;
         _networkService = networkService;
         _loggingService = loggingService;
+        _remoteTemplatesService = remoteTemplatesService;
         _logger = _loggingService.GetLogger("Deck.Console.TemplatesCommand");
     }
 
@@ -83,16 +86,53 @@ public class TemplatesCommand
         try
         {
             _logger.LogInformation("Starting templates update command execution");
-
             _consoleDisplay.ShowInfo("🔄 更新远程模板...");
-
-            // For now, show a placeholder message
-            // TODO: Implement full template update logic with git operations
-            _consoleDisplay.ShowWarning("⚠️  Templates update 功能正在开发中");
-            _consoleDisplay.ShowInfo("💡 将从远程仓库同步最新模板");
-
-            await Task.CompletedTask;
-            return true;
+            _consoleDisplay.WriteLine();
+            
+            // 执行模板同步
+            var syncResult = await _remoteTemplatesService.SyncTemplatesAsync(forceUpdate: true);
+            
+            if (syncResult.Success)
+            {
+                _consoleDisplay.ShowSuccess($"✅ 模板同步成功！同步了 {syncResult.SyncedTemplateCount} 个模板");
+                
+                if (syncResult.NewTemplates.Any())
+                {
+                    _consoleDisplay.ShowInfo("📋 新同步的模板:");
+                    foreach (var template in syncResult.NewTemplates)
+                    {
+                        _consoleDisplay.ShowInfo($"  • {template}");
+                    }
+                }
+                
+                // 显示同步日志
+                foreach (var log in syncResult.SyncLogs)
+                {
+                    _consoleDisplay.ShowInfo($"💡 {log}");
+                }
+                
+                _consoleDisplay.WriteLine();
+                _consoleDisplay.ShowInfo("💡 现在可以使用 'deck templates list' 查看可用模板");
+                _consoleDisplay.ShowInfo("💡 或者使用 'deck start' 选择模板创建开发环境");
+                
+                return true;
+            }
+            else
+            {
+                _consoleDisplay.ShowError("❌ 模板同步失败");
+                
+                // 显示错误日志
+                foreach (var log in syncResult.SyncLogs)
+                {
+                    _consoleDisplay.ShowError($"   {log}");
+                }
+                
+                _consoleDisplay.WriteLine();
+                _consoleDisplay.ShowInfo("💡 请检查网络连接和Git配置，然后重试");
+                _consoleDisplay.ShowInfo("💡 可以使用 'deck doctor' 检查系统环境");
+                
+                return false;
+            }
         }
         catch (Exception ex)
         {
