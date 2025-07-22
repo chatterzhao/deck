@@ -12,12 +12,51 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
-    <!-- AOT 发布配置 -->
+    <!-- AOT 编译配置 -->
     <PublishAot Condition="'$(PublishAot)' == 'true'">true</PublishAot>
     <InvariantGlobalization Condition="'$(PublishAot)' == 'true'">true</InvariantGlobalization>
+    <TrimMode Condition="'$(PublishAot)' == 'true'">full</TrimMode>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    
+    <!-- 单文件发布配置 -->
+    <PublishSingleFile Condition="'$(PublishAot)' == 'true'">true</PublishSingleFile>
+    <SelfContained Condition="'$(PublishAot)' == 'true'">true</SelfContained>
+    <PublishTrimmed Condition="'$(PublishAot)' == 'true'">true</PublishTrimmed>
+    
+    <!-- 版本信息 -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+    
+    <!-- 应用程序信息 -->
+    <AssemblyTitle>Deck - 甲板，容器化开发环境构建工具</AssemblyTitle>
+    <AssemblyDescription>模板复用，助力开发快速起步的容器化开发环境构建工具</AssemblyDescription>
+    <AssemblyCompany>Deck Team</AssemblyCompany>
+    <AssemblyProduct>Deck</AssemblyProduct>
+    <Copyright>Copyright © 2025 Deck Team</Copyright>
     
     <!-- 暂时禁用AOT警告，专注于功能验证 -->
     <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <!-- 条件编译符号 -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!-- 平台特定配置 -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' OR '$(RuntimeIdentifier)' == 'win-arm64'">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' OR '$(RuntimeIdentifier)' == 'linux-arm64'">
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64' OR '$(RuntimeIdentifier)' == 'osx-arm64'">
+    <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

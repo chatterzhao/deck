@@ -5,12 +5,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors>NU1701</WarningsNotAsErrors>
     
-    <!-- AOT 兼容性和优化 -->
+    <!-- 代码分析 -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    
+    <!-- AOT 全局设置 -->
     <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
-    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
     
     <!-- AOT 优化设置 -->
     <OptimizationPreference>speed</OptimizationPreference>

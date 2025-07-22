@@ -91,13 +91,8 @@ jobs:
     - name: Build and test
       run: dotnet test --configuration Release
 
-    - name: Publish application
-      run: dotnet publish src/Deck.Console/Deck.Console.csproj --configuration Release --runtime ${{ matrix.runtime }} --self-contained true --output ./publish/${{ matrix.os }}-${{ matrix.arch }}
-
-    - name: Publish AOT application (if supported)
-      id: aot-publish
-      continue-on-error: true
-      run: dotnet publish src/Deck.Console/Deck.Console.csproj --configuration Release --runtime ${{ matrix.runtime }} --self-contained true -p:PublishAot=true --output ./publish-aot/${{ matrix.os }}-${{ matrix.arch }}
+    - name: Publish AOT application
+      run: dotnet publish src/Deck.Console/Deck.Console.csproj --configuration Release --runtime ${{ matrix.runtime }} --self-contained true -p:PublishAot=true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:InvariantGlobalization=true --output ./publish/${{ matrix.os }}-${{ matrix.arch }}
 
     - name: Create release package
       shell: bash
@@ -111,16 +106,10 @@ jobs:
         RELEASE_DIR="deck-${VERSION}-${OS}-${ARCH}"
         mkdir -p "$RELEASE_DIR"
         
-        # Copy published files (prefer AOT if available)
-        if [ -d "./publish-aot/${{ matrix.os }}-${{ matrix.arch }}" ]; then
-          echo "Using AOT build"
-          cp -r "./publish-aot/${{ matrix.os }}-${{ matrix.arch }}"/* "$RELEASE_DIR/"
-          echo "AOT=true" >> $GITHUB_ENV
-        else
-          echo "Using standard build"
-          cp -r "./publish/${{ matrix.os }}-${{ matrix.arch }}"/* "$RELEASE_DIR/"
-          echo "AOT=false" >> $GITHUB_ENV
-        fi
+        # Copy published files (AOT build)
+        echo "Using AOT build"
+        cp -r "./publish/${{ matrix.os }}-${{ matrix.arch }}"/* "$RELEASE_DIR/"
+        echo "AOT=true" >> $GITHUB_ENV
         
         # Create package
         if [ "$FORMAT" == "zip" ]; then

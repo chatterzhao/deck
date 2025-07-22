@@ -1,0 +1,18 @@
+#!/bin/bash
+# 安装后脚本
+
+set -e
+
+# 创建符号链接到/usr/bin，使得deck命令在PATH中可用
+if [ ! -e /usr/bin/deck ]; then
+    ln -s /usr/local/bin/deck /usr/bin/deck
+fi
+
+# 设置正确的权限
+chmod +x /usr/local/bin/deck
+
+echo "Deck 安装完成！"
+echo "运行 'deck --version' 验证安装"
+echo "运行 'deck --help' 查看帮助信息"
+
+exit 0
