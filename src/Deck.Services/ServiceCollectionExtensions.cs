@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
         services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
+        services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         
         // 注册目录管理服务的临时实现
@@ -40,8 +41,8 @@ public static class ServiceCollectionExtensions
         // 注册清理服务
         services.AddSingleton<ICleaningService, CleaningService>();
         
-        // 注册容器管理服务
-        services.AddSingleton<IContainerService, ContainerService>();
+        // TODO: 容器管理服务需要修复模型不一致问题
+        // services.AddSingleton<IContainerService, ContainerService>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
