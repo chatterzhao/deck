@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Deck.Core.Models;
 
 namespace Deck.Core.Interfaces;
@@ -31,11 +32,13 @@ public interface IDirectoryManagementService
     /// <summary>
     /// 获取镜像元数据
     /// </summary>
+    [RequiresUnreferencedCode("JSON serialization may require types that cannot be statically analyzed")]
     Task<ImageMetadata?> GetImageMetadataAsync(string imageName);
 
     /// <summary>
     /// 更新镜像元数据
     /// </summary>
+    [RequiresUnreferencedCode("JSON serialization may require types that cannot be statically analyzed")]
     Task SaveImageMetadataAsync(ImageMetadata metadata);
 
     /// <summary>

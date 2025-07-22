@@ -30,8 +30,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
         
-        // 注册目录管理服务的临时实现
-        services.AddSingleton<IDirectoryManagementService, DirectoryManagementServiceStub>();
+        // 注册目录管理服务（完整实现）
+        services.AddSingleton<IDirectoryManagementService, DirectoryManagementService>();
         
         // 注册文件系统服务
         services.AddSingleton<IFileSystemService, FileSystemService>();
