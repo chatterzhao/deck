@@ -4,7 +4,7 @@ Deck（/dɛk/ "代克"，甲板），容器化开发环境构建工具，模板�
 
 Deck 通过模板为开发者提供标准化的开发环境基础，让您专注于业务开发而非环境配置。
 
-Deck .NET 版基于 .NET 9 构建，跨平台原生性能，支持 Windows、macOS 和 Linux 平台。
+Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows、macOS 和 Linux 平台。
 
 ## ✨ 主要特性
 

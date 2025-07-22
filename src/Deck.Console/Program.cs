@@ -71,13 +71,32 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    startCommand.SetHandler((string? envType) =>
+    startCommand.SetHandler(async (string? envType) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Start");
+        var startService = services.GetRequiredService<IStartCommandService>();
+        
         logger.LogInformation("Start command called with env-type: {EnvType}", envType ?? "auto-detect");
-        Console.WriteLine($"🚀 启动容器化工具... (环境类型: {envType ?? "自动检测"})");
-        // TODO: 实现 start 命令逻辑
-        Console.WriteLine("Start 命令暂未完全实现，请等待 task 10.2");
+        
+        try
+        {
+            var result = await startService.ExecuteAsync(envType);
+            
+            if (result.IsSuccess)
+            {
+                logger.LogInformation("Start command completed successfully for image: {ImageName}", result.ImageName);
+            }
+            else
+            {
+                logger.LogError("Start command failed: {ErrorMessage}", result.ErrorMessage);
+                Environment.Exit(1);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Start command execution failed");
+            Environment.Exit(1);
+        }
     }, startCommand.Arguments.Cast<Argument<string?>>().First());
     rootCommand.AddCommand(startCommand);
     

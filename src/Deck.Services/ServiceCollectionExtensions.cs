@@ -24,6 +24,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImagePermissionService, ImagePermissionService>();
         services.AddSingleton<INetworkService, NetworkService>();
         services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
+        services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
+        services.AddSingleton<IConsoleUIService, ConsoleUIService>();
+        
+        // 注册目录管理服务的临时实现
+        services.AddSingleton<IDirectoryManagementService, DirectoryManagementServiceStub>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
