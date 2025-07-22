@@ -37,4 +37,14 @@ public interface IDirectoryManagementService
     /// 更新镜像元数据
     /// </summary>
     Task SaveImageMetadataAsync(ImageMetadata metadata);
+
+    /// <summary>
+    /// 获取所有已构建的镜像列表
+    /// </summary>
+    Task<List<ConfigurationOption>> GetImagesAsync();
+
+    /// <summary>
+    /// 根据名称获取镜像配置
+    /// </summary>
+    Task<ConfigurationOption?> GetImageByNameAsync(string imageName);
 }

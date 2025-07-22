@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Deck.Console.Commands;
 using Deck.Core.Interfaces;
 using Deck.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,13 +106,23 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    stopCommand.SetHandler((string? imageName) =>
+    stopCommand.SetHandler(async (string? imageName) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Stop");
         logger.LogInformation("Stop command called with image-name: {ImageName}", imageName ?? "interactive-select");
-        Console.WriteLine($"⏹️  停止环境... (镜像: {imageName ?? "交互式选择"})");
-        // TODO: 实现 stop 命令逻辑
-        Console.WriteLine("Stop 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        
+        var command = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var success = await command.ExecuteAsync(imageName);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, stopCommand.Arguments.Cast<Argument<string?>>().First());
     rootCommand.AddCommand(stopCommand);
     
@@ -120,13 +131,23 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    restartCommand.SetHandler((string? imageName) =>
+    restartCommand.SetHandler(async (string? imageName) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Restart");
         logger.LogInformation("Restart command called with image-name: {ImageName}", imageName ?? "interactive-select");
-        Console.WriteLine($"🔄 重启环境... (镜像: {imageName ?? "交互式选择"})");
-        // TODO: 实现 restart 命令逻辑
-        Console.WriteLine("Restart 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        
+        var command = new RestartCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var success = await command.ExecuteAsync(imageName);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, restartCommand.Arguments.Cast<Argument<string?>>().First());
     rootCommand.AddCommand(restartCommand);
     
@@ -136,13 +157,23 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne },
         new Option<bool>(["--follow", "-f"], "实时跟踪日志")
     };
-    logsCommand.SetHandler((string? imageName, bool follow) =>
+    logsCommand.SetHandler(async (string? imageName, bool follow) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Logs");
         logger.LogInformation("Logs command called with image-name: {ImageName}, follow: {Follow}", imageName ?? "interactive-select", follow);
-        Console.WriteLine($"📋 查看日志... (镜像: {imageName ?? "交互式选择"}, 跟踪: {follow})");
-        // TODO: 实现 logs 命令逻辑
-        Console.WriteLine("Logs 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        
+        var command = new LogsCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var success = await command.ExecuteAsync(imageName, follow);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, logsCommand.Arguments.Cast<Argument<string?>>().First(), logsCommand.Options.Cast<Option<bool>>().First());
     rootCommand.AddCommand(logsCommand);
     
@@ -151,13 +182,23 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     {
         new Argument<string?>("image-name") { Description = "镜像名称 (可选)", Arity = ArgumentArity.ZeroOrOne }
     };
-    shellCommand.SetHandler((string? imageName) =>
+    shellCommand.SetHandler(async (string? imageName) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Shell");
         logger.LogInformation("Shell command called with image-name: {ImageName}", imageName ?? "interactive-select");
-        Console.WriteLine($"💻 进入容器... (镜像: {imageName ?? "交互式选择"})");
-        // TODO: 实现 shell 命令逻辑
-        Console.WriteLine("Shell 命令暂未实现");
+        
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        
+        var command = new ShellCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var success = await command.ExecuteAsync(imageName);
+        
+        if (!success)
+        {
+            Environment.Exit(1);
+        }
     }, shellCommand.Arguments.Cast<Argument<string?>>().First());
     rootCommand.AddCommand(shellCommand);
     

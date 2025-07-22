@@ -69,4 +69,107 @@ public class DirectoryManagementServiceStub : IDirectoryManagementService
         // 临时实现：什么都不做
         return Task.CompletedTask;
     }
+
+    public Task<List<ConfigurationOption>> GetImagesAsync()
+    {
+        var images = new List<ConfigurationOption>();
+        
+        try
+        {
+            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
+            
+            if (Directory.Exists(imagesDir))
+            {
+                var directories = Directory.GetDirectories(imagesDir);
+                
+                foreach (var dir in directories)
+                {
+                    var imageName = Path.GetFileName(dir);
+                    var metadata = GetSimpleImageMetadata(dir);
+                    
+                    images.Add(new ConfigurationOption
+                    {
+                        Name = imageName,
+                        Type = ConfigurationType.Images,
+                        Path = dir,
+                        ProjectType = ProjectType.Unknown,
+                        IsAvailable = true,
+                        Description = metadata?.BuildStatus.ToString() ?? "Unknown",
+                        LastModified = metadata?.LastStarted ?? Directory.GetLastWriteTime(dir),
+                        Metadata = metadata
+                    });
+                }
+            }
+        }
+        catch
+        {
+            // 出错时返回空列表
+        }
+        
+        return Task.FromResult(images.OrderByDescending(i => i.LastModified).ToList());
+    }
+
+    public Task<ConfigurationOption?> GetImageByNameAsync(string imageName)
+    {
+        try
+        {
+            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
+            var imagePath = Path.Combine(imagesDir, imageName);
+            
+            if (Directory.Exists(imagePath))
+            {
+                var metadata = GetSimpleImageMetadata(imagePath);
+                
+                return Task.FromResult<ConfigurationOption?>(new ConfigurationOption
+                {
+                    Name = imageName,
+                    Type = ConfigurationType.Images,
+                    Path = imagePath,
+                    ProjectType = ProjectType.Unknown,
+                    IsAvailable = true,
+                    Description = metadata?.BuildStatus.ToString() ?? "Unknown",
+                    LastModified = metadata?.LastStarted ?? Directory.GetLastWriteTime(imagePath),
+                    Metadata = metadata
+                });
+            }
+        }
+        catch
+        {
+            // 出错时返回空
+        }
+        
+        return Task.FromResult<ConfigurationOption?>(null);
+    }
+
+    private static ImageMetadata? GetSimpleImageMetadata(string imagePath)
+    {
+        try
+        {
+            var metadataFile = Path.Combine(imagePath, ".deck-metadata");
+            if (File.Exists(metadataFile))
+            {
+                // 简单的元数据读取，这里可以后续实现JSON反序列化
+                return new ImageMetadata
+                {
+                    ImageName = Path.GetFileName(imagePath),
+                    CreatedAt = Directory.GetCreationTime(imagePath),
+                    BuildStatus = Directory.GetFiles(imagePath, "*.log").Any() ? BuildStatus.Built : BuildStatus.Stopped,
+                    ContainerName = $"{Path.GetFileName(imagePath)}-dev"
+                };
+            }
+            
+            // 如果没有元数据文件，创建基本元数据
+            return new ImageMetadata
+            {
+                ImageName = Path.GetFileName(imagePath),
+                CreatedAt = Directory.GetCreationTime(imagePath),
+                BuildStatus = BuildStatus.Built,
+                ContainerName = $"{Path.GetFileName(imagePath)}-dev"
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
