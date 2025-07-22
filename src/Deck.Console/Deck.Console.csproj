@@ -11,6 +11,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- AOT 发布配置 -->
+    <PublishAot Condition="'$(PublishAot)' == 'true'">true</PublishAot>
+    <InvariantGlobalization Condition="'$(PublishAot)' == 'true'">true</InvariantGlobalization>
+    
     <!-- 暂时禁用AOT警告，专注于功能验证 -->
     <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
   </PropertyGroup>

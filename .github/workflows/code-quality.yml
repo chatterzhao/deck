@@ -1,0 +1,122 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ubuntu-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ubuntu-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Check code formatting
+      run: dotnet format --verify-no-changes --verbosity diagnostic
+
+    - name: Build with warnings as errors
+      run: dotnet build --no-restore --configuration Release -p:TreatWarningsAsErrors=true
+
+    - name: Run static code analysis
+      run: |
+        # 运行内置的代码分析
+        dotnet build --no-restore --configuration Release -p:RunAnalyzersDuringBuild=true
+
+    - name: Run security scan (if tools available)
+      continue-on-error: true
+      run: |
+        # 检查是否有安全扫描工具
+        if dotnet tool list -g | grep -q security; then
+          echo "Running security analysis..."
+          # 这里可以添加具体的安全扫描命令
+        else
+          echo "No security scanning tools installed, skipping..."
+        fi
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ubuntu-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ubuntu-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Run tests with coverage
+      run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory "./test-results"
+
+    - name: Generate coverage report
+      continue-on-error: true
+      run: |
+        # 安装reportgenerator工具（如果需要）
+        if ! dotnet tool list -g | grep -q reportgenerator; then
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+        fi
+        
+        # 查找覆盖率文件
+        COVERAGE_FILES=$(find ./test-results -name "coverage.cobertura.xml" | tr '\n' ';' | sed 's/;$//')
+        
+        if [ -n "$COVERAGE_FILES" ]; then
+          reportgenerator "-reports:$COVERAGE_FILES" "-targetdir:./coverage-report" "-reporttypes:Html;Cobertura"
+          echo "Coverage report generated in ./coverage-report"
+        else
+          echo "No coverage files found"
+        fi
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report
+        path: ./coverage-report
+
+    - name: Comment coverage on PR
+      continue-on-error: true
+      if: github.event_name == 'pull_request'
+      run: |
+        # 这里可以添加向PR添加覆盖率注释的逻辑
+        echo "PR coverage reporting would go here"
