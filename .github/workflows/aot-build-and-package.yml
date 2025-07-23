@@ -88,10 +88,10 @@ jobs:
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           # Windows PowerShell version - use two-step approach
           echo "📦 Step 1: Running build script..."
-          powershell -Command ".\scripts\build.ps1 -Version '1.0.0-aot' -Configuration Release -Aot"
+          pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release -Aot"
           
           echo "📦 Step 2: Running package script..." 
-          powershell -Command ".\scripts\package.ps1 -Version '1.0.0-aot' -Configuration Release"
+          pwsh -Command "& '.\scripts\package.ps1' -Version '1.0.0-aot' -Configuration Release"
         else
           # Unix/Linux/macOS bash version - use two-step approach
           echo "📦 Step 1: Running build script..."
@@ -139,11 +139,11 @@ jobs:
             fi
             
           elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            MSI_COUNT=$(find ${{ env.DIST_DIR }} -name "*.msi" | wc -l)
-            if [ $MSI_COUNT -gt 0 ]; then
-              echo "✅ Windows MSI packages found: $MSI_COUNT"
+            ZIP_COUNT=$(find ${{ env.DIST_DIR }} -name "*.zip" | wc -l)
+            if [ $ZIP_COUNT -gt 0 ]; then
+              echo "✅ Windows ZIP packages found: $ZIP_COUNT"
             else
-              echo "❌ No MSI packages found for Windows"
+              echo "❌ No ZIP packages found for Windows"
               exit 1
             fi
           fi
@@ -179,13 +179,13 @@ jobs:
             fi
           done
         elif [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Test Windows MSI
-          for msifile in $(find ${{ env.DIST_DIR }} -name "*.msi" 2>/dev/null || true); do
-            if [[ -f "$msifile" ]]; then
-              echo "📋 Testing MSI: $msifile"
-              # Use PowerShell to check MSI properties on Windows
-              powershell -Command "Get-ItemProperty '$msifile' | Select-Object Name, Length, LastWriteTime"
-              echo "✅ MSI structure test passed"
+          # Test Windows ZIP
+          for zipfile in $(find ${{ env.DIST_DIR }} -name "*.zip" 2>/dev/null || true); do
+            if [[ -f "$zipfile" ]]; then
+              echo "📋 Testing ZIP: $zipfile"
+              # Use PowerShell to check ZIP contents on Windows
+              pwsh -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('$zipfile').Entries | Select-Object -First 10 Name"
+              echo "✅ ZIP structure test passed"
               break
             fi
           done
