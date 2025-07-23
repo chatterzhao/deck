@@ -108,186 +108,140 @@ for PLATFORM in "${PLATFORMS[@]}"; do
     fi
     
     if [[ "$OS_NAME" == "macos" ]]; then
-        # 创建 DMG 包
+        # 创建 PKG 包
         if [[ "$PLATFORM" == "macos-x64" ]]; then
-            DMG_NAME="deck-v$VERSION-intel.dmg"
+            PKG_NAME="deck-v$VERSION-intel.pkg"
         else
-            DMG_NAME="deck-v$VERSION-apple-silicon.dmg"  
+            PKG_NAME="deck-v$VERSION-apple-silicon.pkg"  
         fi
-        DMG_PATH="$DIST_SUBDIR/$DMG_NAME"
-        echo "🔨 创建 $PLATFORM DMG 包..."
+        PKG_PATH="$DIST_SUBDIR/$PKG_NAME"
+        echo "🔨 创建 $PLATFORM PKG 包..."
         
-        # 检查create-dmg是否安装
-        if ! command -v create-dmg >/dev/null 2>&1; then
-            echo "⚠️  create-dmg 未安装，跳过DMG包创建"
-            echo "   安装方法: brew install create-dmg"
-            continue
-        fi
+        # 创建PKG包目录结构
+        PKG_BUILD_DIR="$DIST_DIR/.pkg-temp-$PLATFORM"
+        PKG_ROOT_DIR="$PKG_BUILD_DIR/root"
+        PKG_SCRIPTS_DIR="$PKG_BUILD_DIR/scripts"
         
-        # 创建临时目录结构
-        TEMP_DMG_DIR="$DIST_DIR/.dmg-temp"
-        mkdir -p "$TEMP_DMG_DIR"
+        rm -rf "$PKG_BUILD_DIR"
+        mkdir -p "$PKG_ROOT_DIR/usr/local/bin"
+        mkdir -p "$PKG_SCRIPTS_DIR"
         
-        # 创建 macOS .app 应用程序束
-        APP_NAME="Deck.app"
-        APP_DIR="$TEMP_DMG_DIR/$APP_NAME"
-        CONTENTS_DIR="$APP_DIR/Contents"
-        MACOS_DIR="$CONTENTS_DIR/MacOS"
-        RESOURCES_DIR="$CONTENTS_DIR/Resources"
+        # 复制可执行文件到PKG根目录
+        cp "$PLATFORM_BUILD_DIR/Deck.Console" "$PKG_ROOT_DIR/usr/local/bin/deck"
+        chmod +x "$PKG_ROOT_DIR/usr/local/bin/deck"
         
-        # 创建应用程序目录结构
-        mkdir -p "$MACOS_DIR"
-        mkdir -p "$RESOURCES_DIR"
-        
-        # 创建 Info.plist
-        cat > "$CONTENTS_DIR/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>Deck</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.deck.developer-tools</string>
-    <key>CFBundleName</key>
-    <string>Deck</string>
-    <key>CFBundleDisplayName</key>
-    <string>Deck 开发工具</string>
-    <key>CFBundleVersion</key>
-    <string>$VERSION</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$VERSION</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleSignature</key>
-    <string>DECK</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>10.15</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.developer-tools</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-</dict>
-</plist>
-EOF
-
-        # 复制实际的二进制文件到 Resources
-        cp "$PLATFORM_BUILD_DIR/Deck.Console" "$RESOURCES_DIR/deck-binary"
-        chmod +x "$RESOURCES_DIR/deck-binary"
-        
-        # 创建主执行文件
-        cat > "$MACOS_DIR/Deck" << 'EOF'
+        # 创建postinstall脚本
+        cat > "$PKG_SCRIPTS_DIR/postinstall" << 'PKGEOF'
 #!/bin/bash
 
-# 获取应用程序路径
-APP_DIR="$(dirname "$(dirname "$(realpath "$0")")")"
-RESOURCES_DIR="$APP_DIR/Resources"
-DECK_BINARY="$RESOURCES_DIR/deck-binary"
+set -e
 
-# 检查是否是在 Applications 中运行
-if [[ "$APP_DIR" == "/Applications/Deck.app/Contents" ]]; then
-    APP_IN_APPLICATIONS=true
-    CONFIG_FILE="/Applications/.deck-configured"
-else
-    APP_IN_APPLICATIONS=false
-    CONFIG_FILE="$(dirname "$APP_DIR")/.deck-configured"
+INSTALL_PATH="/usr/local/bin"
+BINARY_NAME="deck"
+SHELL_PROFILES=(
+    "$HOME/.bashrc"
+    "$HOME/.bash_profile" 
+    "$HOME/.zshrc"
+    "$HOME/.profile"
+)
+
+echo "🚀 配置 Deck 环境..."
+
+# 确保二进制文件有执行权限
+chmod +x "$INSTALL_PATH/$BINARY_NAME"
+
+# 检查PATH中是否已包含/usr/local/bin
+if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+    echo "📝 添加 /usr/local/bin 到 PATH..."
+    
+    # 为当前用户的各种shell配置文件添加PATH
+    for profile in "${SHELL_PROFILES[@]}"; do
+        if [[ -f "$profile" ]] || [[ "$profile" == "$HOME/.zshrc" && -n "${ZSH_VERSION:-}" ]] || [[ "$profile" == "$HOME/.bashrc" && -n "${BASH_VERSION:-}" ]]; then
+            # 检查配置文件中是否已存在PATH设置
+            if ! grep -q "export PATH.*:/usr/local/bin" "$profile" 2>/dev/null; then
+                echo "# Deck CLI Path" >> "$profile"
+                echo 'export PATH="/usr/local/bin:$PATH"' >> "$profile"
+                echo "✅ 已更新 $profile"
+            fi
+        fi
+    done
+    
+    # 为新用户创建默认的shell配置
+    if [[ ! -f "$HOME/.zshrc" && -n "${ZSH_VERSION:-}" ]]; then
+        echo "# Deck CLI Path" > "$HOME/.zshrc"
+        echo 'export PATH="/usr/local/bin:$PATH"' >> "$HOME/.zshrc"
+        echo "✅ 已创建 $HOME/.zshrc"
+    fi
+    
+    if [[ ! -f "$HOME/.bashrc" && -n "${BASH_VERSION:-}" ]]; then
+        echo "# Deck CLI Path" > "$HOME/.bashrc"
+        echo 'export PATH="/usr/local/bin:$PATH"' >> "$HOME/.bashrc"
+        echo "✅ 已创建 $HOME/.bashrc"
+    fi
 fi
 
-# 检查是否是首次运行
-if [[ ! -f "$CONFIG_FILE" ]]; then
-    # 打开终端窗口显示配置界面
-    osascript << APPLESCRIPT
-tell application "Terminal"
-    activate
-    do script "
-echo '🚀 欢迎使用 Deck 开发工具!'
-echo '========================='
-echo ''
-echo '正在进行初始化配置...'
-echo ''
-
-# 尝试配置命令行访问
-echo '📦 正在配置命令行访问...'
-if sudo ln -sf '$DECK_BINARY' /usr/local/bin/deck 2>/dev/null; then
-    echo '✅ 命令行配置成功!'
-    echo ''
-    echo '🎉 安装完成!'
-    echo ''
-    echo '现在您可以：'
-    echo '• 在 VS Code 终端中使用: deck --help'
-    echo '• 在任何终端中使用: deck start python'
-    echo '• 在启动台中双击此应用图标直接运行'
-    echo ''
-    echo '💡 这是一个终端工具，主要在命令行中使用。'
+# 验证安装
+if command -v deck >/dev/null 2>&1; then
+    echo "✅ Deck 安装成功!"
+    deck --version
 else
-    echo '⚠️  需要管理员权限配置命令行访问'
-    echo ''
-    echo '请手动运行以下命令完成配置:'
-    echo 'sudo ln -sf $DECK_BINARY /usr/local/bin/deck'
-    echo ''
-    echo '配置完成后，您就可以在 VS Code 等终端中使用 deck 命令了。'
-    echo ''
-    echo '💡 或者您也可以直接在启动台双击此应用使用。'
+    echo "⚠️  Deck 已安装，但可能需要重新启动终端或运行以下命令:"
+    echo "   source ~/.zshrc  # 对于 zsh 用户"
+    echo "   source ~/.bashrc # 对于 bash 用户"
+    echo ""
+    echo "或者手动运行: /usr/local/bin/deck --version"
 fi
 
-echo ''
-echo '📚 获取更多帮助:'
-echo '• GitHub:  https://github.com/your-org/deck'
-echo '• Gitee:   https://gitee.com/your-org/deck'
-echo '• 使用指南: https://github.com/your-org/deck/wiki'
-echo ''
-echo '💡 提示: 复制上面的链接到浏览器查看详细使用方法'
-echo ''
-read -p '按回车键关闭...'
+echo ""
+echo "🎉 Deck 安装完成!"
+echo "💡 如果 'deck' 命令不可用，请重新启动终端或运行:"
+echo "   source ~/.zshrc"
 
-# 标记为已配置
-touch '$CONFIG_FILE'
 exit 0
-"
-end tell
-APPLESCRIPT
-else
-    # 已配置，直接在终端中运行deck
-    osascript << APPLESCRIPT
-tell application "Terminal"
-    activate
-    do script "$DECK_BINARY"
-end tell
-APPLESCRIPT
+PKGEOF
+
+        chmod +x "$PKG_SCRIPTS_DIR/postinstall"
+        
+        # 创建preinstall脚本（清理旧版本）
+        cat > "$PKG_SCRIPTS_DIR/preinstall" << 'PKGEOF'
+#!/bin/bash
+
+set -e
+
+INSTALL_PATH="/usr/local/bin"
+BINARY_NAME="deck"
+
+echo "🔍 检查现有 Deck 安装..."
+
+# 如果存在旧版本，备份它
+if [[ -f "$INSTALL_PATH/$BINARY_NAME" ]]; then
+    echo "📦 发现现有版本，创建备份..."
+    cp "$INSTALL_PATH/$BINARY_NAME" "$INSTALL_PATH/${BINARY_NAME}.backup.$(date +%Y%m%d%H%M%S)"
 fi
-EOF
+
+exit 0
+PKGEOF
+
+        chmod +x "$PKG_SCRIPTS_DIR/preinstall"
         
-        # 设置执行权限
-        chmod +x "$MACOS_DIR/Deck"
+        # 创建PKG包
+        BUILD_NUMBER=${BUILD_NUMBER:-$(date +"%Y%m%d%H%M%S")}
+        PACKAGE_ID="com.deck.deck"
         
-        # 删除已存在的DMG文件以避免冲突
-        rm -f "$DMG_PATH"
-        
-        # 使用 create-dmg 创建 DMG
-        create-dmg \
-            --volname "Deck v$VERSION" \
-            --window-pos 200 120 \
-            --window-size 600 300 \
-            --icon-size 100 \
-            --icon "$APP_NAME" 175 120 \
-            --hide-extension "$APP_NAME" \
-            --app-drop-link 425 120 \
-            "$DMG_PATH" \
-            "$TEMP_DMG_DIR" 2>/dev/null || {
-                echo "⚠️  DMG创建失败，可能需要macOS特定工具"
-            }
+        pkgbuild \
+            --root "$PKG_ROOT_DIR" \
+            --scripts "$PKG_SCRIPTS_DIR" \
+            --identifier "$PACKAGE_ID" \
+            --version "$VERSION" \
+            --install-location "/" \
+            "$PKG_PATH"
         
         # 清理临时目录
-        rm -rf "$TEMP_DMG_DIR"
+        rm -rf "$PKG_BUILD_DIR"
         
-        # 清理create-dmg产生的临时文件（模式: rw.*.dmg）
-        find "$DIST_SUBDIR" -name "rw.*.dmg" -delete 2>/dev/null || true
-        
-        if [[ -f "$DMG_PATH" ]]; then
-            DMG_SIZE=$(du -m "$DMG_PATH" | cut -f1)
-            echo "📦 创建DMG包: $DMG_PATH (${DMG_SIZE} MB)"
+        if [[ -f "$PKG_PATH" ]]; then
+            PKG_SIZE=$(du -m "$PKG_PATH" | cut -f1)
+            echo "📦 创建PKG包: $PKG_PATH (${PKG_SIZE} MB)"
         fi
     else
         # 创建 Linux 安装包
@@ -440,10 +394,7 @@ EOF
 done
 
 # 清理临时文件
-rm -rf "$DIST_DIR"/.dmg-temp "$DIST_DIR"/.deb-temp
-
-# 最终清理create-dmg产生的临时文件
-find "$DIST_SUBDIR" -name "rw.*.dmg" -delete 2>/dev/null || true
+rm -rf "$DIST_DIR"/.pkg-temp-* "$DIST_DIR"/.deb-temp
 
 if [[ "$ENABLE_AOT" == "true" ]]; then
     echo "🎉 AOT优化分发包构建完成!"
@@ -453,7 +404,7 @@ fi
 echo "📁 分发目录: $DIST_SUBDIR"
 echo ""
 echo "📦 创建的安装包:"
-find "$DIST_SUBDIR" -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.tar.gz" \) -exec ls -lh {} \;
+find "$DIST_SUBDIR" -maxdepth 1 -type f \( -name "*.pkg" -o -name "*.tar.gz" \) -exec ls -lh {} \;
 
 echo ""
 echo "💡 提示："

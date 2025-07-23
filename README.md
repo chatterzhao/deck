@@ -23,7 +23,7 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 
 - **Windows**: `deck-vX.X.X-win-x64.msi` 或 `deck-vX.X.X-win-arm64.msi`
 - **Linux**: `deck-vX.X.X-linux-x64.deb` / `deck-vX.X.X-linux-x64.rpm` 或 ARM64 版本
-- **macOS**: `deck-vX.X.X-osx-x64.dmg` 或 `deck-vX.X.X-osx-arm64.dmg`
+- **macOS**: `deck-vX.X.X-osx-x64.pkg` 或 `deck-vX.X.X-osx-arm64.pkg`
 
 ### 安装步骤
 
@@ -33,9 +33,9 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 3. 安装完成后，在终端中运行 `deck --version` 验证
 
 #### macOS
-1. 下载 `.dmg` 文件
-2. 双击打开，将 Deck 应用拖拽到 Applications 文件夹
-3. 验证安装：`deck --version`
+1. 下载 `.pkg` 安装包
+2. 双击运行安装程序，按向导完成安装
+3. 安装完成后，在终端中运行 `deck --version` 验证
 
 #### Linux
 1. 下载对应的 `.deb` 或 `.rpm` 包
@@ -182,7 +182,7 @@ deck install podman               # 自动安装Podman
 - **智能命令建议** - `deck templates clean` 会提示更合适的替代命令
 - **Podman命令提示** - 每次操作后显示等效的Podman命令，帮助学习
 - **智能过滤** - `deck ps` 只显示当前项目相关容器，避免干扰
-- **标准平台包** - MSI/DMG/DEB/RPM安装，无需手动配置PATH
+- **标准平台包** - MSI/PKG/TAR.GZ安装，无需手动配置PATH
 
 **⚠️ 相比原版Shell实现，.NET版本放弃了以下命令：**
 - `deck config create` - 建议直接从Templates复制到Custom目录手动编辑

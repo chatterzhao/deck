@@ -6,7 +6,7 @@
 |------|------------|----------|------|------|----------|
 | `build.sh` | Unix/Linux/macOS | .NET 9 SDK, bash | 构建所有6个平台二进制<br>**默认非AOT**，可用 `--aot` 启用 | `build/release/` | 开发调试<br>CI验证 |
 | `build.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+ | 构建所有6个平台二进制<br>**默认非AOT**，可用 `-Aot` 启用 | `build/release/` | 开发调试<br>CI验证 |
-| `package.sh` | macOS | .NET 9 SDK, bash, `create-dmg`¹ | 创建 macOS 分发包<br>**默认AOT**，可用 `--no-aot` 禁用 | `dist/macos/` | 用户分发 |
+| `package.sh` | macOS | .NET 9 SDK, bash | 创建 macOS 分发包<br>**默认AOT**，可用 `--no-aot` 禁用 | `dist/macos/` | 用户分发 |
 | `package.sh` | Linux | .NET 9 SDK, bash, `dpkg-deb`², `rpmbuild`³ | 创建 Linux 分发包<br>**默认AOT**，可用 `--no-aot` 禁用 | `dist/linux/` | 用户分发 |
 | `package.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+, `wix`⁴ | 创建 Windows 分发包<br>**默认AOT**，可用 `-NoAot` 禁用 | `dist/windows/` | 用户分发 |
 
@@ -14,7 +14,6 @@
 
 | 编号 | 工具 | 安装命令 | 说明 |
 |------|------|----------|------|
-| ¹ | create-dmg | `brew install create-dmg` | macOS DMG 包创建 |
 | ² | dpkg-deb | 系统自带 | Linux DEB 包创建 |
 | ³ | rpmbuild | `sudo apt-get install rpm` (Ubuntu)<br>`sudo yum install rpm-build` (CentOS) | Linux RPM 包创建 |
 | ⁴ | wix | `dotnet tool install --global wix` | Windows MSI 包创建 |
@@ -68,12 +67,12 @@ scripts/packaging/
 | **CentOS/RHEL/Fedora** | `.rpm` | `sudo rpm -e deck` | RPM 包管理器卸载 |
 | **Windows** | `.msi` | 控制面板 → 程序和功能 → 卸载 | 图形界面卸载 |
 | **Windows** | `.msi` | `msiexec /x {ProductCode}` | 命令行卸载 |
-| **macOS** | `.dmg` | 手动删除应用文件 | DMG 只是包装，需手动清理 |
+| **macOS** | `.pkg` | `sudo pkgutil --forget com.deck.deck` | 系统包管理器卸载 |
 
 **自动清理功能**：
 - **Linux**: 卸载时自动删除 `/usr/bin/deck` 符号链接（见 `rpm/deck.spec` 的 `%preun` 部分）
 - **Windows**: MSI 卸载时自动清理注册表和环境变量
-- **macOS**: 需要用户手动删除复制的文件
+- **macOS**: PKG 卸载需要手动删除 `/usr/local/bin/deck` 文件，或使用 `sudo rm /usr/local/bin/deck`
 
 ## 🚀 快速开始
 
@@ -141,8 +140,8 @@ dist/
 │   ├── deck-v1.0.0-amd64.rpm
 │   └── deck-v1.0.0-arm64.rpm
 └── macos/                # macOS 分发包
-    ├── deck-v1.0.0-intel.dmg
-    └── deck-v1.0.0-apple-silicon.dmg
+    ├── deck-v1.0.0-intel.pkg
+    └── deck-v1.0.0-apple-silicon.pkg
 ```
 
 ## 🚀 命令使用方法
@@ -258,8 +257,8 @@ dist/
 ```
 
 **支持格式**：
-- **macOS**: DMG 磁盘镜像（Intel 和 Apple Silicon 两个版本）
-- **Linux**: DEB 和 RPM 包（x64 和 ARM64 架构）
+- **macOS**: PKG 安装包（Intel 和 Apple Silicon 两个版本）
+- **Linux**: TAR.GZ 压缩包（x64 和 ARM64 架构）
 
 **特性**：
 - **默认AOT**，生产级优化构建
@@ -321,8 +320,7 @@ dist/
 ### 分发包创建工具缺失
 根据错误提示安装对应工具：
 ```bash
-# macOS - 安装 create-dmg
-brew install create-dmg
+# macOS - 系统自带 pkgbuild，无需安装额外工具
 
 # Linux - 安装 RPM 构建工具
 sudo apt-get install rpm          # Ubuntu/Debian
