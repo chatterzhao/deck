@@ -7,84 +7,58 @@ CONFIGURATION="${1:-Release}"
 VERSION="${2:-1.0.0}"
 CLEAN="${3:-false}"
 
-echo "🚀 开始构建 Deck Unix 版本..."
+echo "🚀 开始构建 Deck 分发包..."
+
+# 切换到项目根目录
+cd "$(dirname "$0")/.."
 
 # 设置变量
 PROJECT_PATH="src/Deck.Console/Deck.Console.csproj"
-OUTPUT_DIR="artifacts/unix"
+DIST_DIR="dist"
+BUILD_DIR="build/release"
 
-# 检测平台
+# 检测平台和设置分发目录
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    PLATFORMS=("osx-x64" "osx-arm64")
+    PLATFORMS=("macos-x64" "macos-arm64")
     OS_NAME="macos"
+    DIST_SUBDIR="$DIST_DIR/macos"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     PLATFORMS=("linux-x64" "linux-arm64")
     OS_NAME="linux"
+    DIST_SUBDIR="$DIST_DIR/linux"
 else
     echo "❌ 不支持的操作系统: $OSTYPE"
     exit 1
 fi
 
-# 清理输出目录
-if [[ "$CLEAN" == "true" ]] || [[ -d "$OUTPUT_DIR" ]]; then
-    echo "🧹 清理输出目录..."
-    rm -rf "$OUTPUT_DIR"
+# 创建分发目录
+mkdir -p "$DIST_SUBDIR"
+
+# 检查是否已有构建文件
+if [[ ! -d "$BUILD_DIR" ]]; then
+    echo "⚠️  未找到构建文件，先运行构建..."
+    ./scripts/build.sh "$VERSION" "$CONFIGURATION"
 fi
 
-# 恢复依赖
-echo "📦 恢复 NuGet 包..."
-dotnet restore "$PROJECT_PATH"
-
-# 构建各平台版本
-for PLATFORM in "${PLATFORMS[@]}"; do
-    echo "🔨 构建 $PLATFORM 版本..."
-    
-    PLATFORM_OUTPUT_DIR="$OUTPUT_DIR/$PLATFORM"
-    mkdir -p "$PLATFORM_OUTPUT_DIR"
-    
-    # AOT 发布
-    dotnet publish "$PROJECT_PATH" \
-        --configuration "$CONFIGURATION" \
-        --runtime "$PLATFORM" \
-        --self-contained true \
-        --output "$PLATFORM_OUTPUT_DIR" \
-        -p:Version="$VERSION" \
-        -p:PublishAot=true \
-        -p:PublishSingleFile=true \
-        -p:PublishTrimmed=true \
-        -p:InvariantGlobalization=true
-    
-    # 验证输出文件
-    EXE_PATH="$PLATFORM_OUTPUT_DIR/Deck.Console"
-    if [[ -f "$EXE_PATH" ]]; then
-        FILE_SIZE=$(du -m "$EXE_PATH" | cut -f1)
-        echo "✅ $PLATFORM 构建成功 (大小: ${FILE_SIZE} MB)"
-        
-        # 设置执行权限
-        chmod +x "$EXE_PATH"
-        
-        # 测试可执行文件
-        echo "🧪 测试 $PLATFORM 可执行文件..."
-        if "$EXE_PATH" --version; then
-            echo "✅ $PLATFORM 可执行文件测试通过"
-        else
-            echo "⚠️  $PLATFORM 可执行文件测试失败"
-        fi
-    else
-        echo "❌ $PLATFORM 输出文件不存在: $EXE_PATH"
-        exit 1
-    fi
-done
-
 # 创建标准平台包
-echo "📦 创建标准安装包..."
+echo "📦 从构建文件创建分发包..."
 
 for PLATFORM in "${PLATFORMS[@]}"; do
-    PLATFORM_OUTPUT_DIR="$OUTPUT_DIR/$PLATFORM"
+    PLATFORM_BUILD_DIR="$BUILD_DIR/$PLATFORM"
+    
+    if [[ ! -d "$PLATFORM_BUILD_DIR" ]]; then
+        echo "❌ 未找到平台构建: $PLATFORM_BUILD_DIR"
+        continue
+    fi
     
     if [[ "$OS_NAME" == "macos" ]]; then
         # 创建 DMG 包
-        DMG_PATH="$OUTPUT_DIR/deck-v$VERSION-$PLATFORM.dmg"
+        if [[ "$PLATFORM" == "macos-x64" ]]; then
+            DMG_NAME="deck-v$VERSION-intel.dmg"
+        else
+            DMG_NAME="deck-v$VERSION-apple-silicon.dmg"  
+        fi
+        DMG_PATH="$DIST_SUBDIR/$DMG_NAME"
         echo "🔨 创建 $PLATFORM DMG 包..."
         
         # 检查create-dmg是否安装
@@ -95,9 +69,9 @@ for PLATFORM in "${PLATFORMS[@]}"; do
         fi
         
         # 创建临时目录结构
-        TEMP_DMG_DIR="$OUTPUT_DIR/dmg-temp"
+        TEMP_DMG_DIR="$DIST_DIR/.dmg-temp"
         mkdir -p "$TEMP_DMG_DIR"
-        cp "$PLATFORM_OUTPUT_DIR/Deck.Console" "$TEMP_DMG_DIR/deck"
+        cp "$PLATFORM_BUILD_DIR/Deck.Console" "$TEMP_DMG_DIR/deck"
         
         # 使用 create-dmg 创建 DMG
         create-dmg \
@@ -120,20 +94,28 @@ for PLATFORM in "${PLATFORMS[@]}"; do
             echo "📦 创建DMG包: $DMG_PATH (${DMG_SIZE} MB)"
         fi
     else
-        # 创建 DEB 和 RPM 包
-        DEB_PATH="$OUTPUT_DIR/deck-v$VERSION-$PLATFORM.deb"
-        RPM_PATH="$OUTPUT_DIR/deck-v$VERSION-$PLATFORM.rpm"
+        # 创建 DEB 和 RPM 包  
+        if [[ "$PLATFORM" == "linux-x64" ]]; then
+            ARCH_SUFFIX="amd64"
+        else
+            ARCH_SUFFIX="arm64"
+        fi
+        
+        DEB_NAME="deck-v$VERSION-$ARCH_SUFFIX.deb"
+        RPM_NAME="deck-v$VERSION-$ARCH_SUFFIX.rpm"
+        DEB_PATH="$DIST_SUBDIR/$DEB_NAME"
+        RPM_PATH="$DIST_SUBDIR/$RPM_NAME"
         
         echo "🔨 创建 $PLATFORM DEB 包..."
         
         # 检查dpkg-deb是否存在
         if command -v dpkg-deb >/dev/null 2>&1; then
             # 创建 DEB 包结构
-            DEB_DIR="$OUTPUT_DIR/deb-temp"
+            DEB_DIR="$DIST_DIR/.deb-temp"
             mkdir -p "$DEB_DIR/usr/local/bin"
             mkdir -p "$DEB_DIR/DEBIAN"
             
-            cp "$PLATFORM_OUTPUT_DIR/Deck.Console" "$DEB_DIR/usr/local/bin/deck"
+            cp "$PLATFORM_BUILD_DIR/Deck.Console" "$DEB_DIR/usr/local/bin/deck"
             
             # 创建基础的control文件
             if [[ -f "packaging/linux/DEBIAN/control" ]]; then
@@ -172,8 +154,8 @@ EOF
             echo "🔨 创建 $PLATFORM RPM 包..."
             rpmbuild -bb packaging/linux/rpm/deck.spec \
                 --define "_version $VERSION" \
-                --define "_sourcedir $PLATFORM_OUTPUT_DIR" \
-                --define "_rpmdir $OUTPUT_DIR" || {
+                --define "_sourcedir $PLATFORM_BUILD_DIR" \
+                --define "_rpmdir $DIST_SUBDIR" || {
                     echo "⚠️  RPM包创建失败"
                 }
         else
@@ -182,6 +164,11 @@ EOF
     fi
 done
 
-echo "🎉 Unix 构建完成!"
-echo "📁 输出目录: $OUTPUT_DIR"
-find "$OUTPUT_DIR" -maxdepth 2 -type f \( -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "Deck.Console" \) -exec ls -lh {} \;
+# 清理临时文件
+rm -rf "$DIST_DIR"/.dmg-temp "$DIST_DIR"/.deb-temp
+
+echo "🎉 分发包构建完成!"
+echo "📁 分发目录: $DIST_SUBDIR"
+echo ""
+echo "📦 创建的安装包:"
+find "$DIST_SUBDIR" -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" \) -exec ls -lh {} \;
