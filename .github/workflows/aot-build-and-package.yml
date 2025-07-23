@@ -10,6 +10,11 @@ on:
   release:
     types: [ created ]
 
+permissions:
+  contents: write
+  packages: write
+  deployments: write
+
 env:
   DOTNET_SDK_VERSION: 9.0.x
   PROJECT_PATH: src/Deck.Console/Deck.Console.csproj
