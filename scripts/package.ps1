@@ -137,14 +137,36 @@ REM Subsequent runs: execute deck functionality directly
     
     Set-Content -Path "$InstallerDir/install.bat" -Value $InstallScript -Encoding UTF8
     
-    # Create ZIP package
-    $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
+    # Create MSI package using WiX
+    $MsiPath = "$DistDir/Deck-v$Version-$RuntimeId.msi"
+    $WixSource = "scripts/packaging/windows/deck.wxs"
     
-    if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
-        Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-        Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+    if (Test-Path $WixSource) {
+        Write-Host "Creating MSI package using WiX..." -ForegroundColor Blue
+        
+        # Build MSI using WiX
+        wix build $WixSource `
+            -define Version=$Version `
+            -define SourceDir=$PlatformBuildDir `
+            -out $MsiPath
+            
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $MsiPath)) {
+            Write-Host "Created MSI package: $MsiPath" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: MSI creation failed, creating ZIP fallback..." -ForegroundColor Yellow
+            $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
+            if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
+                Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
+                Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+            }
+        }
     } else {
-        Write-Host "Warning: Compress-Archive not available, skipping ZIP creation" -ForegroundColor Yellow
+        Write-Host "Warning: WiX source file not found, creating ZIP package..." -ForegroundColor Yellow
+        $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
+        if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
+            Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
+            Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+        }
     }
 }
 
@@ -161,7 +183,7 @@ Write-Host "Distribution directory: $DistDir" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Created packages:" -ForegroundColor Gray
 Get-ChildItem $DistDir -Recurse | Where-Object { 
-    -not $_.PSIsContainer -and ($_.Extension -eq ".zip" -or $_.Name -eq "Deck.bat") 
+    -not $_.PSIsContainer -and ($_.Extension -eq ".msi" -or $_.Extension -eq ".zip" -or $_.Name -eq "Deck.bat") 
 } | ForEach-Object {
     $Size = [math]::Round($_.Length / 1MB, 2)
     Write-Host "  $($_.Name) ($Size MB)" -ForegroundColor Gray
