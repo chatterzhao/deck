@@ -75,7 +75,11 @@ for ($i = 0; $i -lt $PlatformNames.Length; $i++) {
             -p:FileVersion=$Version.0
 
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "AOT build failed for $PlatformName"
+            Write-Error "AOT build failed for $PlatformName. Error: Cannot find advapi32.lib - Windows SDK components missing."
+            Write-Host "To fix this issue:" -ForegroundColor Yellow
+            Write-Host "1. Install Visual Studio with 'C++ build tools' workload" -ForegroundColor Yellow
+            Write-Host "2. Install Windows SDK (latest version)" -ForegroundColor Yellow
+            Write-Host "3. Or run without AOT: .\scripts\package.ps1 -NoAot" -ForegroundColor Yellow
             exit 1
         }
     } else {
