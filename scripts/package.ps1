@@ -146,7 +146,7 @@ REM Subsequent runs: execute deck functionality directly
         
         # Convert paths to absolute paths for WiX
         $AbsWixSource = Resolve-Path $WixSource
-        $AbsMsiPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPath($MsiPath)
+        $AbsMsiPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($MsiPath)
         $AbsSourceDir = Resolve-Path $PlatformBuildDir
         
         Write-Host "WiX Source: $AbsWixSource" -ForegroundColor Gray
