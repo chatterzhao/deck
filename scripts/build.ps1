@@ -61,6 +61,9 @@ for ($i = 0; $i -lt $PlatformNames.Length; $i++) {
     $PlatformOutputDir = "$BuildDir/$PlatformName"
     New-Item -ItemType Directory -Path $PlatformOutputDir -Force | Out-Null
     
+    # Extract numeric version for AssemblyVersion and FileVersion
+    $NumericVersion = if ($Version -match '^(\d+\.\d+\.\d+)') { $matches[1] } else { "1.0.0" }
+    
     # Choose build mode based on configuration
     if ($Aot) {
         Write-Host "Using AOT compilation: $PlatformName" -ForegroundColor Yellow
@@ -71,8 +74,8 @@ for ($i = 0; $i -lt $PlatformNames.Length; $i++) {
             --output $PlatformOutputDir `
             -p:PublishAot=true `
             -p:Version=$Version `
-            -p:AssemblyVersion=$Version.0 `
-            -p:FileVersion=$Version.0
+            -p:AssemblyVersion=$NumericVersion.0 `
+            -p:FileVersion=$NumericVersion.0
 
         if ($LASTEXITCODE -ne 0) {
             Write-Error "AOT build failed for $PlatformName. Error: Cannot find advapi32.lib - Windows SDK components missing."
@@ -90,8 +93,8 @@ for ($i = 0; $i -lt $PlatformNames.Length; $i++) {
             --self-contained true `
             --output $PlatformOutputDir `
             -p:Version=$Version `
-            -p:AssemblyVersion=$Version.0 `
-            -p:FileVersion=$Version.0
+            -p:AssemblyVersion=$NumericVersion.0 `
+            -p:FileVersion=$NumericVersion.0
 
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Standard build failed for $PlatformName"
