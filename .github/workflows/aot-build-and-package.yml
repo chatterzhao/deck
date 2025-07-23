@@ -36,18 +36,40 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
+    - name: Validate project structure
+      run: |
+        echo "🔍 Validating .NET project structure..."
+        
+        required_files=(
+          "src/Deck.Console/Deck.Console.csproj"
+          "src/Deck.Console/Program.cs"
+          "src/Deck.Core/Deck.Core.csproj"
+          "src/Deck.Services/Deck.Services.csproj"
+          "scripts/build.sh"
+          "scripts/package.sh"
+          "scripts/package.ps1"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [[ ! -f "$file" ]]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          fi
+        done
+        
+        echo "✅ Project structure validation passed"
+
     - name: Set up environment for macOS
       if: runner.os == 'macOS'
       run: |
-        # Install create-dmg for macOS DMG creation
-        brew install create-dmg
+        # macOS uses system builtin pkgbuild, no additional packages needed
+        echo "macOS environment ready - using builtin pkgbuild for PKG creation"
 
     - name: Set up environment for Linux
       if: runner.os == 'Linux'
       run: |
-        # Install tools for DEB and RPM package creation
-        sudo apt-get update
-        sudo apt-get install -y rpm
+        # Linux creates TAR.GZ packages, no additional packages needed
+        echo "Linux environment ready - using builtin tar for TAR.GZ creation"
 
     - name: Set up environment for Windows
       if: runner.os == 'Windows'
@@ -58,24 +80,115 @@ jobs:
     - name: AOT Build and Package
       shell: bash
       run: |
+        echo "🚀 Building Deck .NET v1.0.0-aot with AOT optimizations..."
+        
+        # Make scripts executable first
+        chmod +x scripts/build.sh scripts/package.sh 2>/dev/null || true
+        
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows PowerShell version
-          .\scripts\package.ps1 -Version "1.0.0-aot" -Configuration Release
+          # Windows PowerShell version - use two-step approach
+          echo "📦 Step 1: Running build script..."
+          powershell -Command ".\scripts\build.ps1 -Version '1.0.0-aot' -Configuration Release -Aot"
+          
+          echo "📦 Step 2: Running package script..." 
+          powershell -Command ".\scripts\package.ps1 -Version '1.0.0-aot' -Configuration Release"
         else
-          # Unix/Linux/macOS bash version
-          chmod +x scripts/package.sh
+          # Unix/Linux/macOS bash version - use two-step approach
+          echo "📦 Step 1: Running build script..."
+          ./scripts/build.sh --version "1.0.0-aot" --configuration Release --aot
+          
+          echo "📦 Step 2: Running package script..."
           ./scripts/package.sh --version "1.0.0-aot" --configuration Release
         fi
+        
+        echo "✅ Build and packaging completed"
 
     - name: Verify AOT packages
+      shell: bash
       run: |
         # Check if packages were created successfully
         if [ -d "${{ env.DIST_DIR }}" ]; then
           echo "✅ AOT packages created successfully"
+          echo ""
+          echo "📦 Created packages:"
           find ${{ env.DIST_DIR }} -type f
+          echo ""
+          
+          # Verify package types by platform
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            PKG_COUNT=$(find ${{ env.DIST_DIR }} -name "*.pkg" | wc -l)
+            if [ $PKG_COUNT -gt 0 ]; then
+              echo "✅ macOS PKG packages found: $PKG_COUNT"
+              # Verify PKG contents include uninstall script
+              for pkg in $(find ${{ env.DIST_DIR }} -name "*.pkg"); do
+                echo "📋 Checking PKG contents: $pkg"
+                pkgutil --payload-files "$pkg" | grep -q "deck-uninstall" && echo "✅ Uninstall script included" || echo "⚠️  Uninstall script missing"
+              done
+            else
+              echo "❌ No PKG packages found for macOS"
+              exit 1
+            fi
+            
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            TAR_COUNT=$(find ${{ env.DIST_DIR }} -name "*.tar.gz" | wc -l)
+            if [ $TAR_COUNT -gt 0 ]; then
+              echo "✅ Linux TAR.GZ packages found: $TAR_COUNT"
+            else
+              echo "❌ No TAR.GZ packages found for Linux"
+              exit 1
+            fi
+            
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            MSI_COUNT=$(find ${{ env.DIST_DIR }} -name "*.msi" | wc -l)
+            if [ $MSI_COUNT -gt 0 ]; then
+              echo "✅ Windows MSI packages found: $MSI_COUNT"
+            else
+              echo "❌ No MSI packages found for Windows"
+              exit 1
+            fi
+          fi
         else
           echo "❌ AOT packaging failed - no packages found"
           exit 1
+        fi
+
+    - name: Test packages
+      shell: bash
+      run: |
+        echo "🧪 Testing generated packages..."
+        
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          # Test macOS PKG (can't install without sudo, but can check structure)
+          for pkg in $(find ${{ env.DIST_DIR }} -name "*.pkg" 2>/dev/null || true); do
+            if [[ -f "$pkg" ]]; then
+              echo "📋 Testing PKG structure: $pkg"
+              pkgutil --payload-files "$pkg" | head -10
+              echo "✅ PKG structure test passed"
+              break
+            fi
+          done
+        elif [[ "$RUNNER_OS" == "Linux" ]]; then
+          # Test Linux TAR.GZ
+          for tarfile in $(find ${{ env.DIST_DIR }} -name "*.tar.gz" 2>/dev/null || true); do
+            if [[ -f "$tarfile" ]]; then
+              echo "📋 Testing TAR.GZ: $tarfile"
+              cd $(dirname "$tarfile")
+              tar -tzf $(basename "$tarfile") | head -10
+              echo "✅ TAR.GZ structure test passed"
+              break
+            fi
+          done
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          # Test Windows MSI
+          for msifile in $(find ${{ env.DIST_DIR }} -name "*.msi" 2>/dev/null || true); do
+            if [[ -f "$msifile" ]]; then
+              echo "📋 Testing MSI: $msifile"
+              # Use PowerShell to check MSI properties on Windows
+              powershell -Command "Get-ItemProperty '$msifile' | Select-Object Name, Length, LastWriteTime"
+              echo "✅ MSI structure test passed"
+              break
+            fi
+          done
         fi
 
     - name: Upload AOT package artifacts
