@@ -1,9 +1,9 @@
 using Deck.Core.Interfaces;
 using Deck.Core.Models;
+using Deck.Core.Serialization;
 using Microsoft.Extensions.Logging;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 namespace Deck.Services;
 
@@ -13,24 +13,21 @@ namespace Deck.Services;
 public class ConfigurationService : IConfigurationService
 {
     private readonly ILogger<ConfigurationService> _logger;
-    private readonly ISerializer _yamlSerializer;
-    private readonly IDeserializer _yamlDeserializer;
+    private readonly JsonSerializerOptions _jsonOptions;
 
-    [RequiresDynamicCode("YAML serialization requires reflection for now. Will be replaced with static generation later.")]
-    [RequiresUnreferencedCode("YAML serialization uses reflection.")]
     public ConfigurationService(ILogger<ConfigurationService> logger)
     {
         _logger = logger;
         
-        // 配置YAML序列化器，使用snake_case命名约定
-        _yamlSerializer = new SerializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-
-        _yamlDeserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .IgnoreUnmatchedProperties() // 忽略未匹配的属性，保持向后兼容
-            .Build();
+        // 配置JSON序列化选项，使用camelCase命名约定（与AOT兼容）
+        _jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
+        };
     }
 
     public async Task<DeckConfig> GetConfigAsync()
@@ -47,8 +44,14 @@ public class ConfigurationService : IConfigurationService
 
         try
         {
-            var yamlContent = await File.ReadAllTextAsync(configPath);
-            var config = _yamlDeserializer.Deserialize<DeckConfig>(yamlContent);
+            var jsonContent = await File.ReadAllTextAsync(configPath);
+            var config = JsonSerializer.Deserialize<DeckConfig>(jsonContent, DeckJsonSerializerContext.Default.DeckConfig);
+            
+            if (config == null)
+            {
+                _logger.LogError("配置文件反序列化失败，返回null: {ConfigPath}", configPath);
+                throw new InvalidOperationException($"配置文件反序列化失败: {configPath}");
+            }
             
             _logger.LogDebug("成功加载配置文件: {ConfigPath}", configPath);
             
@@ -97,10 +100,10 @@ public class ConfigurationService : IConfigurationService
                 throw new InvalidOperationException($"配置验证失败: {string.Join(", ", validation.Errors)}");
             }
 
-            var yamlContent = _yamlSerializer.Serialize(config);
+            var jsonContent = JsonSerializer.Serialize(config, DeckJsonSerializerContext.Default.DeckConfig);
             
             // 添加配置文件头部注释
-            var configWithComments = GenerateConfigWithComments(yamlContent);
+            var configWithComments = GenerateConfigWithComments(jsonContent);
             
             await File.WriteAllTextAsync(configPath, configWithComments);
             _logger.LogDebug("成功保存配置文件: {ConfigPath}", configPath);
@@ -169,7 +172,7 @@ public class ConfigurationService : IConfigurationService
     public string GetConfigFilePath()
     {
         var currentDir = Directory.GetCurrentDirectory();
-        return Path.Combine(currentDir, ".deck", "config.yaml");
+        return Path.Combine(currentDir, ".deck", "config.json");
     }
 
     public bool ConfigExists()
@@ -181,16 +184,16 @@ public class ConfigurationService : IConfigurationService
     /// <summary>
     /// 生成带注释的配置文件内容
     /// </summary>
-    private static string GenerateConfigWithComments(string yamlContent)
+    private static string GenerateConfigWithComments(string jsonContent)
     {
-        var header = @"# =============================================================================
-# Deck .NET版本配置文件
-# =============================================================================
-# 此文件用于配置远程模板仓库，参考deck-shell的配置设计
-# 更多信息请参考: https://github.com/chatterzhao/deck
-# =============================================================================
+        var header = @"// =============================================================================
+// Deck .NET版本配置文件
+// =============================================================================
+// 此文件用于配置远程模板仓库，参考deck-shell的配置设计
+// 更多信息请参考: https://github.com/chatterzhao/deck
+// =============================================================================
 
 ";
-        return header + yamlContent;
+        return header + jsonContent;
     }
 }

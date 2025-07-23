@@ -190,32 +190,25 @@ deck install podman               # 自动安装Podman
 
 ### 配置文件
 
-Deck 在项目目录下自动创建 `.deck/config.yaml` 配置文件，支持完整的配置管理：
+Deck 在项目目录下自动创建 `.deck/config.json` 配置文件，支持完整的配置管理：
 
-```yaml
-# .deck/config.yaml
-templates:
-  repository:
-    url: "https://github.com/your-org/your-templates.git"
-    branch: "main"
-  auto_update: true
-  cache_expire: "24h"
-
-container:
-  engine: "podman"          # 或 "docker"
-  auto_install: true
-
-network:
-  proxy:
-    http: "http://proxy.company.com:8080"
-    https: "https://proxy.company.com:8080"
+```json
+// .deck/config.json
+{
+  "remoteTemplates": {
+    "repository": "https://github.com/chatterzhao/deck-templates.git",
+    "branch": "main",
+    "cacheTtl": "24h",
+    "autoUpdate": true
+  }
+}
 ```
 
 **目录结构：**
 ```
 your-project/
 └── .deck/                    # 工具管理目录（自动创建）
-    ├── config.yaml           # 配置文件
+    ├── config.json           # 配置文件
     ├── templates/            # 远程模板（只读，自动更新）
     │   ├── nodejs-default/
     │   ├── python-default/

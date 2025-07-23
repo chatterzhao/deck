@@ -1,8 +1,8 @@
 namespace Deck.Core.Models;
 
 /// <summary>
-/// Deck配置对象，对应.deck/config.yaml文件结构
-/// 参考deck-shell的config.yaml设计，保持简单
+/// Deck配置对象，对应.deck/config.json文件结构
+/// 参考deck-shell的配置设计，改为JSON格式以支持AOT编译
 /// </summary>
 public class DeckConfig
 {

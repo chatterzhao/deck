@@ -4,11 +4,11 @@
 
 | 脚本 | 执行脚本的宿主系统 | 依赖 | 功能 | 输出 | 使用场景 |
 |------|------------|----------|------|------|----------|
-| `build.sh` | Unix/Linux/macOS | .NET 9 SDK, bash | 构建所有6个平台二进制 | `build/release/` | 开发调试<br>CI验证 |
-| `build.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+ | 构建所有6个平台二进制 | `build/release/` | 开发调试<br>CI验证 |
-| `package.sh` | macOS | .NET 9 SDK, bash, `create-dmg`¹ | 创建 macOS 分发包 | `dist/macos/` | 用户分发 |
-| `package.sh` | Linux | .NET 9 SDK, bash, `dpkg-deb`², `rpmbuild`³ | 创建 Linux 分发包 | `dist/linux/` | 用户分发 |
-| `package.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+, `wix`⁴ | 创建 Windows 分发包 | `dist/windows/` | 用户分发 |
+| `build.sh` | Unix/Linux/macOS | .NET 9 SDK, bash | 构建所有6个平台二进制<br>**默认非AOT**，可用 `--aot` 启用 | `build/release/` | 开发调试<br>CI验证 |
+| `build.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+ | 构建所有6个平台二进制<br>**默认非AOT**，可用 `-Aot` 启用 | `build/release/` | 开发调试<br>CI验证 |
+| `package.sh` | macOS | .NET 9 SDK, bash, `create-dmg`¹ | 创建 macOS 分发包<br>**默认AOT**，可用 `--no-aot` 禁用 | `dist/macos/` | 用户分发 |
+| `package.sh` | Linux | .NET 9 SDK, bash, `dpkg-deb`², `rpmbuild`³ | 创建 Linux 分发包<br>**默认AOT**，可用 `--no-aot` 禁用 | `dist/linux/` | 用户分发 |
+| `package.ps1` | Windows | .NET 9 SDK, PowerShell 5.1+, `wix`⁴ | 创建 Windows 分发包<br>**默认AOT**，可用 `-NoAot` 禁用 | `dist/windows/` | 用户分发 |
 
 ### 工具安装命令
 
@@ -21,8 +21,8 @@
 
 ### 关键区别
 
-- **build 脚本**：编译源码 → 可执行文件（开发用）
-- **package 脚本**：打包文件 → 安装包（分发用）
+- **build 脚本**：编译源码 → 可执行文件（开发用，默认非AOT快速构建）
+- **package 脚本**：打包文件 → 安装包（分发用，默认AOT优化构建）
 
 ## 📦 packaging 配置目录说明
 
@@ -153,27 +153,36 @@ dist/
 
 **语法**：
 ```bash
-./scripts/build.sh [VERSION] [CONFIGURATION]
+./scripts/build.sh [选项]
 ```
 
 **参数**：
-- `VERSION` - 版本号（默认：1.0.0）
-- `CONFIGURATION` - 构建配置（默认：Release）
+- `--version VERSION` - 版本号（默认：1.0.0）
+- `--configuration CONFIG` - 构建配置（默认：Release）
+- `--aot` - 启用AOT编译（默认：关闭）
+- `--help` - 显示帮助信息
 
 **示例**：
 ```bash
-# 使用默认参数构建
+# 使用默认参数构建（非AOT，快速）
 ./scripts/build.sh
 
+# 启用AOT优化构建
+./scripts/build.sh --aot
+
 # 指定版本号
-./scripts/build.sh 1.2.0
+./scripts/build.sh --version 1.2.0
 
 # 指定版本号和配置
+./scripts/build.sh --version 1.2.0 --configuration Debug
+
+# 向后兼容的位置参数
 ./scripts/build.sh 1.2.0 Debug
 ```
 
 **特性**：
-- AOT 编译优先，失败时自动降级到标准发布
+- **默认非AOT**，开发友好的快速构建
+- 可选AOT编译优化
 - 支持 6 个平台交叉编译
 - 自动文件大小统计和验证
 - 兼容 macOS 旧版 bash
@@ -184,28 +193,33 @@ dist/
 
 **语法**：
 ```powershell
-.\scripts\build.ps1 [-Version <String>] [-Configuration <String>]
+.\scripts\build.ps1 [-Version <String>] [-Configuration <String>] [-Aot]
 ```
 
 **参数**：
 - `-Version` - 版本号（默认：1.0.0）
 - `-Configuration` - 构建配置（默认：Release）
+- `-Aot` - 启用AOT编译（默认：关闭）
 
 **示例**：
 ```powershell
-# 使用默认参数构建
+# 使用默认参数构建（非AOT，快速）
 .\scripts\build.ps1
+
+# 启用AOT优化构建
+.\scripts\build.ps1 -Aot
 
 # 指定版本号
 .\scripts\build.ps1 -Version "1.2.0"
 
 # 指定版本号和配置
-.\scripts\build.ps1 -Version "1.2.0" -Configuration "Debug"
+.\scripts\build.ps1 -Version "1.2.0" -Configuration "Debug" -Aot
 ```
 
 **特性**：
 - 与 build.sh 功能完全一致
-- AOT 编译优先，失败时自动降级
+- **默认非AOT**，开发友好的快速构建
+- 可选AOT编译优化
 - 支持 6 个平台交叉编译
 - PowerShell 原生错误处理
 
@@ -215,23 +229,31 @@ dist/
 
 **语法**：
 ```bash
-./scripts/package.sh [CONFIGURATION] [VERSION] [CLEAN]
+./scripts/package.sh [选项]
 ```
 
 **参数**：
-- `CONFIGURATION` - 构建配置（默认：Release）
-- `VERSION` - 版本号（默认：1.0.0）
-- `CLEAN` - 是否清理（默认：false）
+- `--configuration CONFIG` - 构建配置（默认：Release）
+- `--version VERSION` - 版本号（默认：1.0.0）
+- `--clean` - 清理构建目录
+- `--no-aot` - 禁用AOT编译（默认：启用）
+- `--help` - 显示帮助信息
 
 **示例**：
 ```bash
-# 使用默认参数创建分发包
+# 使用默认参数创建分发包（AOT优化）
 ./scripts/package.sh
 
+# 禁用AOT的快速打包
+./scripts/package.sh --no-aot
+
 # 指定版本号
-./scripts/package.sh Release 1.2.0
+./scripts/package.sh --version 1.2.0
 
 # 启用清理模式
+./scripts/package.sh --version 1.2.0 --clean
+
+# 向后兼容的位置参数
 ./scripts/package.sh Release 1.2.0 true
 ```
 
@@ -239,33 +261,44 @@ dist/
 - **macOS**: DMG 磁盘镜像（Intel 和 Apple Silicon 两个版本）
 - **Linux**: DEB 和 RPM 包（x64 和 ARM64 架构）
 
+**特性**：
+- **默认AOT**，生产级优化构建
+- 可选快速构建模式
+- 自动调用build脚本（如需要）
+
 ### package.ps1 - Windows 分发包创建
 
 **功能**：创建 Windows MSI 安装包
 
 **语法**：
 ```powershell
-.\scripts\package.ps1 [-Configuration <String>] [-Version <String>] [-Clean]
+.\scripts\package.ps1 [-Configuration <String>] [-Version <String>] [-Clean] [-NoAot]
 ```
 
 **参数**：
 - `-Configuration` - 构建配置（默认：Release）
 - `-Version` - 版本号（默认：1.0.0）
 - `-Clean` - 清理输出目录开关
+- `-NoAot` - 禁用AOT编译（默认：启用）
 
 **示例**：
 ```powershell
-# 使用默认参数
+# 使用默认参数（AOT优化）
 .\scripts\package.ps1
+
+# 禁用AOT的快速打包
+.\scripts\package.ps1 -NoAot
 
 # 指定版本号
 .\scripts\package.ps1 -Version "1.2.0"
 
 # 指定配置并启用清理
-.\scripts\package.ps1 -Configuration "Debug" -Version "1.2.0" -Clean
+.\scripts\package.ps1 -Configuration "Debug" -Version "1.2.0" -Clean -NoAot
 ```
 
 **特性**：
+- **默认AOT**，生产级优化构建
+- 可选快速构建模式
 - 自动检测并调用 build.ps1 进行构建（如需要）
 - 支持 Windows x64 和 ARM64 架构
 - 自动安装 WiX Toolset（如未安装）
@@ -276,10 +309,14 @@ dist/
 ## 🔍 故障排除
 
 ### AOT 编译失败
-这是正常现象，脚本会自动降级到标准发布模式。常见原因：
+这是正常现象，常见原因：
 - YamlDotNet 库不兼容 AOT 编译
 - 跨平台编译环境限制
 - 缺少原生工具链
+
+**解决方案**：
+- build脚本：AOT失败时会显示错误并退出
+- package脚本：可使用 `--no-aot` / `-NoAot` 参数禁用AOT
 
 ### 分发包创建工具缺失
 根据错误提示安装对应工具：
@@ -306,13 +343,17 @@ chmod +x scripts/*.sh
 
 ## 💡 最佳实践
 
-1. **开发阶段**：
+1. **开发阶段**（快速构建，默认非AOT）：
    - Unix/Linux/macOS: 使用 `./scripts/build.sh` 进行快速构建和测试
    - Windows: 使用 `.\scripts\build.ps1` 进行快速构建和测试
 
-2. **发布准备**：使用对应平台的 `package` 脚本创建分发包
+2. **发布准备**（生产优化，默认AOT）：使用对应平台的 `package` 脚本创建分发包
    - Unix/Linux/macOS: `./scripts/package.sh`
    - Windows: `.\scripts\package.ps1`
+
+3. **AOT控制**：
+   - 开发构建启用AOT: `./scripts/build.sh --aot` / `.\scripts\build.ps1 -Aot`
+   - 生产打包禁用AOT: `./scripts/package.sh --no-aot` / `.\scripts\package.ps1 -NoAot`
 
 3. **版本管理**：始终明确指定版本号，避免使用默认值
 

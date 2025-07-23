@@ -1,7 +1,6 @@
 using Deck.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Deck.Services;
 
@@ -13,7 +12,6 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加 Deck 核心服务
     /// </summary>
-    [RequiresUnreferencedCode("YAML serialization uses reflection")]
     public static IServiceCollection AddDeckServices(this IServiceCollection services)
     {
         // 注册核心服务
@@ -77,7 +75,6 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加 Deck 服务并配置日志
     /// </summary>
-    [RequiresUnreferencedCode("YAML serialization uses reflection")]
     public static IServiceCollection AddDeckServicesWithLogging(
         this IServiceCollection services, 
         LogLevel defaultLogLevel = LogLevel.Information)
@@ -102,7 +99,6 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加 Deck 服务用于调试（详细日志）
     /// </summary>
-    [RequiresUnreferencedCode("YAML serialization uses reflection")]
     public static IServiceCollection AddDeckServicesForDebug(this IServiceCollection services)
     {
         return services.AddDeckServicesWithLogging(LogLevel.Debug);

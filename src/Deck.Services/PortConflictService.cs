@@ -14,7 +14,6 @@ namespace Deck.Services;
 /// <summary>
 /// 端口冲突检测服务 - 提供跨平台端口管理和冲突解决
 /// </summary>
-[RequiresUnreferencedCode("Port conflict detection uses reflection")]
 public class PortConflictService : IPortConflictService
 {
     private readonly ILogger<PortConflictService> _logger;

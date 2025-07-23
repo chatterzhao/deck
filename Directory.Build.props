@@ -36,7 +36,6 @@
     <MicrosoftExtensionsVersion>9.0.0</MicrosoftExtensionsVersion>
     <SystemTextJsonVersion>9.0.0</SystemTextJsonVersion>
     <SystemCommandLineVersion>2.0.0-beta4.22272.1</SystemCommandLineVersion>
-    <YamlDotNetVersion>16.2.0</YamlDotNetVersion>
     
     <!-- Additional packages for enhanced functionality -->
     <LibGit2SharpVersion>0.30.0</LibGit2SharpVersion>

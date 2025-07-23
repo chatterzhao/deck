@@ -130,8 +130,8 @@ public class ConfigurationServiceTests : IDisposable
         Assert.True(File.Exists(configPath));
         
         var content = await File.ReadAllTextAsync(configPath);
-        Assert.Contains("remote_templates:", content);
-        Assert.Contains("repository:", content);
+        Assert.Contains("remoteTemplates", content);
+        Assert.Contains("repository", content);
         Assert.Contains("github.com/chatterzhao/deck-templates.git", content);
     }
 
@@ -162,7 +162,7 @@ public class ConfigurationServiceTests : IDisposable
         var configPath = _configurationService.GetConfigFilePath();
 
         // Assert - 检查路径结构是否正确，避免符号链接路径差异问题
-        Assert.EndsWith(Path.Combine(".deck", "config.yaml"), configPath);
+        Assert.EndsWith(Path.Combine(".deck", "config.json"), configPath);
         Assert.True(Path.IsPathRooted(configPath));
     }
 

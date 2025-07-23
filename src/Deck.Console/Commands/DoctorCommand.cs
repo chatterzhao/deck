@@ -320,10 +320,10 @@ public class DoctorCommand
             }
 
             // 检查配置文件
-            var configFile = Path.Combine(deckDir, "config.yaml");
+            var configFile = Path.Combine(deckDir, "config.json");
             var configExists = File.Exists(configFile);
             
-            ShowKeyValue("  config.yaml", 
+            ShowKeyValue("  config.json", 
                 configExists ? ColorizeText("✅ 存在", ConsoleColor.Green) :
                               ColorizeText("❌ 缺失", ConsoleColor.Yellow));
 
