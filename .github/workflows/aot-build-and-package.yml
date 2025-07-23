@@ -1,0 +1,111 @@
+name: AOT Build and Package
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ created ]
+
+env:
+  DOTNET_SDK_VERSION: 9.0.x
+  PROJECT_PATH: src/Deck.Console/Deck.Console.csproj
+  BUILD_DIR: build/release
+  DIST_DIR: dist
+
+jobs:
+  aot-build-and-package:
+    name: AOT Build and Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Set up environment for macOS
+      if: runner.os == 'macOS'
+      run: |
+        # Install create-dmg for macOS DMG creation
+        brew install create-dmg
+
+    - name: Set up environment for Linux
+      if: runner.os == 'Linux'
+      run: |
+        # Install tools for DEB and RPM package creation
+        sudo apt-get update
+        sudo apt-get install -y rpm
+
+    - name: Set up environment for Windows
+      if: runner.os == 'Windows'
+      run: |
+        # Install WiX Toolset for MSI package creation
+        dotnet tool install --global wix
+
+    - name: AOT Build and Package
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          # Windows PowerShell version
+          .\scripts\package.ps1 -Version "1.0.0-aot" -Configuration Release
+        else
+          # Unix/Linux/macOS bash version
+          chmod +x scripts/package.sh
+          ./scripts/package.sh --version "1.0.0-aot" --configuration Release
+        fi
+
+    - name: Verify AOT packages
+      run: |
+        # Check if packages were created successfully
+        if [ -d "${{ env.DIST_DIR }}" ]; then
+          echo "✅ AOT packages created successfully"
+          find ${{ env.DIST_DIR }} -type f
+        else
+          echo "❌ AOT packaging failed - no packages found"
+          exit 1
+        fi
+
+    - name: Upload AOT package artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aot-package-${{ runner.os }}
+        path: ${{ env.DIST_DIR }}/
+        if-no-files-found: error
+
+  release-aot:
+    name: Create AOT Release Packages
+    needs: aot-build-and-package
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download all AOT package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./aot-artifacts
+
+    - name: List all AOT artifacts
+      run: |
+        find ./aot-artifacts -type f
+
+    - name: Upload AOT release assets
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          ./aot-artifacts/aot-package-*/**/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
