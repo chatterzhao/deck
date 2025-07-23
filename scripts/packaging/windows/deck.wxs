@@ -26,10 +26,7 @@
         <Environment Id="PATH" Name="PATH" Value="[BinFolder]" Permanent="no" Part="last" Action="set" System="yes" />
       </Component>
       
-      <!-- 包含运行时依赖文件 -->
-      <Component Id="RuntimeFiles" Guid="*">
-        <File Id="RuntimeDependencies" Source="$(var.SourceDir)\*" Exclude="$(var.SourceDir)\Deck.Console.exe" KeyPath="yes" />
-      </Component>
+      <!-- 运行时依赖文件将通过 heat.exe 自动生成，暂时移除手动定义 -->
     </ComponentGroup>
     
     <!-- 快捷方式 -->

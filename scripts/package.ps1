@@ -144,16 +144,35 @@ REM Subsequent runs: execute deck functionality directly
     if (Test-Path $WixSource) {
         Write-Host "Creating MSI package using WiX..." -ForegroundColor Blue
         
-        # Build MSI using WiX
-        wix build $WixSource `
-            -define Version=$Version `
-            -define SourceDir=$PlatformBuildDir `
-            -out $MsiPath
-            
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $MsiPath)) {
-            Write-Host "Created MSI package: $MsiPath" -ForegroundColor Green
+        # Convert paths to absolute paths for WiX
+        $AbsWixSource = Resolve-Path $WixSource
+        $AbsMsiPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPath($MsiPath)
+        $AbsSourceDir = Resolve-Path $PlatformBuildDir
+        
+        Write-Host "WiX Source: $AbsWixSource" -ForegroundColor Gray
+        Write-Host "Output MSI: $AbsMsiPath" -ForegroundColor Gray
+        Write-Host "Source Dir: $AbsSourceDir" -ForegroundColor Gray
+        
+        # Check if WiX is available
+        if (Get-Command wix -ErrorAction SilentlyContinue) {
+            # Build MSI using WiX v4 syntax
+            wix build "$AbsWixSource" `
+                -d "Version=$Version" `
+                -d "SourceDir=$AbsSourceDir" `
+                -o "$AbsMsiPath"
+                
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $MsiPath)) {
+                Write-Host "Created MSI package: $MsiPath" -ForegroundColor Green
+            } else {
+                Write-Host "Warning: MSI creation failed (exit code: $LASTEXITCODE), creating ZIP fallback..." -ForegroundColor Yellow
+                $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
+                if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
+                    Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
+                    Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+                }
+            }
         } else {
-            Write-Host "Warning: MSI creation failed, creating ZIP fallback..." -ForegroundColor Yellow
+            Write-Host "Warning: WiX command not found, creating ZIP package..." -ForegroundColor Yellow
             $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
             if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
                 Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
@@ -161,7 +180,7 @@ REM Subsequent runs: execute deck functionality directly
             }
         }
     } else {
-        Write-Host "Warning: WiX source file not found, creating ZIP package..." -ForegroundColor Yellow
+        Write-Host "Warning: WiX source file not found at $WixSource, creating ZIP package..." -ForegroundColor Yellow
         $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
         if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
             Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force

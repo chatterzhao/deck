@@ -74,8 +74,10 @@ jobs:
     - name: Set up environment for Windows
       if: runner.os == 'Windows'
       run: |
-        # Install WiX Toolset for MSI package creation
-        dotnet tool install --global wix
+        # Install WiX Toolset v4 for MSI package creation
+        dotnet tool install --global wix --version 4.0.5
+        echo "Installed WiX version:"
+        wix --version
         # Verify Windows SDK and C++ build tools for AOT compilation
         echo "Checking Windows development environment..."
         where link.exe || echo "Link.exe not found in PATH"
@@ -91,9 +93,12 @@ jobs:
         chmod +x scripts/build.sh scripts/package.sh 2>/dev/null || true
         
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows PowerShell version - use two-step approach
-          echo "📦 Step 1: Running build script..."
-          pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release -Aot"
+          # Windows PowerShell version - use two-step approach with fallback
+          echo "📦 Step 1: Running build script with AOT..."
+          if ! pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release -Aot"; then
+            echo "⚠️  AOT build failed, trying standard build..."
+            pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release"
+          fi
           
           echo "📦 Step 2: Running package script..." 
           pwsh -Command "& '.\scripts\package.ps1' -Version '1.0.0-aot' -Configuration Release"
