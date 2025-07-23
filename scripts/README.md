@@ -67,7 +67,7 @@ scripts/packaging/
 | **CentOS/RHEL/Fedora** | `.rpm` | `sudo rpm -e deck` | RPM 包管理器卸载 |
 | **Windows** | `.msi` | 控制面板 → 程序和功能 → 卸载 | 图形界面卸载 |
 | **Windows** | `.msi` | `msiexec /x {ProductCode}` | 命令行卸载 |
-| **macOS** | `.pkg` | `sudo pkgutil --forget com.deck.deck` | 系统包管理器卸载 |
+| **macOS** | `.pkg` | `deck-uninstall` 或 `sudo rm /usr/local/bin/deck` | 使用卸载脚本或手动删除 |
 
 **自动清理功能**：
 - **Linux**: 卸载时自动删除 `/usr/bin/deck` 符号链接（见 `rpm/deck.spec` 的 `%preun` 部分）

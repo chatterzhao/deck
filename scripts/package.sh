@@ -202,6 +202,36 @@ PKGEOF
 
         chmod +x "$PKG_SCRIPTS_DIR/postinstall"
         
+        # 创建卸载脚本到用户目录
+        cat > "$PKG_ROOT_DIR/usr/local/bin/deck-uninstall" << 'UNINSTALLEOF'
+#!/bin/bash
+
+echo "🗑️  卸载 Deck..."
+
+# 删除主程序
+if [[ -f "/usr/local/bin/deck" ]]; then
+    sudo rm /usr/local/bin/deck
+    echo "✅ 已删除 /usr/local/bin/deck"
+fi
+
+# 删除卸载脚本自身
+if [[ -f "/usr/local/bin/deck-uninstall" ]]; then
+    sudo rm /usr/local/bin/deck-uninstall
+    echo "✅ 已删除卸载脚本"
+fi
+
+# 忘记包记录
+sudo pkgutil --forget com.deck.deck 2>/dev/null && echo "✅ 已清理包记录" || echo "⚠️  包记录清理失败（可能已清理）"
+
+echo ""
+echo "🎉 Deck 卸载完成!"
+echo "💡 如需清理 shell 配置，请手动编辑 ~/.zshrc 或 ~/.bashrc"
+echo "   删除包含 'Deck CLI Path' 的相关行"
+
+UNINSTALLEOF
+
+        chmod +x "$PKG_ROOT_DIR/usr/local/bin/deck-uninstall"
+
         # 创建preinstall脚本（清理旧版本）
         cat > "$PKG_SCRIPTS_DIR/preinstall" << 'PKGEOF'
 #!/bin/bash

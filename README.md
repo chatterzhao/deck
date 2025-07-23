@@ -37,6 +37,10 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 2. 双击运行安装程序，按向导完成安装
 3. 安装完成后，在终端中运行 `deck --version` 验证
 
+**卸载方法**：
+- 使用卸载脚本：`deck-uninstall`
+- 手动删除：`sudo rm /usr/local/bin/deck`
+
 #### Linux
 1. 下载对应的 `.deb` 或 `.rpm` 包
 2. Ubuntu/Debian: `sudo dpkg -i deck-vX.X.X-linux-x64.deb`
