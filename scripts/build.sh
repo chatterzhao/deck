@@ -67,6 +67,9 @@ cd "$(dirname "$0")/.."
 BUILD_DIR="build/release"
 mkdir -p "$BUILD_DIR"
 
+# 检测宿主架构
+HOST_ARCH=$(uname -m)
+
 # 根据AOT和宿主系统选择平台
 if [[ "$ENABLE_AOT" == "true" ]]; then
     # AOT模式：只构建当前宿主系统支持的平台
@@ -75,9 +78,21 @@ if [[ "$ENABLE_AOT" == "true" ]]; then
         PLATFORM_NAMES=("macos-x64" "macos-arm64")
         RUNTIME_IDS=("osx-x64" "osx-arm64")
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo "🔥 AOT模式：仅构建 Linux 平台（当前宿主系统）"
-        PLATFORM_NAMES=("linux-x64" "linux-arm64")
-        RUNTIME_IDS=("linux-x64" "linux-arm64")
+        echo "🔥 AOT模式：构建 Linux 平台（当前宿主系统: $HOST_ARCH）"
+        # 根据宿主架构决定构建目标
+        if [[ "$HOST_ARCH" == "x86_64" ]]; then
+            echo "⚠️  检测到 x86_64 宿主，跳过 ARM64 交叉编译（需要额外工具链）"
+            PLATFORM_NAMES=("linux-x64")
+            RUNTIME_IDS=("linux-x64")
+        elif [[ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]]; then
+            echo "⚠️  检测到 ARM64 宿主，跳过 x86_64 交叉编译（需要额外工具链）"
+            PLATFORM_NAMES=("linux-arm64")
+            RUNTIME_IDS=("linux-arm64")
+        else
+            echo "⚠️  未知宿主架构 $HOST_ARCH，仅构建 x86_64"
+            PLATFORM_NAMES=("linux-x64")
+            RUNTIME_IDS=("linux-x64")
+        fi
     elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
         echo "🔥 AOT模式：仅构建 Windows 平台（当前宿主系统）"
         PLATFORM_NAMES=("windows-x64" "windows-arm64")
