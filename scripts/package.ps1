@@ -94,8 +94,8 @@ for ($i = 0; $i -lt $Platforms.Length; $i++) {
     Write-Host "🔨 创建 $Platform MSI 包..." -ForegroundColor Blue
     
     # 检查WiX配置文件是否存在
-    if (-not (Test-Path "packaging/windows/deck.wxs")) {
-        Write-Warning "⚠️  WiX配置文件不存在: packaging/windows/deck.wxs"
+    if (-not (Test-Path "scripts/packaging/windows/deck.wxs")) {
+        Write-Warning "⚠️  WiX配置文件不存在: scripts/packaging/windows/deck.wxs"
         Write-Host "跳过 $Platform MSI 包创建" -ForegroundColor Gray
         continue
     }
@@ -108,7 +108,7 @@ for ($i = 0; $i -lt $Platforms.Length; $i++) {
     
     try {
         # 使用 WiX 创建 MSI 包
-        wix build packaging/windows/deck.wxs `
+        wix build scripts/packaging/windows/deck.wxs `
             -d "Version=$Version" `
             -d "Platform=$RuntimeId" `
             -d "SourceDir=$PlatformDistDir" `

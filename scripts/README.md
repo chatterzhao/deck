@@ -24,6 +24,57 @@
 - **build 脚本**：编译源码 → 可执行文件（开发用）
 - **package 脚本**：打包文件 → 安装包（分发用）
 
+## 📦 packaging 配置目录说明
+
+`scripts/packaging/` 目录包含各平台安装包的**配置模板**，被 package 脚本使用：
+
+```
+scripts/packaging/
+├── linux/                    # Linux 系统包配置
+│   ├── DEBIAN/               # DEB 包配置 (Ubuntu/Debian)
+│   │   ├── control           # 包元数据模板 (名称、版本、依赖等)
+│   │   ├── postinst          # 安装后脚本 (创建链接、设置权限)
+│   │   └── prerm             # 卸载前脚本 (清理链接)
+│   └── rpm/                  # RPM 包配置 (CentOS/RHEL/Fedora)
+│       └── deck.spec         # RPM 规格文件 (安装/卸载脚本等)
+└── windows/                  # Windows 安装包配置
+    └── deck.wxs              # WiX 配置文件 (MSI 包定义)
+```
+
+### 配置文件作用
+
+| 文件 | 平台 | 作用 | 实现效果 |
+|------|------|------|----------|
+| `DEBIAN/control` | Ubuntu/Debian | DEB 包元数据定义 | 包名、版本、描述信息 |
+| `DEBIAN/postinst` | Ubuntu/Debian | 安装后自动执行 | 创建 `/usr/bin/deck` 链接 |
+| `DEBIAN/prerm` | Ubuntu/Debian | 卸载前自动执行 | 删除 `/usr/bin/deck` 链接 |
+| `rpm/deck.spec` | CentOS/RHEL/Fedora | RPM 包完整定义 | 安装位置、权限、卸载清理 |
+| `windows/deck.wxs` | Windows | MSI 安装包定义 | 安装目录、环境变量、快捷方式 |
+
+### 使用流程
+
+1. **package 脚本读取配置** → 根据当前系统选择对应配置文件
+2. **动态替换变量** → 将 `{{VERSION}}` 等占位符替换为实际值  
+3. **调用系统工具** → 使用 dpkg-deb、rpmbuild、wix 创建安装包
+4. **生成标准安装包** → 用户可以双击安装，自动配置环境
+
+**简单说**：这些配置让我们的可执行文件变成**专业的系统安装包**，用户安装后可以在任何地方直接运行 `deck` 命令！
+
+### 应用卸载方法
+
+| 平台 | 安装包格式 | 卸载命令 | 说明 |
+|------|------------|----------|------|
+| **Ubuntu/Debian** | `.deb` | `sudo dpkg -r deck` | 系统包管理器卸载 |
+| **CentOS/RHEL/Fedora** | `.rpm` | `sudo rpm -e deck` | RPM 包管理器卸载 |
+| **Windows** | `.msi` | 控制面板 → 程序和功能 → 卸载 | 图形界面卸载 |
+| **Windows** | `.msi` | `msiexec /x {ProductCode}` | 命令行卸载 |
+| **macOS** | `.dmg` | 手动删除应用文件 | DMG 只是包装，需手动清理 |
+
+**自动清理功能**：
+- **Linux**: 卸载时自动删除 `/usr/bin/deck` 符号链接（见 `rpm/deck.spec` 的 `%preun` 部分）
+- **Windows**: MSI 卸载时自动清理注册表和环境变量
+- **macOS**: 需要用户手动删除复制的文件
+
 ## 🚀 快速开始
 
 ### 刚克隆项目后的使用流程

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Deck" Manufacturer="Deck Team" Version="$(var.Version)" UpgradeCode="12345678-1234-1234-1234-123456789012">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    
+    <!-- 媒体定义 -->
+    <Media Id="1" Cabinet="deck.cab" EmbedCab="yes" />
+    
+    <!-- 功能定义 -->
+    <Feature Id="ProductFeature" Title="Deck Console Application" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+    
+    <!-- 安装目录结构 -->
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="Deck">
+        <Directory Id="BinFolder" Name="bin" />
+      </Directory>
+    </StandardDirectory>
+    
+    <!-- 组件组 -->
+    <ComponentGroup Id="ProductComponents" Directory="BinFolder">
+      <Component Id="DeckExecutable" Guid="*">
+        <File Id="DeckConsoleExe" Source="$(var.SourceDir)\Deck.Console.exe" KeyPath="yes" />
+        <!-- 添加环境变量 PATH -->
+        <Environment Id="PATH" Name="PATH" Value="[BinFolder]" Permanent="no" Part="last" Action="set" System="yes" />
+      </Component>
+      
+      <!-- 包含运行时依赖文件 -->
+      <Component Id="RuntimeFiles" Guid="*">
+        <File Id="RuntimeDependencies" Source="$(var.SourceDir)\*" Exclude="$(var.SourceDir)\Deck.Console.exe" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+    
+    <!-- 快捷方式 -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Deck">
+        <Component Id="ApplicationShortcut" Guid="*">
+          <Shortcut Id="ApplicationStartMenuShortcut"
+                    Name="Deck Console"
+                    Description="容器化开发环境构建工具"
+                    Target="[BinFolder]Deck.Console.exe"
+                    WorkingDirectory="BinFolder"/>
+          <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+          <RegistryValue Root="HKCU" Key="Software\Deck" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    
+    <!-- 卸载时的注册表清理 -->
+    <Component Id="RegistryCleanup" Directory="INSTALLFOLDER" Guid="*">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Deck">
+        <RegistryValue Name="DisplayName" Type="string" Value="Deck - 容器化开发环境构建工具" />
+        <RegistryValue Name="DisplayVersion" Type="string" Value="$(var.Version)" />
+        <RegistryValue Name="Publisher" Type="string" Value="Deck Team" />
+        <RegistryValue Name="UninstallString" Type="string" Value="[SystemFolder]msiexec.exe /x [ProductCode]" />
+        <RegistryValue Name="DisplayIcon" Type="string" Value="[BinFolder]Deck.Console.exe" />
+      </RegistryKey>
+    </Component>
+  </Package>
+</Wix>

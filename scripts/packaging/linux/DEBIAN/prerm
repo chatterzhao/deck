@@ -1,0 +1,12 @@
+#!/bin/bash
+# 卸载前脚本
+
+set -e
+
+# 移除符号链接
+if [ -L /usr/bin/deck ]; then
+    rm -f /usr/bin/deck
+    echo "已移除 /usr/bin/deck 符号链接"
+fi
+
+exit 0

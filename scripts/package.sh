@@ -118,14 +118,28 @@ for PLATFORM in "${PLATFORMS[@]}"; do
             cp "$PLATFORM_BUILD_DIR/Deck.Console" "$DEB_DIR/usr/local/bin/deck"
             
             # 创建基础的control文件
-            if [[ -f "packaging/linux/DEBIAN/control" ]]; then
-                cp "packaging/linux/DEBIAN/control" "$DEB_DIR/DEBIAN/"
+            if [[ -f "scripts/packaging/linux/DEBIAN/control" ]]; then
+                cp "scripts/packaging/linux/DEBIAN/control" "$DEB_DIR/DEBIAN/"
                 # 更新版本信息
                 sed -i.bak "s/{{VERSION}}/$VERSION/g" "$DEB_DIR/DEBIAN/control"
                 sed -i.bak "s/{{ARCHITECTURE}}/$(dpkg --print-architecture 2>/dev/null || echo 'amd64')/g" "$DEB_DIR/DEBIAN/control"
                 rm "$DEB_DIR/DEBIAN/control.bak" 2>/dev/null || true
-            else
-                # 创建基础control文件
+            fi
+            
+            # 复制安装后脚本
+            if [[ -f "scripts/packaging/linux/DEBIAN/postinst" ]]; then
+                cp "scripts/packaging/linux/DEBIAN/postinst" "$DEB_DIR/DEBIAN/"
+                chmod +x "$DEB_DIR/DEBIAN/postinst"
+            fi
+            
+            # 复制卸载前脚本
+            if [[ -f "scripts/packaging/linux/DEBIAN/prerm" ]]; then
+                cp "scripts/packaging/linux/DEBIAN/prerm" "$DEB_DIR/DEBIAN/"
+                chmod +x "$DEB_DIR/DEBIAN/prerm"
+            fi
+            
+            # 如果没有配置文件，创建基础control文件
+            if [[ ! -f "scripts/packaging/linux/DEBIAN/control" ]]; then
                 cat > "$DEB_DIR/DEBIAN/control" << EOF
 Package: deck
 Version: $VERSION
@@ -150,9 +164,9 @@ EOF
         fi
         
         # 创建RPM包
-        if command -v rpmbuild >/dev/null 2>&1 && [[ -f "packaging/linux/rpm/deck.spec" ]]; then
+        if command -v rpmbuild >/dev/null 2>&1 && [[ -f "scripts/packaging/linux/rpm/deck.spec" ]]; then
             echo "🔨 创建 $PLATFORM RPM 包..."
-            rpmbuild -bb packaging/linux/rpm/deck.spec \
+            rpmbuild -bb scripts/packaging/linux/rpm/deck.spec \
                 --define "_version $VERSION" \
                 --define "_sourcedir $PLATFORM_BUILD_DIR" \
                 --define "_rpmdir $DIST_SUBDIR" || {
