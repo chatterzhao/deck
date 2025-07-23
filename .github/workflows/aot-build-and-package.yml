@@ -74,14 +74,20 @@ jobs:
     - name: Set up environment for Windows
       if: runner.os == 'Windows'
       run: |
+        # Install Microsoft C++ Build Tools and Windows SDK for AOT compilation
+        echo "Installing Microsoft C++ Build Tools and Windows SDK..."
+        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --add Microsoft.VisualStudio.Component.VC.Redist.14.Latest" -y
+        
         # Install WiX Toolset v4 for MSI package creation
         dotnet tool install --global wix --version 4.0.5
         echo "Installed WiX version:"
         wix --version
-        # Verify Windows SDK and C++ build tools for AOT compilation
-        echo "Checking Windows development environment..."
+        
+        # Verify installation
+        echo "Verifying Windows development environment..."
         where link.exe || echo "Link.exe not found in PATH"
         if (Test-Path "C:\Program Files (x86)\Windows Kits\10\Lib") { echo "Windows SDK found" } else { echo "Windows SDK not found" }
+        if (Test-Path "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC") { echo "MSVC Build Tools found" } else { echo "MSVC Build Tools not found" }
         echo "Windows environment ready for AOT compilation and MSI packaging"
 
     - name: AOT Build and Package
