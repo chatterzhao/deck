@@ -737,6 +737,12 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine("  help                  显示帮助信息");
     Console.WriteLine("  version               显示版本信息");
     Console.WriteLine();
+    Console.WriteLine("卸载方法:");
+    Console.WriteLine("  macOS:    在终端执行 deck-uninstall");
+    Console.WriteLine("  Linux:    sudo dpkg -r deck     # Debian/Ubuntu");
+    Console.WriteLine("            sudo rpm -e deck       # CentOS/RHEL");
+    Console.WriteLine("  Windows:  控制面板卸载程序        # 图形界面卸载");
+    Console.WriteLine();
     Console.WriteLine("示例:");
     Console.WriteLine($"  {programName} start                    # 自动检测并启动");
     Console.WriteLine($"  {programName} start tauri              # 启动 Tauri 环境");
