@@ -37,20 +37,14 @@ jobs:
       run: dotnet restore
 
     - name: Validate project structure
+      shell: bash
       run: |
         echo "🔍 Validating .NET project structure..."
         
-        required_files=(
-          "src/Deck.Console/Deck.Console.csproj"
-          "src/Deck.Console/Program.cs"
-          "src/Deck.Core/Deck.Core.csproj"
-          "src/Deck.Services/Deck.Services.csproj"
-          "scripts/build.sh"
-          "scripts/package.sh"
-          "scripts/package.ps1"
-        )
+        # Check required files one by one
+        files=("src/Deck.Console/Deck.Console.csproj" "src/Deck.Console/Program.cs" "src/Deck.Core/Deck.Core.csproj" "src/Deck.Services/Deck.Services.csproj" "scripts/build.sh" "scripts/package.sh" "scripts/package.ps1")
         
-        for file in "${required_files[@]}"; do
+        for file in "${files[@]}"; do
           if [[ ! -f "$file" ]]; then
             echo "❌ Missing required file: $file"
             exit 1
@@ -76,7 +70,7 @@ jobs:
       run: |
         # Install Microsoft C++ Build Tools and Windows SDK for AOT compilation
         echo "Installing Microsoft C++ Build Tools and Windows SDK..."
-        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --add Microsoft.VisualStudio.Component.VC.Redist.14.Latest" -y
+        choco install visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --add Microsoft.VisualStudio.Component.VC.Redist.14.Latest' -y
         
         # Install WiX Toolset v4 for MSI package creation
         dotnet tool install --global wix --version 4.0.5
