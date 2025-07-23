@@ -9,202 +9,172 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ($NoAot) {
-    Write-Host "🚀 开始构建 Deck Windows 分发包 (快速构建)..." -ForegroundColor Green
+    Write-Host "Building Deck Windows distribution packages (Fast build)..." -ForegroundColor Green
 } else {
-    Write-Host "🚀 开始构建 Deck Windows 分发包 (AOT优化)..." -ForegroundColor Green
+    Write-Host "Building Deck Windows distribution packages (AOT optimized)..." -ForegroundColor Green
 }
 
-# 切换到项目根目录
+# Change to project root
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-# 设置变量
+# Set variables
 $DistDir = "dist/windows"
 $BuildDir = "build/release"
 $Platforms = @("windows-x64", "windows-arm64")
 $RuntimeIds = @("win-x64", "win-arm64")
 
-# 清理并创建分发目录（默认清理）
-Write-Host "🧹 清理分发目录..." -ForegroundColor Yellow
+# Clean and create distribution directory
+Write-Host "Cleaning distribution directory..." -ForegroundColor Yellow
 Remove-Item -Path $DistDir -Recurse -Force -ErrorAction SilentlyContinue
 
-# 创建分发目录
+# Create distribution directory
 New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 
-# 重新构建以确保使用正确的编译模式
-Write-Host "🔨 重新构建以确保编译模式正确..." -ForegroundColor Blue
+# Rebuild to ensure correct compilation mode
+Write-Host "Rebuilding to ensure correct compilation mode..." -ForegroundColor Blue
 if ($NoAot) {
-    Write-Host "⚡ 使用标准编译进行构建..." -ForegroundColor Blue
+    Write-Host "Using standard compilation for build..." -ForegroundColor Blue
     & "$PSScriptRoot/build.ps1" -Version $Version -Configuration $Configuration
 } else {
-    Write-Host "🔥 使用AOT编译进行构建..." -ForegroundColor Yellow
+    Write-Host "Using AOT compilation for build..." -ForegroundColor Yellow
     & "$PSScriptRoot/build.ps1" -Version $Version -Configuration $Configuration -Aot
 }
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "❌ 构建失败"
+    Write-Error "Build failed"
     exit 1
 }
 
-# 创建 Windows 安装包
-Write-Host "📦 从构建文件创建分发包..." -ForegroundColor Blue
+# Create Windows installer packages
+Write-Host "Creating distribution packages from build files..." -ForegroundColor Blue
 
 foreach ($Platform in $Platforms) {
+    $RuntimeId = $RuntimeIds[$Platforms.IndexOf($Platform)]
     $PlatformBuildDir = "$BuildDir/$Platform"
     
     if (-not (Test-Path $PlatformBuildDir)) {
-        Write-Warning "❌ 未找到平台构建: $PlatformBuildDir"
+        Write-Host "Platform build not found: $PlatformBuildDir" -ForegroundColor Yellow
         continue
     }
     
-    # 创建安装程序目录
+    Write-Host "Creating $Platform installer..." -ForegroundColor Blue
+    
+    # Create installer directory structure
     $InstallerDir = "$DistDir/Deck-Installer-$Platform"
     New-Item -ItemType Directory -Path $InstallerDir -Force | Out-Null
     
-    # 复制主程序
+    # Copy main executable
     $MainExe = if ($Platform -eq "windows-x64" -or $Platform -eq "windows-arm64") { "Deck.Console.exe" } else { "Deck.Console" }
     Copy-Item -Path "$PlatformBuildDir/$MainExe" -Destination "$InstallerDir/deck-binary.exe" -Force
     
-    # 创建主启动程序 (带桌面图标创建功能)
-    $MainLauncher = @"
+    # Create installer batch script
+    $InstallScript = @"
 @echo off
 setlocal enabledelayedexpansion
 
-:: 获取当前目录
+echo.
+echo Welcome to Deck Development Tool!
+echo =================================
+echo.
+echo Performing initial setup...
+echo.
+
 set "CURRENT_DIR=%~dp0"
 set "DECK_BINARY=%CURRENT_DIR%deck-binary.exe"
-set "INSTALL_DIR=%USERPROFILE%\AppData\Local\Deck"
+set "INSTALL_DIR=%USERPROFILE%\.local\bin"
 set "INSTALLED_BINARY=%INSTALL_DIR%\deck.exe"
-set "CONFIG_FILE=%INSTALL_DIR%\.deck-configured"
+set "CONFIG_FILE=%USERPROFILE%\.local\share\deck\.deck-configured"
 
-:: 检查是否首次运行
+REM Check if first run
 if not exist "%CONFIG_FILE%" (
-    echo.
-    echo 🚀 欢迎使用 Deck 开发工具!
-    echo =========================
-    echo.
-    echo 正在进行初始化配置...
-    echo.
-    
-    :: 创建安装目录
+    REM Create install directory
     if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+    if not exist "%USERPROFILE%\.local\share\deck" mkdir "%USERPROFILE%\.local\share\deck"
     
-    :: 复制程序到用户目录
+    REM Copy program to user directory
     copy "%DECK_BINARY%" "%INSTALLED_BINARY%" >nul
     
-    :: 添加到PATH环境变量
-    echo 📦 正在配置环境变量...
+    echo Setting up environment variables...
     
-    :: 获取当前用户PATH
-    for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "CURRENT_PATH=%%B"
+    REM Add to PATH using registry
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "USER_PATH=%%b"
+    if not defined USER_PATH set "USER_PATH="
     
-    :: 检查是否已在PATH中
-    echo !CURRENT_PATH! | findstr /i "%INSTALL_DIR%" >nul
-    if !errorlevel! neq 0 (
-        :: 添加到PATH
-        if "!CURRENT_PATH!"=="" (
-            set "NEW_PATH=%INSTALL_DIR%"
+    REM Check if already in PATH
+    echo !USER_PATH! | findstr /i "%INSTALL_DIR%" >nul
+    if errorlevel 1 (
+        if defined USER_PATH (
+            set "NEW_PATH=!USER_PATH!;%INSTALL_DIR%"
         ) else (
-            set "NEW_PATH=!CURRENT_PATH!;%INSTALL_DIR%"
+            set "NEW_PATH=%INSTALL_DIR%"
         )
         reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "!NEW_PATH!" /f >nul
-        echo ✅ 环境变量配置成功!
-        
-        :: 通知系统更新环境变量
-        powershell -Command "[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" >nul 2>&1
+        echo Environment variable configured successfully!
     ) else (
-        echo ✅ 环境变量已存在!
+        echo Environment variable already exists!
     )
     
     echo.
-    echo 📦 创建桌面快捷方式...
-    
-    :: 创建桌面快捷方式
-    powershell -Command "$WScript = New-Object -ComObject WScript.Shell; $Shortcut = $WScript.CreateShortcut('%USERPROFILE%\Desktop\Deck 开发工具.lnk'); $Shortcut.TargetPath = '%INSTALLED_BINARY%'; $Shortcut.WorkingDirectory = '%USERPROFILE%'; $Shortcut.Description = 'Deck 开发环境工具'; $Shortcut.Save()" >nul 2>&1
-    
-    echo ✅ 桌面快捷方式创建成功!
+    echo Installation completed!
     echo.
-    echo 🎉 安装完成!
+    echo You can now use:
+    echo • In VS Code terminal: deck --help
+    echo • In any terminal: deck start python
+    echo • Double-click this installer to run directly
     echo.
-    echo 现在您可以：
-    echo • 在 VS Code 终端中使用: deck --help
-    echo • 在 PowerShell 中使用: deck start python
-    echo • 双击桌面快捷方式直接运行
-    echo.
-    echo 💡 这是一个终端工具，主要在命令行中使用。
-    echo.
-    echo 📚 获取更多帮助:
-    echo • GitHub:  https://github.com/your-org/deck
-    echo • Gitee:   https://gitee.com/your-org/deck
-    echo • 使用指南: https://github.com/your-org/deck/wiki
-    echo.
-    echo 💡 提示: 复制上面的链接到浏览器查看详细使用方法
-    echo.
-    echo 注意: 您可能需要重新打开终端窗口以使环境变量生效
+    echo Note: You may need to restart your terminal for PATH changes to take effect
     echo.
     
-    :: 标记为已配置
-    echo configured > "%CONFIG_FILE%"
+    REM Mark as configured
+    echo. > "%CONFIG_FILE%"
     
     pause
     exit /b 0
 )
 
-:: 后续运行：直接执行deck功能
+REM Subsequent runs: execute deck functionality directly
 "%INSTALLED_BINARY%" %*
 "@
     
-    # 写入启动脚本
-    $MainLauncher | Out-File -FilePath "$InstallerDir/Deck.bat" -Encoding UTF8
+    Set-Content -Path "$InstallerDir/install.bat" -Value $InstallScript -Encoding UTF8
     
-    Write-Host "✅ $Platform 安装程序已创建: $InstallerDir" -ForegroundColor Green
-}
-
-# 创建ZIP分发包
-Write-Host "📦 创建ZIP分发包..." -ForegroundColor Blue
-
-for ($i = 0; $i -lt $Platforms.Length; $i++) {
-    $Platform = $Platforms[$i]
-    $RuntimeId = $RuntimeIds[$i]
-    $InstallerDir = "$DistDir/Deck-Installer-$Platform"
+    # Create ZIP package
     $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
     
-    if (Test-Path $InstallerDir) {
-        try {
-            # 创建ZIP包
-            Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-            
-            if (Test-Path $ZipPath) {
-                $ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
-                Write-Host "📦 创建ZIP包: $ZipPath ($ZipSize MB)" -ForegroundColor Green
-            }
-        }
-        catch {
-            Write-Warning "⚠️  $Platform ZIP 创建失败: $($_.Exception.Message)"
-        }
+    if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
+        Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
+        Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+    } else {
+        Write-Host "Warning: Compress-Archive not available, skipping ZIP creation" -ForegroundColor Yellow
     }
 }
 
-if ($NoAot) {
-    Write-Host "🎉 Windows 分发包构建完成!" -ForegroundColor Green
-} else {
-    Write-Host "🎉 Windows AOT优化分发包构建完成!" -ForegroundColor Green
-}
-Write-Host "📁 分发目录: $DistDir" -ForegroundColor Cyan
-Write-Host ""
+# Clean up temporary directories
+Remove-Item -Path "$DistDir/Deck-Installer-*" -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host "📦 创建的分发包:" -ForegroundColor Cyan
+Write-Host ""
+if ($NoAot) {
+    Write-Host "Fast distribution package build completed!" -ForegroundColor Green
+} else {
+    Write-Host "AOT optimized distribution package build completed!" -ForegroundColor Green
+}
+Write-Host "Distribution directory: $DistDir" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Created packages:" -ForegroundColor Gray
 Get-ChildItem $DistDir -Recurse | Where-Object { 
     -not $_.PSIsContainer -and ($_.Extension -eq ".zip" -or $_.Name -eq "Deck.bat") 
 } | ForEach-Object {
     $Size = [math]::Round($_.Length / 1MB, 2)
-    Write-Host "  📄 $($_.Name) ($Size MB)" -ForegroundColor Gray
+    Write-Host "  $($_.Name) ($Size MB)" -ForegroundColor Gray
 }
 
 Write-Host ""
-Write-Host "💡 提示:" -ForegroundColor Cyan
+Write-Host "Tips:" -ForegroundColor Cyan
 if ($NoAot) {
-    Write-Host "  ⚡ 快速分发包已完成" -ForegroundColor Gray
-    Write-Host "  🔥 生产环境推荐使用AOT优化: .\scripts\package.ps1 -Version $Version" -ForegroundColor Gray
+    Write-Host "  Fast build completed" -ForegroundColor Gray
+    $productionCmd = ".\scripts\package.ps1 -Version " + $Version
+    Write-Host "  For production AOT build, use: $productionCmd" -ForegroundColor Gray
 } else {
-    Write-Host "  🔥 AOT优化分发包已完成" -ForegroundColor Gray
-    Write-Host "  ⚡ 如需快速构建，请使用: .\scripts\package.ps1 -NoAot -Version $Version" -ForegroundColor Gray
+    Write-Host "  AOT optimized build completed" -ForegroundColor Gray
+    $fastCmd = ".\scripts\package.ps1 -NoAot -Version " + $Version
+    Write-Host "  For fast build, use: $fastCmd" -ForegroundColor Gray
 }
