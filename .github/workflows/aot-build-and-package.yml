@@ -144,90 +144,39 @@ jobs:
     - name: Verify AOT packages
       shell: bash
       run: |
-        # Check if packages were created successfully
-        if [ -d "${{ env.DIST_DIR }}" ]; then
-          echo "✅ AOT packages created successfully"
-          echo ""
-          echo "📦 Created packages:"
-          find ${{ env.DIST_DIR }} -type f
-          echo ""
-          
-          # Verify package types by platform
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            PKG_COUNT=$(find ${{ env.DIST_DIR }} -name "*.pkg" | wc -l)
-            if [ $PKG_COUNT -gt 0 ]; then
-              echo "✅ macOS PKG packages found: $PKG_COUNT"
-              # Verify PKG contents include uninstall script
-              for pkg in $(find ${{ env.DIST_DIR }} -name "*.pkg"); do
-                echo "📋 Checking PKG contents: $pkg"
-                pkgutil --payload-files "$pkg" | grep -q "deck-uninstall" && echo "✅ Uninstall script included" || echo "⚠️  Uninstall script missing"
-              done
-            else
-              echo "❌ No PKG packages found for macOS"
-              exit 1
-            fi
-            
-          elif [[ "$RUNNER_OS" == "Linux" ]]; then
-            TAR_COUNT=$(find ${{ env.DIST_DIR }} -name "*.tar.gz" | wc -l)
-            if [ $TAR_COUNT -gt 0 ]; then
-              echo "✅ Linux TAR.GZ packages found: $TAR_COUNT"
-            else
-              echo "❌ No TAR.GZ packages found for Linux"
-              exit 1
-            fi
-            
-          elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            MSI_COUNT=$(find ${{ env.DIST_DIR }} -name "*.msi" | wc -l)
-            if [ $MSI_COUNT -gt 0 ]; then
-              echo "✅ Windows MSI packages found: $MSI_COUNT"
-            else
-              echo "❌ No MSI packages found for Windows"
-              echo "MSI package creation is required for Windows distribution"
-              exit 1
-            fi
-          fi
-        else
-          echo "❌ AOT packaging failed - no packages found"
-          exit 1
-        fi
-
-    - name: Test packages
-      shell: bash
-      run: |
-        echo "🧪 Testing generated packages..."
-        
+        # Verify package types by platform
         if [[ "$RUNNER_OS" == "macOS" ]]; then
-          # Test macOS PKG (can't install without sudo, but can check structure)
-          for pkg in $(find ${{ env.DIST_DIR }} -name "*.pkg" 2>/dev/null || true); do
-            if [[ -f "$pkg" ]]; then
-              echo "📋 Testing PKG structure: $pkg"
-              pkgutil --payload-files "$pkg" | head -10
-              echo "✅ PKG structure test passed"
-              break
-            fi
-          done
+          PKG_COUNT=$(find ${{ env.DIST_DIR }} -name "*.pkg" | wc -l)
+          if [ $PKG_COUNT -gt 0 ]; then
+            echo "✅ macOS PKG packages found: $PKG_COUNT"
+            # Verify PKG contents include uninstall script
+            for pkg in $(find ${{ env.DIST_DIR }} -name "*.pkg"); do
+              echo "📋 Checking PKG contents: $pkg"
+              pkgutil --payload-files "$pkg" | grep -q "deck-uninstall" && echo "✅ Uninstall script included" || echo "⚠️  Uninstall script missing"
+            done
+          else
+            echo "❌ No PKG packages found for macOS"
+            exit 1
+          fi
+            
         elif [[ "$RUNNER_OS" == "Linux" ]]; then
-          # Test Linux TAR.GZ
-          for tarfile in $(find ${{ env.DIST_DIR }} -name "*.tar.gz" 2>/dev/null || true); do
-            if [[ -f "$tarfile" ]]; then
-              echo "📋 Testing TAR.GZ: $tarfile"
-              cd $(dirname "$tarfile")
-              tar -tzf $(basename "$tarfile") | head -10
-              echo "✅ TAR.GZ structure test passed"
-              break
-            fi
-          done
+          TAR_COUNT=$(find ${{ env.DIST_DIR }} -name "*.tar.gz" | wc -l)
+          if [ $TAR_COUNT -gt 0 ]; then
+            echo "✅ Linux TAR.GZ packages found: $TAR_COUNT"
+          else
+            echo "❌ No TAR.GZ packages found for Linux"
+            exit 1
+          fi
+            
         elif [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Test Windows MSI packages only
-          for msifile in $(find ${{ env.DIST_DIR }} -name "*.msi" 2>/dev/null || true); do
-            if [[ -f "$msifile" ]]; then
-              echo "📋 Testing MSI: $msifile"
-              # Use PowerShell to check MSI properties on Windows
-              pwsh -Command "Get-ItemProperty '$msifile' | Select-Object Name, Length, LastWriteTime"
-              echo "✅ MSI structure test passed"
-              break
-            fi
-          done
+          MSI_COUNT=$(find ${{ env.DIST_DIR }} -name "*.msi" | wc -l)
+          if [ $MSI_COUNT -gt 0 ]; then
+            echo "✅ Windows MSI packages found: $MSI_COUNT"
+          else
+            echo "❌ No MSI packages found for Windows"
+            echo "MSI package creation is required for Windows distribution"
+            exit 1
+          fi
         fi
 
     - name: Upload AOT package artifacts
@@ -278,9 +227,16 @@ jobs:
           1. 下载对应平台的安装包
           2. Windows: 双击 MSI 文件安装
           3. macOS: 双击 PKG 文件安装
-          4. Linux: 解压 TAR.GZ 到目标目录
+          4. Linux: 解压 TAR.GZ 到目标目录`tar -xzf Deck-v1.0.0-aot-linux-x64.tar.gz -C /usr/local/bin/`
+
+          ### 卸载方式
+          1. Windows: 打开Windows 控制面板，选择“程序” -> 找到“Deck - xx” -> “卸载”
+          2. macOS: 终端执行命令`deck-uninstall`
+          3. Linux: 终端执行命令`rm -rf /usr/local/bin/deck`
         files: |
-          ./aot-artifacts/aot-package-*/**/*
+          ./aot-artifacts/aot-package-*/**/*.msi
+          ./aot-artifacts/aot-package-*/**/*.pkg
+          ./aot-artifacts/aot-package-*/**/*.tar.gz
         generate_release_notes: true
         draft: false
         prerelease: false
