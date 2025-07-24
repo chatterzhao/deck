@@ -30,7 +30,7 @@ static RootCommand CreateRootCommand(IServiceProvider services)
 {
     const string ProgramName = "deck";
     const string Version = "1.0.0";
-    const string Description = "开发环境容器化工具 - .NET 版本";
+    const string Description = "搭建容器化开发环境的工具 - .NET 版本";
     
     var rootCommand = new RootCommand(Description)
     {

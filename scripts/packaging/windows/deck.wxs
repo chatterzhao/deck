@@ -37,7 +37,7 @@
         <Component Id="ApplicationShortcut" Guid="*">
           <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="Deck Console"
-                    Description="容器化开发环境构建工具"
+                    Description="搭建容器化开发环境的工具"
                     Target="[BinFolder]Deck.Console.exe"
                     WorkingDirectory="BinFolder"/>
           <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
@@ -49,7 +49,7 @@
     <!-- 卸载时的注册表清理 -->
     <Component Id="RegistryCleanup" Directory="INSTALLFOLDER" Guid="*">
       <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Deck">
-        <RegistryValue Name="DisplayName" Type="string" Value="Deck - 容器化开发环境构建工具" />
+        <RegistryValue Name="DisplayName" Type="string" Value="Deck - 搭建容器化开发环境的工具" />
         <RegistryValue Name="DisplayVersion" Type="string" Value="$(var.Version)" />
         <RegistryValue Name="Publisher" Type="string" Value="Deck Team" />
         <RegistryValue Name="UninstallString" Type="string" Value="[SystemFolder]msiexec.exe /x [ProductCode]" />
