@@ -9,6 +9,8 @@
     <!-- 功能定义 -->
     <Feature Id="ProductFeature" Title="Deck Console Application" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="RegistryCleanup" />
     </Feature>
     
     <!-- 安装目录结构 -->
