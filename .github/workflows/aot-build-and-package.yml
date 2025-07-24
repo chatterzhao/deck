@@ -181,14 +181,9 @@ jobs:
             if [ $MSI_COUNT -gt 0 ]; then
               echo "✅ Windows MSI packages found: $MSI_COUNT"
             else
-              # Fallback to check for ZIP if MSI creation failed
-              ZIP_COUNT=$(find ${{ env.DIST_DIR }} -name "*.zip" | wc -l)
-              if [ $ZIP_COUNT -gt 0 ]; then
-                echo "⚠️  MSI creation failed, but ZIP packages found: $ZIP_COUNT"
-              else
-                echo "❌ No MSI or ZIP packages found for Windows"
-                exit 1
-              fi
+              echo "❌ No MSI packages found for Windows"
+              echo "MSI package creation is required for Windows distribution"
+              exit 1
             fi
           fi
         else
@@ -223,30 +218,16 @@ jobs:
             fi
           done
         elif [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Test Windows MSI first, then ZIP fallback
-          MSI_FOUND=false
+          # Test Windows MSI packages only
           for msifile in $(find ${{ env.DIST_DIR }} -name "*.msi" 2>/dev/null || true); do
             if [[ -f "$msifile" ]]; then
               echo "📋 Testing MSI: $msifile"
               # Use PowerShell to check MSI properties on Windows
               pwsh -Command "Get-ItemProperty '$msifile' | Select-Object Name, Length, LastWriteTime"
               echo "✅ MSI structure test passed"
-              MSI_FOUND=true
               break
             fi
           done
-          
-          if [[ "$MSI_FOUND" == "false" ]]; then
-            # Fallback to ZIP testing
-            for zipfile in $(find ${{ env.DIST_DIR }} -name "*.zip" 2>/dev/null || true); do
-              if [[ -f "$zipfile" ]]; then
-                echo "📋 Testing ZIP fallback: $zipfile"
-                pwsh -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('$zipfile').Entries | Select-Object -First 10 Name"
-                echo "✅ ZIP structure test passed"
-                break
-              fi
-            done
-          fi
         fi
 
     - name: Upload AOT package artifacts

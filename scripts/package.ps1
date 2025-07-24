@@ -183,33 +183,20 @@ REM Subsequent runs: execute deck functionality directly
                 Write-Host "✅ Created MSI package: $MsiPath ($MsiSize MB)" -ForegroundColor Green
             } else {
                 Write-Host "❌ MSI creation failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
-                Write-Host "Creating ZIP fallback package..." -ForegroundColor Yellow
-                $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
-                if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
-                    Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-                    $ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
-                    Write-Host "✅ Created ZIP package: $ZipPath ($ZipSize MB)" -ForegroundColor Green
-                }
+                Write-Host "WiX build failed. This is required for Windows installation packages." -ForegroundColor Red
+                throw "MSI package creation failed. Cannot proceed without proper Windows installer."
             }
         } else {
             Write-Host "❌ WiX command not found in PATH" -ForegroundColor Red
             Write-Host "Available commands:" -ForegroundColor Yellow
             Get-Command *wix* -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name) - $($_.Source)" -ForegroundColor Gray }
-            Write-Host "Creating ZIP package as fallback..." -ForegroundColor Yellow
-            $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
-            if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
-                Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-                $ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
-                Write-Host "✅ Created ZIP package: $ZipPath ($ZipSize MB)" -ForegroundColor Green
-            }
+            Write-Host "WiX Toolset is required for creating MSI packages." -ForegroundColor Red
+            throw "WiX Toolset not found. Please install WiX Toolset v4 to create MSI packages."
         }
     } else {
-        Write-Host "Warning: WiX source file not found at $WixSource, creating ZIP package..." -ForegroundColor Yellow
-        $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
-        if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
-            Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-            Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
-        }
+        Write-Host "❌ WiX source file not found at $WixSource" -ForegroundColor Red
+        Write-Host "MSI packaging requires the WiX source file for Windows installers." -ForegroundColor Red
+        throw "WiX source file missing: $WixSource. Cannot create MSI package."
     }
 }
 
