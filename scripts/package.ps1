@@ -155,28 +155,52 @@ REM Subsequent runs: execute deck functionality directly
         
         # Check if WiX is available
         if (Get-Command wix -ErrorAction SilentlyContinue) {
-            # Build MSI using WiX v4 syntax
-            wix build "$AbsWixSource" `
+            Write-Host "WiX toolset found, proceeding with MSI creation..." -ForegroundColor Green
+            
+            # Verify source directory contains executable
+            $ExePath = Join-Path $AbsSourceDir "Deck.Console.exe"
+            if (-not (Test-Path $ExePath)) {
+                Write-Host "Error: Deck.Console.exe not found in source directory: $AbsSourceDir" -ForegroundColor Red
+                Write-Host "Contents of source directory:" -ForegroundColor Yellow
+                Get-ChildItem $AbsSourceDir | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Gray }
+                throw "Missing executable for MSI packaging"
+            }
+            
+            Write-Host "Building MSI with WiX v4..." -ForegroundColor Blue
+            Write-Host "Command: wix build `"$AbsWixSource`" -d `"Version=$Version`" -d `"SourceDir=$AbsSourceDir`" -o `"$AbsMsiPath`"" -ForegroundColor Gray
+            
+            # Build MSI using WiX v4 syntax with detailed output
+            $WixOutput = wix build "$AbsWixSource" `
                 -d "Version=$Version" `
                 -d "SourceDir=$AbsSourceDir" `
-                -o "$AbsMsiPath"
+                -o "$AbsMsiPath" 2>&1
+                
+            Write-Host "WiX build output:" -ForegroundColor Gray
+            $WixOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
                 
             if ($LASTEXITCODE -eq 0 -and (Test-Path $MsiPath)) {
-                Write-Host "Created MSI package: $MsiPath" -ForegroundColor Green
+                $MsiSize = [math]::Round((Get-Item $MsiPath).Length / 1MB, 2)
+                Write-Host "✅ Created MSI package: $MsiPath ($MsiSize MB)" -ForegroundColor Green
             } else {
-                Write-Host "Warning: MSI creation failed (exit code: $LASTEXITCODE), creating ZIP fallback..." -ForegroundColor Yellow
+                Write-Host "❌ MSI creation failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+                Write-Host "Creating ZIP fallback package..." -ForegroundColor Yellow
                 $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
                 if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
                     Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-                    Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+                    $ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
+                    Write-Host "✅ Created ZIP package: $ZipPath ($ZipSize MB)" -ForegroundColor Green
                 }
             }
         } else {
-            Write-Host "Warning: WiX command not found, creating ZIP package..." -ForegroundColor Yellow
+            Write-Host "❌ WiX command not found in PATH" -ForegroundColor Red
+            Write-Host "Available commands:" -ForegroundColor Yellow
+            Get-Command *wix* -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name) - $($_.Source)" -ForegroundColor Gray }
+            Write-Host "Creating ZIP package as fallback..." -ForegroundColor Yellow
             $ZipPath = "$DistDir/Deck-v$Version-$RuntimeId.zip"
             if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
                 Compress-Archive -Path "$InstallerDir/*" -DestinationPath $ZipPath -Force
-                Write-Host "Created ZIP package: $ZipPath" -ForegroundColor Green
+                $ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
+                Write-Host "✅ Created ZIP package: $ZipPath ($ZipSize MB)" -ForegroundColor Green
             }
         }
     } else {

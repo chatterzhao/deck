@@ -78,11 +78,34 @@ jobs:
         choco install visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --add Microsoft.VisualStudio.Component.VC.Redist.14.Latest' -y
         
         # Install WiX Toolset v4 for MSI package creation
+        echo "Installing WiX Toolset v4 globally..."
         dotnet tool install --global wix --version 4.0.5
-        echo "Installed WiX version:"
-        wix --version
         
-        # Verify installation
+        # Refresh PATH to include dotnet tools
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+        
+        # Verify WiX installation with detailed diagnostics
+        echo "Verifying WiX installation..."
+        echo "PATH contents:"
+        $env:PATH -split ';' | Where-Object { $_ -like "*dotnet*" -or $_ -like "*tools*" } | ForEach-Object { echo "  $_" }
+        
+        echo "Global .NET tools location:"
+        if (Test-Path "$env:USERPROFILE\.dotnet\tools") {
+          echo "  $env:USERPROFILE\.dotnet\tools exists"
+          Get-ChildItem "$env:USERPROFILE\.dotnet\tools" -Name
+        }
+        
+        echo "Testing WiX command availability:"
+        try {
+          wix --version
+          echo "✅ WiX command successful"
+        } catch {
+          echo "❌ WiX command failed: $_"
+          echo "Trying direct path..."
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" --version
+        }
+        
+        # Verify other development tools
         echo "Verifying Windows development environment..."
         where link.exe || echo "Link.exe not found in PATH"
         if (Test-Path "C:\Program Files (x86)\Windows Kits\10\Lib") { echo "Windows SDK found" } else { echo "Windows SDK not found" }
