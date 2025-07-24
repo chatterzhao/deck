@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Deck - 搭建容器化开发环境的工具" Manufacturer="Deck Team" Version="$(var.Version)" UpgradeCode="12345678-1234-1234-1234-123456789012">
+  <Package Name="Deck - 搭建容器化开发环境的命令行工具" Manufacturer="Deck Team" Version="$(var.Version)" UpgradeCode="12345678-1234-1234-1234-123456789012">
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     
     <!-- 媒体定义 -->
@@ -36,7 +36,7 @@
         <Component Id="ApplicationShortcut" Guid="*">
           <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="Deck Console"
-                    Description="搭建容器化开发环境的工具"
+                    Description="搭建容器化开发环境的命令行工具"
                     Target="[BinFolder]deck.exe"
                     WorkingDirectory="BinFolder"/>
           <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>

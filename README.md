@@ -1,6 +1,6 @@
 # Deck
 
-Deck（/dɛk/ "代克"，甲板），搭建容器化开发环境的工具，模板复用，助力开发快速起步
+Deck（/dɛk/ "代克"）是搭建容器化开发环境的命令行工具，模板复用，助力开发快速起步
 
 Deck 通过模板为开发者提供标准化的开发环境基础，让您专注于业务开发而非环境配置。
 
@@ -25,21 +25,19 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 - **Linux**: `deck-vX.X.X-linux-x64.deb` / `deck-vX.X.X-linux-x64.rpm` 或 ARM64 版本
 - **macOS**: `deck-vX.X.X-osx-x64.pkg` 或 `deck-vX.X.X-osx-arm64.pkg`
 
-### 安装步骤
+### 安装或卸载步骤
 
 #### Windows
 1. 下载 `.msi` 安装包
 2. 双击运行安装程序，按向导完成安装
 3. 安装完成后，在终端中运行 `deck --version` 验证
+4. 卸载方法：控制面板 → 程序和功能 → 找到 `Deck` 并卸载
 
 #### macOS
 1. 下载 `.pkg` 安装包
 2. 双击运行安装程序，按向导完成安装
 3. 安装完成后，在终端中运行 `deck --version` 验证
-
-**卸载方法**：
-- 使用卸载脚本：`deck-uninstall`
-- 手动删除：`sudo rm /usr/local/bin/deck`
+4. 终端执行`deck-uninstall`
 
 #### Linux
 1. 下载对应的 `.deb` 或 `.rpm` 包
@@ -47,6 +45,7 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 3. CentOS/RHEL: `sudo rpm -ivh deck-vX.X.X-linux-x64.rpm`
 4. 或通过包管理器安装（如 apt、yum）
 5. 验证安装：`deck --version`
+6. 卸载方法：终端执行命令`rm -rf /usr/local/bin/deck`
 
 ### 通过源码构建
 
@@ -55,11 +54,11 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 git clone https://github.com/your-org/deck-dotnet.git
 cd deck-dotnet
 
-# 构建
-dotnet build --configuration Release
+# macOS 构建
+./scripts/build.sh # 如果是 Windows 执行：./scripts/build.ps1
 
-# 发布（可选）
-dotnet publish src/Deck.Console -c Release -o publish
+# macOS 打包
+./scripts/package.sh # 如果是 Windows 执行：./scripts/package.ps1
 ```
 
 ## 🚀 快速开始
@@ -67,9 +66,14 @@ dotnet publish src/Deck.Console -c Release -o publish
 ### 1. 初始化项目
 
 ```bash
+# 假如还没有项目目录，则创建
 # 在终端应用执行命令或手工创建项目目录
 # 在宿主机创建（不是容器内）
-mkdir my-project && cd my-project
+mkdir my-project
+```
+```bash
+# 在终端执行命令进入项目目录
+cd my-project
 ```
 
 ### 2. 选择开发环境

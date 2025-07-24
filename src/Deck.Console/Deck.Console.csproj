@@ -29,8 +29,8 @@
     <Version>1.0.0</Version>
     
     <!-- 应用程序信息 -->
-    <AssemblyTitle>Deck - 甲板，搭建容器化开发环境的工具</AssemblyTitle>
-    <AssemblyDescription>模板复用，助力开发快速起步的搭建容器化开发环境的工具</AssemblyDescription>
+    <AssemblyTitle>Deck - 搭建容器化开发环境的命令行工具</AssemblyTitle>
+    <AssemblyDescription>模板复用，助力开发快速起步的搭建容器化开发环境的命令行工具</AssemblyDescription>
     <AssemblyCompany>Deck Team</AssemblyCompany>
     <AssemblyProduct>Deck</AssemblyProduct>
     <Copyright>Copyright © 2025 Deck Team</Copyright>

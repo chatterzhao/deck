@@ -365,7 +365,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     cat > "$DESKTOP_FILE" << DESKTOP_EOF
 [Desktop Entry]
 Name=Deck 开发工具
-Comment=搭建容器化开发环境的工具
+Comment=搭建容器化开发环境的命令行工具
 Exec=$INSTALLED_BINARY
 Icon=terminal
 Terminal=true

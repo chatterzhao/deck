@@ -1,7 +1,7 @@
 Name:           deck
 Version:        %{_version}
 Release:        1%{?dist}
-Summary:        搭建容器化开发环境的工具
+Summary:        搭建容器化开发环境的命令行工具
 
 License:        MIT
 URL:            https://github.com/deck/deck-dotnet
@@ -11,7 +11,7 @@ BuildArch:      x86_64
 Requires:       glibc
 
 %description
-Deck - 甲板，搭建容器化开发环境的工具，模板复用，助力开发快速起步。
+Deck（/dɛk/ "代克"）是搭建容器化开发环境的命令行工具，模板复用，助力开发快速起步。
 
 Deck 通过模板为开发者提供标准化的开发环境基础，让您专注于业务开发而非环境配置。
 基于 .NET 9 构建，AOT编译，跨平台原生性能，支持 Windows、macOS 和 Linux 平台。
