@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Deck" Manufacturer="Deck Team" Version="$(var.Version)" UpgradeCode="12345678-1234-1234-1234-123456789012">
+  <Package Name="Deck - 搭建容器化开发环境的工具" Manufacturer="Deck Team" Version="$(var.Version)" UpgradeCode="12345678-1234-1234-1234-123456789012">
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     
     <!-- 媒体定义 -->
@@ -10,7 +10,6 @@
     <Feature Id="ProductFeature" Title="Deck Console Application" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
       <ComponentRef Id="ApplicationShortcut" />
-      <ComponentRef Id="RegistryCleanup" />
     </Feature>
     
     <!-- 安装目录结构 -->
@@ -45,16 +44,5 @@
         </Component>
       </Directory>
     </StandardDirectory>
-    
-    <!-- 卸载时的注册表清理 -->
-    <Component Id="RegistryCleanup" Directory="INSTALLFOLDER" Guid="*">
-      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Deck">
-        <RegistryValue Name="DisplayName" Type="string" Value="Deck - 搭建容器化开发环境的工具" />
-        <RegistryValue Name="DisplayVersion" Type="string" Value="$(var.Version)" />
-        <RegistryValue Name="Publisher" Type="string" Value="Deck Team" />
-        <RegistryValue Name="UninstallString" Type="string" Value="[SystemFolder]msiexec.exe /x [ProductCode]" />
-        <RegistryValue Name="DisplayIcon" Type="string" Value="[BinFolder]Deck.Console.exe" />
-      </RegistryKey>
-    </Component>
   </Package>
 </Wix>
