@@ -129,16 +129,38 @@ public class StartCommandServiceSimple : IStartCommandService
         
         try
         {
-            // 处理标准端口管理
-            _consoleUIService.ShowInfo("🔍 检查端口配置...");
+            // 处理标准端口管理和冲突检测
+            _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
             var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath);
             if (!portResult.IsSuccess)
             {
                 return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
             }
             
-            // 显示端口警告
-            foreach (var warning in portResult.Warnings)
+            // 显示端口冲突解决信息并处理用户交互
+            if (portResult.ModifiedPorts.Count > 0)
+            {
+                _consoleUIService.ShowWarning("⚠️ 检测到端口冲突，已自动解决：");
+                foreach (var (portVar, newPort) in portResult.ModifiedPorts)
+                {
+                    _consoleUIService.ShowInfo($"  📌 {portVar}: 已更改为端口 {newPort}");
+                }
+                _consoleUIService.ShowInfo("💡 端口配置已更新到 .env 文件中");
+                
+                // 询问用户是否要继续
+                var continueWithNewPorts = _consoleUIService.ShowConfirmation("是否继续使用新的端口配置启动？");
+                if (!continueWithNewPorts)
+                {
+                    return StartCommandResult.Failure("用户取消了启动，请检查端口配置后重试");
+                }
+            }
+            else
+            {
+                _consoleUIService.ShowSuccess("✅ 所有端口配置正常，无冲突");
+            }
+            
+            // 显示其他端口警告
+            foreach (var warning in portResult.Warnings.Where(w => !w.Contains("端口冲突：")))
             {
                 _consoleUIService.ShowWarning($"⚠️ {warning}");
             }
@@ -188,16 +210,38 @@ public class StartCommandServiceSimple : IStartCommandService
         
         try
         {
-            // 处理标准端口管理
-            _consoleUIService.ShowInfo("🔍 检查端口配置...");
+            // 处理标准端口管理和冲突检测
+            _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
             var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath);
             if (!portResult.IsSuccess)
             {
                 return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
             }
             
-            // 显示端口警告
-            foreach (var warning in portResult.Warnings)
+            // 显示端口冲突解决信息并处理用户交互
+            if (portResult.ModifiedPorts.Count > 0)
+            {
+                _consoleUIService.ShowWarning("⚠️ 检测到端口冲突，已自动解决：");
+                foreach (var (portVar, newPort) in portResult.ModifiedPorts)
+                {
+                    _consoleUIService.ShowInfo($"  📌 {portVar}: 已更改为端口 {newPort}");
+                }
+                _consoleUIService.ShowInfo("💡 端口配置已更新到 .env 文件中");
+                
+                // 询问用户是否要继续
+                var continueWithNewPorts = _consoleUIService.ShowConfirmation("是否继续使用新的端口配置构建？");
+                if (!continueWithNewPorts)
+                {
+                    return StartCommandResult.Failure("用户取消了构建，请检查端口配置后重试");
+                }
+            }
+            else
+            {
+                _consoleUIService.ShowSuccess("✅ 所有端口配置正常，无冲突");
+            }
+            
+            // 显示其他端口警告
+            foreach (var warning in portResult.Warnings.Where(w => !w.Contains("端口冲突：")))
             {
                 _consoleUIService.ShowWarning($"⚠️ {warning}");
             }

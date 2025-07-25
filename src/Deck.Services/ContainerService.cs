@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using Deck.Core.Interfaces;
 using Deck.Core.Models;
@@ -155,15 +156,43 @@ public class ContainerService : IContainerService
             var container = await GetContainerInfoAsync(containerName);
             if (container != null)
             {
+                _logger.LogDebug("检查容器 {ContainerName} 的端口冲突", containerName);
                 var portConflictResult = await CheckAndResolvePortConflictsAsync(container);
                 if (portConflictResult.HasConflict)
                 {
+                    _logger.LogWarning("容器 {ContainerName} 存在端口冲突: 端口 {Port}", containerName, portConflictResult.Port);
+                    
+                    // 获取详细的解决建议
+                    var detailedConflictInfo = await _portConflictService.DetectPortConflictAsync(portConflictResult.Port);
+                    var suggestions = await _portConflictService.GetResolutionSuggestionsAsync(detailedConflictInfo);
+                    
+                    var message = new StringBuilder();
+                    message.AppendLine($"端口冲突检测到在端口 {portConflictResult.Port}");
+                    message.AppendLine($"冲突服务: {string.Join(", ", portConflictResult.ConflictingServices)}");
+                    
+                    if (suggestions.Any())
+                    {
+                        message.AppendLine("建议解决方案:");
+                        foreach (var suggestion in suggestions.Take(3)) // 只显示前3个建议
+                        {
+                            message.AppendLine($"  • {suggestion.Description}");
+                            if (!string.IsNullOrEmpty(suggestion.Command))
+                            {
+                                message.AppendLine($"    命令: {suggestion.Command}");
+                            }
+                        }
+                    }
+                    
                     return new StartContainerResult
                     {
                         Success = false,
                         Mode = startMode,
-                        Message = $"Port conflicts detected on port {portConflictResult.Port}: {string.Join(", ", portConflictResult.ConflictingServices)}"
+                        Message = message.ToString().Trim()
                     };
+                }
+                else
+                {
+                    _logger.LogDebug("容器 {ContainerName} 端口检查通过，无冲突", containerName);
                 }
             }
 
