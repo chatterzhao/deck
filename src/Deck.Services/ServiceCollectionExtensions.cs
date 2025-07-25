@@ -25,6 +25,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRemoteTemplatesService, RemoteTemplatesService>();
         services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
+        
+        // 注意：StartCommand 在 Deck.Console 中注册，避免循环依赖
         services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();

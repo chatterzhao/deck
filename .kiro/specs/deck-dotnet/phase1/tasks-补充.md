@@ -53,7 +53,7 @@
 ## 🔴 阻塞性问题（高优先级）
 
 ### 1. 修复 ServiceCollectionExtensions.cs 中的模型不一致问题
-**状态**: [✅] 已完成  
+**状态**: ✅ 已完成  
 **优先级**: 🔥 最高  
 **问题编号**: validation-gap-analysis.md 问题 #1  
 **位置**: [ServiceCollectionExtensions.cs](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Services/ServiceCollectionExtensions.cs):47-48
@@ -92,29 +92,29 @@
 ---
 
 ### 2. 创建完整的 StartCommand 实现
-**状态**: [ ] 未开始  
+**状态**: ✅ 已完成  
 **优先级**: 🔥 高  
 **问题编号**: validation-gap-analysis.md 问题 #2  
 **问题**: 缺少完整的 `StartCommand.cs` 命令实现，`StartCommandServiceSimple.cs` 只实现了部分服务功能
 
 **任务清单**:
-- [ ] 2.1 分析 StartCommandServiceSimple.cs 的功能范围
-  - [ ] 识别已实现的功能特性
-  - [ ] 找出缺失的核心功能
-  - [ ] 确定完整 StartCommand 需要的接口定义
-- [ ] 2.2 设计完整的 StartCommand 架构
-  - [ ] 定义 StartCommand 类结构（位于 [Deck.Console/Commands](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Console/Commands) 目录）
-  - [ ] 设计三层配置选择流程
-  - [ ] 集成交互式选择服务
-- [ ] 2.3 实现完整的 StartCommand.cs
-  - [ ] 实现核心三层配置选择界面
-  - [ ] 集成端口冲突检测和解决
-  - [ ] 实现智能环境检测和推荐
-  - [ ] 添加 Templates 双工作流程选择
-- [ ] 2.4 集成和测试
-  - [ ] 在 Program.cs 中集成新的 StartCommand
-  - [ ] 替换或扩展 StartCommandServiceSimple 的使用
-  - [ ] 创建单元测试覆盖
+- ✅ 2.1 分析 StartCommandServiceSimple.cs 的功能范围
+  - ✅ 识别已实现的功能特性
+  - ✅ 找出缺失的核心功能
+  - ✅ 确定完整 StartCommand 需要的接口定义
+- ✅ 2.2 设计完整的 StartCommand 架构
+  - ✅ 定义 StartCommand 类结构（位于 [Deck.Console/Commands](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Console/Commands) 目录）
+  - ✅ 设计三层配置选择流程
+  - ✅ 集成交互式选择服务
+- ✅ 2.3 实现完整的 StartCommand.cs
+  - ✅ 实现核心三层配置选择界面
+  - ✅ 集成端口冲突检测和解决
+  - ✅ 实现智能环境检测和推荐
+  - ✅ 添加 Templates 双工作流程选择
+- ✅ 2.4 集成和测试
+  - ✅ 在 Program.cs 中集成新的 StartCommand
+  - ✅ 替换或扩展 StartCommandServiceSimple 的使用
+  - ✅ 创建单元测试覆盖
 
 **验收标准**:
 - ✅ 需求1标准1-2（核心三层配置选择界面）完全实现
@@ -296,6 +296,38 @@
 - ✅ ContainerService 和 ThreeLayerWorkflowService 正常注册和启动
 - ✅ 需求3（三层配置）和需求4（容器管理）的核心验收标准可以执行
 - ✅ 无数据模型冲突相关的编译或运行时错误
+
+---
+
+### 2. 创建完整的 StartCommand 实现
+**状态**: ✅ 已完成  
+**优先级**: 🔥 高  
+**问题编号**: validation-gap-analysis.md 问题 #2  
+**问题**: 缺少完整的 `StartCommand.cs` 命令实现，`StartCommandServiceSimple.cs` 只实现了部分服务功能
+
+**任务清单**:
+- ✅ 2.1 分析 StartCommandServiceSimple.cs 的功能范围
+  - ✅ 识别已实现的功能特性
+  - ✅ 找出缺失的核心功能
+  - ✅ 确定完整 StartCommand 需要的接口定义
+- ✅ 2.2 设计完整的 StartCommand 架构
+  - ✅ 定义 StartCommand 类结构（位于 [Deck.Console/Commands](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Console/Commands) 目录）
+  - ✅ 设计三层配置选择流程
+  - ✅ 集成交互式选择服务
+- ✅ 2.3 实现完整的 StartCommand.cs
+  - ✅ 实现核心三层配置选择界面
+  - ✅ 集成端口冲突检测和解决
+  - ✅ 实现智能环境检测和推荐
+  - ✅ 添加 Templates 双工作流程选择
+- ✅ 2.4 集成和测试
+  - ✅ 在 Program.cs 中集成新的 StartCommand
+  - ✅ 替换或扩展 StartCommandServiceSimple 的使用
+  - ✅ 创建单元测试覆盖
+
+**验收标准**:
+- ✅ 需求1标准1-2（核心三层配置选择界面）完全实现
+- ✅ Start 命令支持完整的三层配置选择流程
+- ✅ 集成所有相关服务（端口检测、交互式选择等）
 
 ---
 

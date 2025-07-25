@@ -11,6 +11,9 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddDeckServicesWithLogging();
+        
+        // 注册命令类
+        services.AddTransient<StartCommand>();
     })
     .Build();
 
@@ -76,21 +79,15 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     startCommand.SetHandler(async (string? envType) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Start");
-        var startService = services.GetRequiredService<IStartCommandService>();
-        
         logger.LogInformation("Start command called with env-type: {EnvType}", envType ?? "auto-detect");
         
         try
         {
-            var result = await startService.ExecuteAsync(envType);
+            var command = services.GetRequiredService<StartCommand>();
+            var success = await command.ExecuteAsync(envType);
             
-            if (result.IsSuccess)
+            if (!success)
             {
-                logger.LogInformation("Start command completed successfully for image: {ImageName}", result.ImageName);
-            }
-            else
-            {
-                logger.LogError("Start command failed: {ErrorMessage}", result.ErrorMessage);
                 Environment.Exit(1);
             }
         }
