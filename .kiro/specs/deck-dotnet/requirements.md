@@ -129,11 +129,11 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 
 ### 需求5：配置文件处理
 
-**用户故事：** 作为开发者，我希望工具能够解析和验证YAML、环境变量等配置文件，确保配置的正确性。
+**用户故事：** 作为开发者，我希望工具能够正确处理不同类型的配置文件：应用内配置文件（如config.json）需要解析和验证，而容器配置文件（如compose.yaml）可以直接传递给容器引擎，同时支持环境变量处理和模板变量替换。
 
 #### 验收标准
 
-1. WHEN 解析compose.yaml时 THEN 系统应验证YAML语法和Docker Compose结构
+1. WHEN 处理compose.yaml时 THEN 系统应将文件直接传递给podman-compose，依赖外部工具进行YAML验证
 2. WHEN 解析.env文件时 THEN 系统应正确处理环境变量的键值对
 3. WHEN 验证配置时 THEN 系统应检查必需的配置项是否存在
 4. WHEN 合并配置时 THEN 系统应支持基础配置和覆盖配置的合并
@@ -149,7 +149,7 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 1. WHEN 首次运行时 THEN 系统应从默认仓库同步模板
 2. WHEN 网络可用时 THEN 系统应自动更新模板并显示更新状态
 3. WHEN 网络不可用时 THEN 系统应显示警告并使用本地模板
-4. WHEN 配置自定义仓库时 THEN 系统应支持修改config.yaml中的仓库地址
+4. WHEN 配置自定义仓库时 THEN 系统应支持修改config.json中的仓库地址
 5. WHEN 同步失败时 THEN 系统应提供手动下载的指导说明
 6. WHEN 验证模板时 THEN 系统应检查模板文件的完整性
 
@@ -172,11 +172,11 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 
 #### 验收标准
 
-**config.yaml完整功能：**
+**config.json完整功能（改为JSON格式以支持AOT编译）：**
 1. WHEN 配置模板仓库时 THEN 系统应支持自定义仓库URL、分支、自动更新、缓存策略
 2. WHEN 配置容器引擎时 THEN 系统应支持指定Podman/Docker、自动安装选项
 3. WHEN 配置网络代理时 THEN 系统应支持HTTP/HTTPS代理配置
-4. WHEN 验证配置文件时 THEN 系统应检查配置的完整性和正确性
+4. WHEN 验证配置文件时 THEN 系统应检查JSON格式的完整性和正确性
 
 **环境变量和端口配置：**
 5. WHEN 处理.env文件时 THEN 系统应支持DEV_PORT/DEBUG_PORT/WEB_PORT/HTTPS_PORT/ANDROID_DEBUG_PORT等标准端口

@@ -1,17 +1,17 @@
 # Phase 2 开发阶段
 
-> [DRAFT] 本阶段目标是根据README.md的更新内容，完善deck-dotnet的实现并更新相关文档
+> [DRAFT] 本阶段目标是根据`deck-dotnet`项目根目录的 README.md 的更新内容，完善deck-dotnet的实现并更新相关文档
 
 ## 阶段目标
 
 本阶段的主要目标是：
-1. 根据README.md中描述的功能更新，完善deck-dotnet的实现
+1. 根据`deck-dotnet`项目根目录的 README.md 中描述的功能更新，完善deck-dotnet的实现，实现计划在 `.kiro/specs/deck-dotnet/phase2/`目录下
 2. 更新需求文档和设计文档，使其与README.md保持一致
 3. 实现生产容器保护机制、增强交互式体验等新增功能
 4. 完善核心服务的实现，特别是之前被禁用的服务
 
-## 文件结构说明
-
+## 本次实现计划文件结构说明
+`.kiro/specs/deck-dotnet/phase2/`目录下包含本次实现计划的相关文件，具体结构如下：
 ```
 phase2/
 ├── README.md              # 本说明文件
