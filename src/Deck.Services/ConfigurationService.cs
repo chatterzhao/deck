@@ -13,11 +13,13 @@ namespace Deck.Services;
 public class ConfigurationService : IConfigurationService
 {
     private readonly ILogger<ConfigurationService> _logger;
+    private readonly IConfigurationMerger _configMerger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public ConfigurationService(ILogger<ConfigurationService> logger)
+    public ConfigurationService(ILogger<ConfigurationService> logger, IConfigurationMerger configMerger)
     {
         _logger = logger;
+        _configMerger = configMerger;
         
         // 配置JSON序列化选项，使用camelCase命名约定（与AOT兼容）
         _jsonOptions = new JsonSerializerOptions
@@ -62,7 +64,11 @@ public class ConfigurationService : IConfigurationService
                 _logger.LogWarning("配置文件验证失败: {Errors}", string.Join(", ", validation.Errors));
             }
 
-            return config;
+            // 合并默认配置和加载的配置，确保所有字段都有默认值
+            var defaultConfig = await CreateDefaultConfigAsync();
+            var mergedConfig = _configMerger.Merge(defaultConfig, config);
+            
+            return mergedConfig;
         }
         catch (Exception ex)
         {

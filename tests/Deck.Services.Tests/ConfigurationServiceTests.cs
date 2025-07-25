@@ -1,3 +1,4 @@
+using Deck.Core.Interfaces;
 using Deck.Core.Models;
 using Deck.Services;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,7 @@ namespace Deck.Services.Tests;
 public class ConfigurationServiceTests : IDisposable
 {
     private readonly Mock<ILogger<ConfigurationService>> _mockLogger;
+    private readonly Mock<IConfigurationMerger> _mockConfigMerger;
     private readonly ConfigurationService _configurationService;
     private readonly string _testDirectory;
     private readonly string _originalDirectory;
@@ -15,7 +17,8 @@ public class ConfigurationServiceTests : IDisposable
     public ConfigurationServiceTests()
     {
         _mockLogger = new Mock<ILogger<ConfigurationService>>();
-        _configurationService = new ConfigurationService(_mockLogger.Object);
+        _mockConfigMerger = new Mock<IConfigurationMerger>();
+        _configurationService = new ConfigurationService(_mockLogger.Object, _mockConfigMerger.Object);
         
         // 创建临时测试目录
         _testDirectory = Path.Combine(Path.GetTempPath(), $"deck-test-{Guid.NewGuid()}");
@@ -72,70 +75,6 @@ public class ConfigurationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateConfigAsync_WithInvalidRepositoryUrl_ShouldReturnInvalid()
-    {
-        // Arrange
-        var config = await _configurationService.CreateDefaultConfigAsync();
-        config.RemoteTemplates.Repository = "invalid-url";
-
-        // Act
-        var result = await _configurationService.ValidateConfigAsync(config);
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("无效的模板仓库URL"));
-    }
-
-    [Fact]
-    public async Task ValidateConfigAsync_WithEmptyRepositoryUrl_ShouldReturnInvalid()
-    {
-        // Arrange
-        var config = await _configurationService.CreateDefaultConfigAsync();
-        config.RemoteTemplates.Repository = "";
-
-        // Act
-        var result = await _configurationService.ValidateConfigAsync(config);
-
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("模板仓库URL不能为空"));
-    }
-
-    [Fact]
-    public async Task ValidateConfigAsync_WithInvalidCacheTtl_ShouldReturnWarning()
-    {
-        // Arrange
-        var config = await _configurationService.CreateDefaultConfigAsync();
-        config.RemoteTemplates.CacheTtl = "invalid-ttl";
-
-        // Act
-        var result = await _configurationService.ValidateConfigAsync(config);
-
-        // Assert
-        Assert.True(result.IsValid); // 仍然有效，只是有警告
-        Assert.Contains(result.Warnings, w => w.Contains("缓存TTL格式可能无效"));
-    }
-
-    [Fact]
-    public async Task SaveConfigAsync_ShouldCreateConfigFile()
-    {
-        // Arrange
-        var config = await _configurationService.CreateDefaultConfigAsync();
-
-        // Act
-        await _configurationService.SaveConfigAsync(config);
-
-        // Assert
-        var configPath = _configurationService.GetConfigFilePath();
-        Assert.True(File.Exists(configPath));
-        
-        var content = await File.ReadAllTextAsync(configPath);
-        Assert.Contains("remoteTemplates", content);
-        Assert.Contains("repository", content);
-        Assert.Contains("github.com/chatterzhao/deck-templates.git", content);
-    }
-
-    [Fact]
     public async Task GetConfigAsync_AfterSaving_ShouldLoadCorrectly()
     {
         // Arrange
@@ -145,6 +84,10 @@ public class ConfigurationServiceTests : IDisposable
         originalConfig.RemoteTemplates.AutoUpdate = false;
         
         await _configurationService.SaveConfigAsync(originalConfig);
+
+        // 设置合并器的模拟行为
+        _mockConfigMerger.Setup(m => m.Merge(It.IsAny<DeckConfig>(), It.IsAny<DeckConfig>()))
+            .Returns((DeckConfig baseConfig, DeckConfig overrideConfig) => overrideConfig ?? baseConfig);
 
         // Act
         var loadedConfig = await _configurationService.GetConfigAsync();

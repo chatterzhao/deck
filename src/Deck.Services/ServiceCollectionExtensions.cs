@@ -24,6 +24,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
         
+        // 注册配置合并服务
+        services.AddSingleton<IConfigurationMerger, ConfigurationMerger>();
+        
         // 注册目录管理服务（完整实现）
         services.AddSingleton<IDirectoryManagementService, DirectoryManagementService>();
         
@@ -36,19 +39,19 @@ public static class ServiceCollectionExtensions
         // 注册清理服务
         services.AddSingleton<ICleaningService, CleaningService>();
         
-        // 注册三层工作流程服务（桩实现）
-        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowServiceStub>();
+        // 注册三层工作流程服务（完整实现）
+        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
         
         // 注册模板变量引擎服务
         services.AddSingleton<ITemplateVariableEngine, TemplateVariableEngine>();
         
-        // TODO: 容器管理服务需要修复模型不一致问题
-        // services.AddSingleton<IContainerService, ContainerService>();
+        // 注册容器管理服务
+        services.AddSingleton<IContainerService, ContainerService>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
         {
-            client.Timeout = System.TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Add("User-Agent", "Deck-Network-Service/1.0");
         });
         
@@ -73,17 +76,23 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加 Deck 服务并配置日志
     /// </summary>
-    public static IServiceCollection AddDeckServicesWithLogging(this IServiceCollection services)
+    public static IServiceCollection AddDeckServicesWithLogging(
+        this IServiceCollection services, 
+        Action<LoggingConfiguration>? configureLogging = null)
     {
         services.AddDeckServices();
         
         // 配置日志
-        services.AddLogging(builder =>
+        if (configureLogging != null)
         {
-            builder.SetMinimumLevel(LogLevel.Information);
-            builder.AddConsole();
-        });
-        
+            services.AddSingleton(provider =>
+            {
+                var config = new LoggingConfiguration();
+                configureLogging(config);
+                return config;
+            });
+        }
+
         return services;
     }
 }
