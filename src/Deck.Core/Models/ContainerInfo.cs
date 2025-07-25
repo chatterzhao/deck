@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Deck.Core.Models;
 
 /// <summary>
@@ -24,6 +26,15 @@ public class ContainerInfo
     /// 镜像名称
     /// </summary>
     public string ImageName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 镜像名称（别名，用于兼容）
+    /// </summary>
+    public string Image 
+    { 
+        get => ImageName; 
+        set => ImageName = value; 
+    }
 
     /// <summary>
     /// 镜像ID
@@ -64,6 +75,11 @@ public class ContainerInfo
     /// 网络信息
     /// </summary>
     public List<NetworkInfo> Networks { get; set; } = new();
+
+    /// <summary>
+    /// 端口映射列表
+    /// </summary>
+    public List<PortMapping> Ports { get; set; } = new();
 
     /// <summary>
     /// 容器引擎类型
@@ -199,6 +215,24 @@ public class PortMapping
     /// 主机IP
     /// </summary>
     public string? HostIP { get; set; }
+
+    /// <summary>
+    /// 主机IP（别名，用于兼容）
+    /// </summary>
+    public string? HostIp 
+    { 
+        get => HostIP; 
+        set => HostIP = value; 
+    }
+
+    /// <summary>
+    /// 主机端口列表（用于多端口映射场景）
+    /// </summary>
+    public List<int> HostPorts 
+    { 
+        get => HostPort > 0 ? new List<int> { HostPort } : new List<int>(); 
+        set => HostPort = value.FirstOrDefault(); 
+    }
 }
 
 /// <summary>

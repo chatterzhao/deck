@@ -69,4 +69,10 @@ public interface IPortConflictService
     /// <param name="port">端口号</param>
     /// <param name="checkPrivileged">是否检查特权端口（1-1024）</param>
     Task<PortValidationResult> ValidatePortAsync(int port, bool checkPrivileged = true);
+
+    /// <summary>
+    /// 检查并解决容器端口冲突
+    /// </summary>
+    /// <param name="container">容器信息</param>
+    Task<PortConflictResult> CheckAndResolvePortConflictsAsync(ContainerInfo container);
 }

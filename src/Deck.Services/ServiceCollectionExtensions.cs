@@ -48,6 +48,13 @@ public static class ServiceCollectionExtensions
         // 注册容器管理服务
         services.AddSingleton<IContainerService, ContainerService>();
         
+        // 注册容器引擎服务
+        services.AddSingleton<IContainerEngine, PodmanEngine>();
+        services.AddSingleton<IContainerEngine, DockerEngine>();
+        
+        // 注册容器引擎工厂
+        services.AddSingleton<IContainerEngineFactory, ContainerEngineFactory>();
+        
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
         {

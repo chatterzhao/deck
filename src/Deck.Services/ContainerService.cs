@@ -13,17 +13,20 @@ public class ContainerService : IContainerService
     private readonly IPortConflictService _portConflictService;
     private readonly ISystemDetectionService _systemDetectionService;
     private readonly INetworkService _networkService;
+    private readonly IContainerEngineFactory _containerEngineFactory;
 
     public ContainerService(
         ILogger<ContainerService> logger,
         IPortConflictService portConflictService,
         ISystemDetectionService systemDetectionService,
-        INetworkService networkService)
+        INetworkService networkService,
+        IContainerEngineFactory containerEngineFactory)
     {
         _logger = logger;
         _portConflictService = portConflictService;
         _systemDetectionService = systemDetectionService;
         _networkService = networkService;
+        _containerEngineFactory = containerEngineFactory;
     }
 
     public async Task<ContainerInfo?> GetContainerInfoAsync(string containerName)
@@ -32,31 +35,14 @@ public class ContainerService : IContainerService
         {
             _logger.LogDebug("Getting container info for: {ContainerName}", containerName);
             
-            var process = new Process
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = $"inspect {containerName} --format json",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                _logger.LogWarning("Container {ContainerName} not found: {Error}", containerName, error);
+                _logger.LogError("No container engine available");
                 return null;
             }
 
-            return ParseContainerInfo(output, containerName);
+            return await engine.GetContainerInfoAsync(containerName);
         }
         catch (Exception ex)
         {
@@ -95,24 +81,20 @@ public class ContainerService : IContainerService
         {
             _logger.LogDebug("Detecting container status for: {ContainerName}", containerName);
             
-            var process = new Process
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
+                return new ContainerStatusResult
                 {
-                    FileName = "podman",
-                    Arguments = $"ps -a --filter name={containerName} --format \"{{{{.Status}}}}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+                    Status = ContainerStatus.Error,
+                    Message = "No container engine available"
+                };
+            }
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var status = ParseContainerStatus(output.Trim());
+            var isRunning = await engine.IsContainerRunningAsync(containerName);
+            var containerInfo = await engine.GetContainerInfoAsync(containerName);
+            
+            var status = containerInfo?.Status ?? (isRunning ? ContainerStatus.Running : ContainerStatus.Unknown);
             var isHealthy = await CheckContainerIsHealthy(containerName, status);
 
             return new ContainerStatusResult
@@ -141,6 +123,16 @@ public class ContainerService : IContainerService
         {
             _logger.LogInformation("Starting container: {ContainerName}", containerName);
             
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
+            {
+                return new StartContainerResult
+                {
+                    Success = false,
+                    Message = "No container engine available"
+                };
+            }
+
             // 检查容器状态并决定启动模式
             var statusResult = await DetectContainerStatusAsync(containerName);
             var startMode = DetermineStartMode(statusResult.Status);
@@ -176,36 +168,7 @@ public class ContainerService : IContainerService
             }
 
             // 执行启动命令
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = BuildStartCommand(containerName, options),
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-            var updatedContainer = success ? await GetContainerInfoAsync(containerName) : null;
-
-            return new StartContainerResult
-            {
-                Success = success,
-                Mode = startMode,
-                Message = success ? "Container started successfully" : error,
-                Container = updatedContainer,
-                AllocatedPorts = ExtractAllocatedPorts(updatedContainer),
-                StartupTime = DateTime.UtcNow - startTime
-            };
+            return await engine.StartContainerAsync(containerName, options);
         }
         catch (Exception ex)
         {
@@ -213,46 +176,29 @@ public class ContainerService : IContainerService
             return new StartContainerResult
             {
                 Success = false,
-                Message = $"Error starting container: {ex.Message}",
-                StartupTime = DateTime.UtcNow - startTime
+                Mode = StartMode.New,
+                Message = $"Exception occurred while starting container: {ex.Message}"
             };
         }
     }
 
     public async Task<StopContainerResult> StopContainerAsync(string containerName, bool force = false)
     {
-        var stopTime = DateTime.UtcNow;
         try
         {
-            _logger.LogInformation("Stopping container: {ContainerName}, Force: {Force}", containerName, force);
+            _logger.LogInformation("Stopping container: {ContainerName}", containerName);
             
-            var process = new Process
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
+                return new StopContainerResult
                 {
-                    FileName = "podman",
-                    Arguments = force ? $"kill {containerName}" : $"stop {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+                    Success = false,
+                    Message = "No container engine available"
+                };
+            }
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-
-            return new StopContainerResult
-            {
-                Success = success,
-                Message = success ? "Container stopped successfully" : error,
-                StopTime = DateTime.UtcNow - stopTime,
-                WasForced = force
-            };
+            return await engine.StopContainerAsync(containerName, force);
         }
         catch (Exception ex)
         {
@@ -260,46 +206,28 @@ public class ContainerService : IContainerService
             return new StopContainerResult
             {
                 Success = false,
-                Message = $"Error stopping container: {ex.Message}",
-                StopTime = DateTime.UtcNow - stopTime
+                Message = $"Exception occurred while stopping container: {ex.Message}"
             };
         }
     }
 
     public async Task<RestartContainerResult> RestartContainerAsync(string containerName)
     {
-        var restartTime = DateTime.UtcNow;
         try
         {
             _logger.LogInformation("Restarting container: {ContainerName}", containerName);
             
-            var process = new Process
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
+                return new RestartContainerResult
                 {
-                    FileName = "podman",
-                    Arguments = $"restart {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+                    Success = false,
+                    Message = "No container engine available"
+                };
+            }
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-
-            return new RestartContainerResult
-            {
-                Success = success,
-                Message = success ? "Container restarted successfully" : error,
-                RestartMode = success ? StartMode.StartedExisting : StartMode.StartedExisting,
-                RestartTime = DateTime.UtcNow - restartTime
-            };
+            return await engine.RestartContainerAsync(containerName);
         }
         catch (Exception ex)
         {
@@ -307,52 +235,47 @@ public class ContainerService : IContainerService
             return new RestartContainerResult
             {
                 Success = false,
-                Message = $"Error restarting container: {ex.Message}",
-                RestartTime = DateTime.UtcNow - restartTime
+                Message = $"Exception occurred while restarting container: {ex.Message}"
             };
         }
     }
 
     public async Task<List<ContainerInfo>> GetRunningContainersAsync()
     {
-        return await GetContainersByStatusAsync(ContainerStatus.Running);
+        try
+        {
+            _logger.LogDebug("Getting running containers");
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
+            {
+                _logger.LogWarning("No container engine available");
+                return new List<ContainerInfo>();
+            }
+
+            return await engine.GetRunningContainersAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get running containers");
+            return new List<ContainerInfo>();
+        }
     }
 
     public async Task<List<ContainerInfo>> GetAllContainersAsync()
     {
         try
         {
-            var process = new Process
+            _logger.LogDebug("Getting all containers");
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = "ps -a --format \"{{.Names}}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
+                _logger.LogWarning("No container engine available");
                 return new List<ContainerInfo>();
-
-            var containerNames = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var containers = new List<ContainerInfo>();
-
-            foreach (var name in containerNames)
-            {
-                var containerInfo = await GetContainerInfoAsync(name.Trim());
-                if (containerInfo != null)
-                    containers.Add(containerInfo);
             }
 
-            return containers;
+            return await engine.GetAllContainersAsync();
         }
         catch (Exception ex)
         {
@@ -363,167 +286,136 @@ public class ContainerService : IContainerService
 
     public async Task<bool> IsContainerRunningAsync(string containerName)
     {
-        var statusResult = await DetectContainerStatusAsync(containerName);
-        return statusResult.Status == ContainerStatus.Running;
+        try
+        {
+            _logger.LogDebug("Checking if container is running: {ContainerName}", containerName);
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
+            {
+                _logger.LogWarning("No container engine available");
+                return false;
+            }
+
+            return await engine.IsContainerRunningAsync(containerName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check if container is running: {ContainerName}", containerName);
+            return false;
+        }
     }
 
     public async Task<PortConflictResult> CheckAndResolvePortConflictsAsync(ContainerInfo container)
     {
-        try
-        {
-            var hasAnyConflict = false;
-            var conflictingServices = new List<string>();
-            var primaryPort = 0;
-            
-            foreach (var portMapping in container.PortMappings)
-            {
-                if (int.TryParse(portMapping.Value, out int hostPort))
-                {
-                    var conflict = await _portConflictService.DetectPortConflictAsync(hostPort, DeckProtocolType.TCP);
-                    if (conflict != null && conflict.HasConflict)
-                    {
-                        hasAnyConflict = true;
-                        primaryPort = hostPort;
-                        
-                        if (conflict.OccupyingProcess != null)
-                        {
-                            conflictingServices.Add($"{conflict.OccupyingProcess.ProcessName} (PID: {conflict.OccupyingProcess.ProcessId})");
-                        }
-                    }
-                }
-            }
-
-            return new PortConflictResult
-            {
-                Port = primaryPort,
-                Protocol = DeckProtocolType.TCP,
-                HasConflict = hasAnyConflict,
-                ConflictingServices = conflictingServices,
-                OccupyingProcess = hasAnyConflict ? $"Multiple processes detected for container {container.Name}" : null,
-                Resolution = hasAnyConflict ? "Consider stopping conflicting services or using alternative ports" : null
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to check port conflicts for container {ContainerName}", container.Name);
-            return new PortConflictResult
-            {
-                Port = 0,
-                Protocol = DeckProtocolType.TCP,
-                HasConflict = false,
-                ConflictingServices = new List<string>(),
-                OccupyingProcess = null,
-                Resolution = $"Error during conflict check: {ex.Message}"
-            };
-        }
+        return await _portConflictService.CheckAndResolvePortConflictsAsync(container);
     }
 
     public async Task<ContainerLifecycleResult> ManageContainerLifecycleAsync(string containerName, ContainerOperation operation)
     {
-        var startTime = DateTime.UtcNow;
         try
         {
-            ContainerLifecycleResult result = operation switch
-            {
-                ContainerOperation.Start => await ConvertStartResult(await StartContainerAsync(containerName)),
-                ContainerOperation.Stop => await ConvertStopResult(await StopContainerAsync(containerName)),
-                ContainerOperation.Restart => await ConvertRestartResult(await RestartContainerAsync(containerName)),
-                ContainerOperation.Remove => await RemoveContainerAsync(containerName),
-                ContainerOperation.Pause => await PauseContainerAsync(containerName),
-                ContainerOperation.Unpause => await UnpauseContainerAsync(containerName),
-                ContainerOperation.Kill => await ConvertStopResult(await StopContainerAsync(containerName, force: true)),
-                _ => throw new ArgumentException($"Unsupported operation: {operation}")
-            };
+            _logger.LogInformation("Managing container lifecycle: {ContainerName}, Operation: {Operation}", 
+                containerName, operation);
 
-            result.OperationTime = DateTime.UtcNow - startTime;
-            return result;
+            return operation switch
+            {
+                ContainerOperation.Start => new ContainerLifecycleResult
+                {
+                    Success = (await StartContainerAsync(containerName)).Success,
+                    Operation = operation,
+                    Message = "Start operation completed"
+                },
+                ContainerOperation.Stop => new ContainerLifecycleResult
+                {
+                    Success = (await StopContainerAsync(containerName)).Success,
+                    Operation = operation,
+                    Message = "Stop operation completed"
+                },
+                ContainerOperation.Restart => new ContainerLifecycleResult
+                {
+                    Success = (await RestartContainerAsync(containerName)).Success,
+                    Operation = operation,
+                    Message = "Restart operation completed"
+                },
+                ContainerOperation.Remove => await RemoveContainerAsync(containerName),
+                _ => new ContainerLifecycleResult
+                {
+                    Success = false,
+                    Operation = operation,
+                    Message = $"Unsupported operation: {operation}"
+                }
+            };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute {Operation} on container {ContainerName}", operation, containerName);
+            _logger.LogError(ex, "Failed to manage container lifecycle: {ContainerName}, Operation: {Operation}", 
+                containerName, operation);
             return new ContainerLifecycleResult
             {
                 Success = false,
                 Operation = operation,
-                Message = $"Error executing {operation}: {ex.Message}",
-                OperationTime = DateTime.UtcNow - startTime
+                Message = $"Exception occurred: {ex.Message}"
             };
         }
     }
 
     public Task<List<ContainerInfo>> FilterContainersByProjectAsync(List<ContainerInfo> containers, string projectPath, ProjectType projectType)
     {
-        try
-        {
-            var filtered = new List<ContainerInfo>();
-            var projectName = Path.GetFileName(projectPath);
-            var expectedPrefix = GetProjectPrefix(projectType);
+        var projectName = new DirectoryInfo(projectPath).Name.ToLowerInvariant();
+        var filteredContainers = new List<ContainerInfo>();
 
-            foreach (var container in containers)
+        foreach (var container in containers)
+        {
+            // 检查容器名称是否包含项目名称
+            if (container.Name.Contains(projectName, StringComparison.OrdinalIgnoreCase))
             {
-                // 基于命名规范过滤
-                if (IsProjectRelatedContainer(container, projectName, expectedPrefix, projectType))
-                {
-                    filtered.Add(container);
-                }
+                filteredContainers.Add(container);
+                continue;
             }
 
-            // 按创建时间排序，最新的在前面
-            return Task.FromResult(filtered.OrderByDescending(c => c.Created).ToList());
+            // 检查标签
+            if (container.Labels.ContainsKey("deck.project") && 
+                container.Labels["deck.project"].Equals(projectName, StringComparison.OrdinalIgnoreCase))
+            {
+                filteredContainers.Add(container);
+                continue;
+            }
+
+            // 检查挂载点
+            // 这里简化处理，实际可能需要更复杂的逻辑
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to filter containers by project");
-            return Task.FromResult(containers);
-        }
+
+        return Task.FromResult(filteredContainers);
     }
 
     public async Task<ContainerHealthResult> CheckContainerHealthAsync(string containerName)
     {
         try
         {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = $"healthcheck run {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+            _logger.LogDebug("Checking container health: {ContainerName}", containerName);
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var isHealthy = process.ExitCode == 0;
-            var issues = new List<string>();
-
-            if (!isHealthy && !string.IsNullOrEmpty(error))
-            {
-                issues.Add(error);
-            }
-
+            var statusResult = await DetectContainerStatusAsync(containerName);
+            
             return new ContainerHealthResult
             {
-                IsHealthy = isHealthy,
-                Status = isHealthy ? "healthy" : "unhealthy",
-                Issues = issues,
-                LastChecked = DateTime.UtcNow
+                IsHealthy = statusResult.IsHealthy,
+                Status = statusResult.Status.ToString(),
+                ContainerStatus = statusResult.Status,
+                Message = statusResult.Message,
+                LastChecked = statusResult.LastChecked
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check container health for {ContainerName}", containerName);
+            _logger.LogError(ex, "Failed to check container health: {ContainerName}", containerName);
             return new ContainerHealthResult
             {
                 IsHealthy = false,
-                Status = "unknown",
-                Issues = new List<string> { ex.Message }
+                Status = ContainerStatus.Error.ToString(),
+                ContainerStatus = ContainerStatus.Error,
+                Message = $"Health check failed: {ex.Message}",
+                LastChecked = DateTime.UtcNow
             };
         }
     }
@@ -532,82 +424,48 @@ public class ContainerService : IContainerService
     {
         try
         {
-            var process = new Process
+            _logger.LogDebug("Getting logs for container: {ContainerName}", containerName);
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
+                return new ContainerLogsResult
                 {
-                    FileName = "podman",
-                    Arguments = $"logs --tail {tailLines} {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+                    Success = false,
+                    Error = "No container engine available"
+                };
+            }
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-            var logLines = success ? output.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>();
-
-            return new ContainerLogsResult
-            {
-                Success = success,
-                LogLines = logLines,
-                Error = success ? string.Empty : error,
-                TotalLines = logLines.Count,
-                GeneratedAt = DateTime.UtcNow
-            };
+            return await engine.GetContainerLogsAsync(containerName, tailLines);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get container logs for {ContainerName}", containerName);
+            _logger.LogError(ex, "Failed to get logs for container {ContainerName}", containerName);
             return new ContainerLogsResult
             {
                 Success = false,
-                Error = ex.Message
+                Error = $"Exception occurred while getting logs: {ex.Message}"
             };
         }
     }
 
     public async Task<ShellExecutionResult> ExecuteInContainerAsync(string containerName, string command, ShellOptions? options = null)
     {
-        var startTime = DateTime.UtcNow;
         try
         {
-            var shellType = options?.Shell ?? "/bin/bash";
-            var workingDir = options?.WorkingDirectory ?? "/";
-            var user = options?.User ?? "root";
-
-            var process = new Process
+            _logger.LogInformation("Executing command in container: {ContainerName}", containerName);
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
             {
-                StartInfo = new ProcessStartInfo
+                return new ShellExecutionResult
                 {
-                    FileName = "podman",
-                    Arguments = $"exec -it -w {workingDir} -u {user} {containerName} {shellType} -c \"{command}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
+                    Success = false,
+                    Error = "No container engine available"
+                };
+            }
 
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            return new ShellExecutionResult
-            {
-                Success = process.ExitCode == 0,
-                Output = output,
-                Error = error,
-                ExitCode = process.ExitCode,
-                ExecutionTime = DateTime.UtcNow - startTime
-            };
+            return await engine.ExecuteInContainerAsync(containerName, command, options);
         }
         catch (Exception ex)
         {
@@ -615,514 +473,254 @@ public class ContainerService : IContainerService
             return new ShellExecutionResult
             {
                 Success = false,
-                Error = ex.Message,
-                ExecutionTime = DateTime.UtcNow - startTime
+                Error = $"Exception occurred while executing command: {ex.Message}",
+                ExitCode = -1
             };
         }
     }
 
     #region Private Methods
 
-    private ContainerInfo ParseContainerInfo(string json, string containerName)
+    private async Task<ContainerLifecycleResult> RemoveContainerAsync(string containerName)
     {
         try
         {
-            var jsonDoc = JsonDocument.Parse(json);
-            var containerArray = jsonDoc.RootElement;
-            
-            if (containerArray.GetArrayLength() == 0)
-                return CreateEmptyContainerInfo(containerName);
-
-            var container = containerArray[0];
-            
-            return new ContainerInfo
+            // 先停止容器
+            var stopResult = await StopContainerAsync(containerName, true);
+            if (!stopResult.Success)
             {
-                Id = container.GetProperty("Id").GetString() ?? string.Empty,
-                Name = container.GetProperty("Name").GetString()?.TrimStart('/') ?? containerName,
-                Status = ParseContainerStatusFromInspect(container),
-                ImageName = container.GetProperty("Config").GetProperty("Image").GetString() ?? string.Empty,
-                Created = DateTime.Parse(container.GetProperty("Created").GetString() ?? DateTime.UtcNow.ToString()),
-                PortMappings = ParsePortMappingsAsDictionary(container),
-                Environment = ParseEnvironmentVariables(container),
-                ProjectType = DetectProjectTypeFromContainer(container),
-                ProjectRoot = ExtractProjectRootDirectory(container)
+                return new ContainerLifecycleResult
+                {
+                    Success = false,
+                    Operation = ContainerOperation.Remove,
+                    Message = $"Failed to stop container before removal: {stopResult.Message}"
+                };
+            }
+
+            // 然后删除容器
+            _logger.LogInformation("Removing container: {ContainerName}", containerName);
+            
+            var engine = await _containerEngineFactory.GetPreferredEngineAsync();
+            if (engine == null)
+            {
+                return new ContainerLifecycleResult
+                {
+                    Success = false,
+                    Operation = ContainerOperation.Remove,
+                    Message = "No container engine available"
+                };
+            }
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = engine.Type == ContainerEngineType.Podman ? "podman" : "docker",
+                    Arguments = $"rm {containerName}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            return new ContainerLifecycleResult
+            {
+                Success = process.ExitCode == 0,
+                Operation = ContainerOperation.Remove,
+                Message = process.ExitCode == 0 
+                    ? "Container removed successfully" 
+                    : $"Failed to remove container: {error}"
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse container info for {ContainerName}", containerName);
-            return CreateEmptyContainerInfo(containerName);
-        }
-    }
-
-    private ContainerInfo CreateEmptyContainerInfo(string containerName)
-    {
-        return new ContainerInfo
-        {
-            Name = containerName,
-            Status = ContainerStatus.NotExists
-        };
-    }
-
-    private ContainerStatus ParseContainerStatus(string statusOutput)
-    {
-        if (string.IsNullOrEmpty(statusOutput))
-            return ContainerStatus.NotExists;
-
-        var status = statusOutput.ToLowerInvariant();
-        
-        if (status.Contains("up") || status.Contains("running"))
-            return ContainerStatus.Running;
-        if (status.Contains("exited") || status.Contains("stopped"))
-            return ContainerStatus.Stopped;
-        if (status.Contains("paused"))
-            return ContainerStatus.Paused;
-        
-        return ContainerStatus.Error;
-    }
-
-    private ContainerStatus ParseContainerStatusFromInspect(JsonElement container)
-    {
-        try
-        {
-            var state = container.GetProperty("State");
-            var status = state.GetProperty("Status").GetString()?.ToLowerInvariant();
-            
-            return status switch
+            _logger.LogError(ex, "Failed to remove container {ContainerName}", containerName);
+            return new ContainerLifecycleResult
             {
-                "running" => ContainerStatus.Running,
-                "exited" => ContainerStatus.Stopped,
-                "paused" => ContainerStatus.Paused,
-                _ => ContainerStatus.Error
+                Success = false,
+                Operation = ContainerOperation.Remove,
+                Message = $"Exception occurred while removing container: {ex.Message}"
             };
         }
-        catch
-        {
-            return ContainerStatus.Error;
-        }
     }
 
-    private async Task<bool> CheckContainerIsHealthy(string containerName, ContainerStatus status)
+    private ProjectType DetectProjectType(string projectPath)
     {
-        if (status != ContainerStatus.Running)
-            return false;
+        // 简化的项目类型检测逻辑
+        if (File.Exists(Path.Combine(projectPath, "package.json")))
+            return ProjectType.Node;
+        
+        if (File.Exists(Path.Combine(projectPath, "Cargo.toml")))
+            return ProjectType.Rust;
+        
+        if (File.Exists(Path.Combine(projectPath, "pubspec.yaml")))
+            return ProjectType.Flutter;
+        
+        if (Directory.GetFiles(projectPath, "*.csproj").Length > 0)
+            return ProjectType.DotNet;
+        
+        if (Directory.GetFiles(projectPath, "*.py").Length > 0)
+            return ProjectType.Python;
 
-        try
-        {
-            var healthResult = await CheckContainerHealthAsync(containerName);
-            return healthResult.IsHealthy;
-        }
-        catch
-        {
-            return status == ContainerStatus.Running; // 如果无法检查健康状态，运行中就算健康
-        }
+        return ProjectType.Unknown;
     }
 
     private StartMode DetermineStartMode(ContainerStatus status)
     {
         return status switch
         {
-            ContainerStatus.Running => StartMode.AttachedToRunning,
-            ContainerStatus.Stopped => StartMode.StartedExisting,
-            ContainerStatus.NotExists => StartMode.CreatedNew,
-            _ => StartMode.StartedExisting
+            ContainerStatus.Created => StartMode.New,
+            ContainerStatus.Exited => StartMode.Resume,
+            ContainerStatus.Dead => StartMode.New,
+            _ => StartMode.New
         };
+    }
+
+    private Task<bool> CheckContainerIsHealthy(string containerName, ContainerStatus status)
+    {
+        // 简化的健康检查逻辑
+        return Task.FromResult(status == ContainerStatus.Running);
     }
 
     private string BuildStartCommand(string containerName, StartOptions? options)
     {
-        var args = new List<string> { "start" };
+        var command = $"start {containerName}";
         
-        if (options?.Detached == true)
-            args.Add("-d");
-
-        args.Add(containerName);
-        
-        return string.Join(" ", args);
+        if (options?.Attach == true)
+            command += " -a";
+            
+        return command;
     }
 
-    private List<int> ExtractAllocatedPorts(ContainerInfo? container)
+    private ContainerInfo ParseContainerInfo(string jsonOutput, string containerName)
     {
-        if (container == null)
-            return new List<int>();
-
-        var ports = new List<int>();
-        foreach (var portMapping in container.PortMappings)
+        try
         {
-            if (int.TryParse(portMapping.Value, out int hostPort))
+            using var doc = JsonDocument.Parse(jsonOutput);
+            var root = doc.RootElement;
+
+            if (root.GetArrayLength() == 0)
+                throw new InvalidOperationException("No container data found");
+
+            var containerElement = root[0]; // 取第一个容器
+
+            return new ContainerInfo
             {
-                ports.Add(hostPort);
+                Id = containerElement.GetProperty("Id").GetString() ?? string.Empty,
+                Name = containerElement.GetProperty("Name").GetString() ?? containerName,
+                Image = containerElement.GetProperty("Image").GetString() ?? string.Empty,
+                Status = ParseContainerStatus(containerElement.GetProperty("State").GetProperty("Status").GetString() ?? "unknown"),
+                Created = containerElement.GetProperty("Created").GetDateTime(),
+                Ports = ParsePorts(containerElement),
+                Labels = ParseLabels(containerElement)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse container info from JSON: {JsonOutput}", jsonOutput);
+            throw;
+        }
+    }
+
+    private ContainerStatus ParseContainerStatus(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "running" => ContainerStatus.Running,
+            "exited" => ContainerStatus.Exited,
+            "created" => ContainerStatus.Created,
+            "paused" => ContainerStatus.Paused,
+            "restarting" => ContainerStatus.Restarting,
+            "removing" => ContainerStatus.Removing,
+            "dead" => ContainerStatus.Dead,
+            _ => ContainerStatus.Unknown
+        };
+    }
+
+    private Dictionary<string, string> ParseLabels(JsonElement containerElement)
+    {
+        var labels = new Dictionary<string, string>();
+
+        try
+        {
+            if (containerElement.TryGetProperty("Config", out var configElement) &&
+                configElement.TryGetProperty("Labels", out var labelsElement))
+            {
+                foreach (var property in labelsElement.EnumerateObject())
+                {
+                    labels[property.Name] = property.Value.GetString() ?? string.Empty;
+                }
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse container labels");
+        }
+
+        return labels;
+    }
+
+    private List<PortMapping> ParsePorts(JsonElement containerElement)
+    {
+        var ports = new List<PortMapping>();
+
+        try
+        {
+            if (containerElement.TryGetProperty("NetworkSettings", out var networkSettingsElement) &&
+                networkSettingsElement.TryGetProperty("Ports", out var portsElement))
+            {
+                foreach (var property in portsElement.EnumerateObject())
+                {
+                    var portParts = property.Name.Split('/');
+                    if (portParts.Length >= 2)
+                    {
+                        var portMapping = new PortMapping
+                        {
+                            ContainerPort = int.Parse(portParts[0]),
+                            Protocol = ParseProtocolType(portParts[1]),
+                            HostPorts = new List<int>()
+                        };
+
+                        if (property.Value.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var hostPortElement in property.Value.EnumerateArray())
+                            {
+                                if (hostPortElement.TryGetProperty("HostPort", out var hostPortProperty) &&
+                                    int.TryParse(hostPortProperty.GetString(), out var hostPort))
+                                {
+                                    portMapping.HostPorts.Add(hostPort);
+                                }
+                            }
+                        }
+
+                        ports.Add(portMapping);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse container ports");
+        }
+
         return ports;
     }
 
-    private async Task<List<ContainerInfo>> GetContainersByStatusAsync(ContainerStatus status)
+    private DeckProtocolType ParseProtocolType(string protocolString)
     {
-        var allContainers = await GetAllContainersAsync();
-        return allContainers.Where(c => c.Status == status).ToList();
-    }
-
-    private Dictionary<string, string> ParsePortMappingsAsDictionary(JsonElement container)
-    {
-        try
+        return protocolString.ToLowerInvariant() switch
         {
-            var portMappings = new Dictionary<string, string>();
-            
-            if (container.TryGetProperty("NetworkSettings", out var networkSettings) &&
-                networkSettings.TryGetProperty("Ports", out var ports))
-            {
-                foreach (var port in ports.EnumerateObject())
-                {
-                    var containerPort = port.Name.Split('/')[0];
-                    
-                    if (port.Value.ValueKind == JsonValueKind.Array && port.Value.GetArrayLength() > 0)
-                    {
-                        var hostPortStr = port.Value[0].GetProperty("HostPort").GetString();
-                        if (!string.IsNullOrEmpty(hostPortStr))
-                        {
-                            portMappings[containerPort] = hostPortStr;
-                        }
-                    }
-                }
-            }
-            
-            return portMappings;
-        }
-        catch
-        {
-            return new Dictionary<string, string>();
-        }
-    }
-
-    private List<PortMapping> ParsePortMappings(JsonElement container)
-    {
-        try
-        {
-            var portMappings = new List<PortMapping>();
-            
-            if (container.TryGetProperty("NetworkSettings", out var networkSettings) &&
-                networkSettings.TryGetProperty("Ports", out var ports))
-            {
-                foreach (var port in ports.EnumerateObject())
-                {
-                    var containerPort = int.Parse(port.Name.Split('/')[0]);
-                    var protocolStr = port.Name.Split('/').Length > 1 ? port.Name.Split('/')[1] : "tcp";
-                    var protocol = protocolStr.ToLowerInvariant() == "udp" ? DeckProtocolType.UDP : DeckProtocolType.TCP;
-                    
-                    if (port.Value.ValueKind == JsonValueKind.Array && port.Value.GetArrayLength() > 0)
-                    {
-                        var hostPortStr = port.Value[0].GetProperty("HostPort").GetString();
-                        if (int.TryParse(hostPortStr, out var hostPort))
-                        {
-                            portMappings.Add(new PortMapping
-                            {
-                                ContainerPort = containerPort,
-                                HostPort = hostPort,
-                                Protocol = protocol
-                            });
-                        }
-                    }
-                }
-            }
-            
-            return portMappings;
-        }
-        catch
-        {
-            return new List<PortMapping>();
-        }
-    }
-
-    private Dictionary<string, string> ParseEnvironmentVariables(JsonElement container)
-    {
-        try
-        {
-            var envVars = new Dictionary<string, string>();
-            
-            if (container.TryGetProperty("Config", out var config) &&
-                config.TryGetProperty("Env", out var env))
-            {
-                foreach (var envVar in env.EnumerateArray())
-                {
-                    var envString = envVar.GetString();
-                    if (!string.IsNullOrEmpty(envString))
-                    {
-                        var parts = envString.Split('=', 2);
-                        if (parts.Length == 2)
-                        {
-                            envVars[parts[0]] = parts[1];
-                        }
-                    }
-                }
-            }
-            
-            return envVars;
-        }
-        catch
-        {
-            return new Dictionary<string, string>();
-        }
-    }
-
-    private ProjectType DetectProjectTypeFromContainer(JsonElement container)
-    {
-        try
-        {
-            var envVars = ParseEnvironmentVariables(container);
-            
-            if (envVars.ContainsKey("PROJECT_TYPE"))
-            {
-                if (Enum.TryParse<ProjectType>(envVars["PROJECT_TYPE"], true, out var projectType))
-                    return projectType;
-            }
-
-            // 基于镜像名推断项目类型
-            var image = container.GetProperty("Config").GetProperty("Image").GetString();
-            if (!string.IsNullOrEmpty(image))
-            {
-                if (image.Contains("tauri", StringComparison.OrdinalIgnoreCase))
-                    return ProjectType.Tauri;
-                if (image.Contains("flutter", StringComparison.OrdinalIgnoreCase))
-                    return ProjectType.Flutter;
-                if (image.Contains("avalonia", StringComparison.OrdinalIgnoreCase))
-                    return ProjectType.Avalonia;
-            }
-
-            return ProjectType.Unknown;
-        }
-        catch
-        {
-            return ProjectType.Unknown;
-        }
-    }
-
-    private string ExtractProjectRootDirectory(JsonElement container)
-    {
-        try
-        {
-            var envVars = ParseEnvironmentVariables(container);
-            return envVars.GetValueOrDefault("PROJECT_ROOT", string.Empty);
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private ProjectType DetectProjectType(string projectPath)
-    {
-        if (File.Exists(Path.Combine(projectPath, "Cargo.toml")))
-            return ProjectType.Tauri;
-        if (File.Exists(Path.Combine(projectPath, "pubspec.yaml")))
-            return ProjectType.Flutter;
-        if (Directory.GetFiles(projectPath, "*.csproj").Any())
-            return ProjectType.Avalonia;
-        if (File.Exists(Path.Combine(projectPath, "package.json")))
-            return ProjectType.Node;
-        
-        return ProjectType.Unknown;
-    }
-
-    private string GetProjectPrefix(ProjectType projectType)
-    {
-        return projectType.ToString().ToLowerInvariant();
-    }
-
-    private bool IsProjectRelatedContainer(ContainerInfo container, string projectName, string expectedPrefix, ProjectType projectType)
-    {
-        // 检查命名规范：{prefix}-{timestamp} 或直接包含项目名
-        var containerName = container.Name.ToLowerInvariant();
-        var projectNameLower = projectName.ToLowerInvariant();
-        
-        // 方式1：基于前缀匹配
-        if (containerName.StartsWith(expectedPrefix + "-"))
-            return true;
-            
-        // 方式2：包含项目名
-        if (containerName.Contains(projectNameLower))
-            return true;
-            
-        // 方式3：基于容器中的环境变量
-        if (container.ProjectType == projectType)
-            return true;
-
-        // 方式4：基于项目根目录
-        if (!string.IsNullOrEmpty(container.ProjectRoot) && 
-            container.ProjectRoot.Contains(projectName, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return false;
-    }
-
-    private List<string> GeneratePortResolutionSuggestions(List<PortConflictInfo> conflicts)
-    {
-        var suggestions = new List<string>();
-        
-        // TODO: 实现端口冲突解决建议生成逻辑
-        // 临时返回空建议列表
-        
-        return suggestions;
-    }
-
-    private Task<ContainerLifecycleResult> ConvertStartResult(StartContainerResult startResult)
-    {
-        return Task.FromResult(new ContainerLifecycleResult
-        {
-            Success = startResult.Success,
-            Operation = ContainerOperation.Start,
-            Message = startResult.Message,
-            Container = startResult.Container,
-            OperationTime = startResult.StartupTime
-        });
-    }
-
-    private Task<ContainerLifecycleResult> ConvertStopResult(StopContainerResult stopResult)
-    {
-        return Task.FromResult(new ContainerLifecycleResult
-        {
-            Success = stopResult.Success,
-            Operation = ContainerOperation.Stop,
-            Message = stopResult.Message,
-            OperationTime = stopResult.StopTime
-        });
-    }
-
-    private Task<ContainerLifecycleResult> ConvertRestartResult(RestartContainerResult restartResult)
-    {
-        return Task.FromResult(new ContainerLifecycleResult
-        {
-            Success = restartResult.Success,
-            Operation = ContainerOperation.Restart,
-            Message = restartResult.Message,
-            OperationTime = restartResult.RestartTime
-        });
-    }
-
-    private async Task<ContainerLifecycleResult> RemoveContainerAsync(string containerName)
-    {
-        try
-        {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = $"rm -f {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-
-            return new ContainerLifecycleResult
-            {
-                Success = success,
-                Operation = ContainerOperation.Remove,
-                Message = success ? "Container removed successfully" : error
-            };
-        }
-        catch (Exception ex)
-        {
-            return new ContainerLifecycleResult
-            {
-                Success = false,
-                Operation = ContainerOperation.Remove,
-                Message = ex.Message
-            };
-        }
-    }
-
-    private async Task<ContainerLifecycleResult> PauseContainerAsync(string containerName)
-    {
-        try
-        {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = $"pause {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-
-            return new ContainerLifecycleResult
-            {
-                Success = success,
-                Operation = ContainerOperation.Pause,
-                Message = success ? "Container paused successfully" : error
-            };
-        }
-        catch (Exception ex)
-        {
-            return new ContainerLifecycleResult
-            {
-                Success = false,
-                Operation = ContainerOperation.Pause,
-                Message = ex.Message
-            };
-        }
-    }
-
-    private async Task<ContainerLifecycleResult> UnpauseContainerAsync(string containerName)
-    {
-        try
-        {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "podman",
-                    Arguments = $"unpause {containerName}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            var success = process.ExitCode == 0;
-
-            return new ContainerLifecycleResult
-            {
-                Success = success,
-                Operation = ContainerOperation.Unpause,
-                Message = success ? "Container unpaused successfully" : error
-            };
-        }
-        catch (Exception ex)
-        {
-            return new ContainerLifecycleResult
-            {
-                Success = false,
-                Operation = ContainerOperation.Unpause,
-                Message = ex.Message
-            };
-        }
+            "tcp" => DeckProtocolType.TCP,
+            "udp" => DeckProtocolType.UDP,
+            "sctp" => DeckProtocolType.SCTP,
+            _ => DeckProtocolType.TCP
+        };
     }
 
     #endregion

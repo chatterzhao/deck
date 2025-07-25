@@ -850,4 +850,59 @@ public class PortConflictService : IPortConflictService
     }
 
     #endregion
+
+    /// <summary>
+    /// 检查并解决容器端口冲突
+    /// </summary>
+    /// <param name="container">容器信息</param>
+    public async Task<PortConflictResult> CheckAndResolvePortConflictsAsync(ContainerInfo container)
+    {
+        try
+        {
+            var hasAnyConflict = false;
+            var conflictingServices = new List<string>();
+            var primaryPort = 0;
+            
+            foreach (var portMapping in container.PortMappings)
+            {
+                if (int.TryParse(portMapping.Value, out int hostPort))
+                {
+                    var conflict = await DetectPortConflictAsync(hostPort, DeckProtocolType.TCP);
+                    if (conflict != null && conflict.HasConflict)
+                    {
+                        hasAnyConflict = true;
+                        primaryPort = hostPort;
+                        
+                        if (conflict.OccupyingProcess != null)
+                        {
+                            conflictingServices.Add($"{conflict.OccupyingProcess.ProcessName} (PID: {conflict.OccupyingProcess.ProcessId})");
+                        }
+                    }
+                }
+            }
+
+            return new PortConflictResult
+            {
+                Port = primaryPort,
+                Protocol = DeckProtocolType.TCP,
+                HasConflict = hasAnyConflict,
+                ConflictingServices = conflictingServices,
+                OccupyingProcess = hasAnyConflict ? $"Multiple processes detected for container {container.Name}" : null,
+                Resolution = hasAnyConflict ? "Consider stopping conflicting services or using alternative ports" : null
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check port conflicts for container {ContainerName}", container.Name);
+            return new PortConflictResult
+            {
+                Port = 0,
+                Protocol = DeckProtocolType.TCP,
+                HasConflict = false,
+                ConflictingServices = new List<string>(),
+                OccupyingProcess = null,
+                Resolution = $"Error during conflict check: {ex.Message}"
+            };
+        }
+    }
 }

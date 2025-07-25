@@ -64,7 +64,37 @@ public enum ContainerStatus
     /// <summary>
     /// 异常状态
     /// </summary>
-    Error
+    Error,
+
+    /// <summary>
+    /// 已创建但未启动
+    /// </summary>
+    Created,
+
+    /// <summary>
+    /// 已退出
+    /// </summary>
+    Exited,
+
+    /// <summary>
+    /// 重启中
+    /// </summary>
+    Restarting,
+
+    /// <summary>
+    /// 移除中
+    /// </summary>
+    Removing,
+
+    /// <summary>
+    /// 死亡状态
+    /// </summary>
+    Dead,
+
+    /// <summary>
+    /// 未知状态
+    /// </summary>
+    Unknown
 }
 
 /// <summary>
@@ -117,6 +147,11 @@ public class StartOptions
     /// 环境变量覆盖
     /// </summary>
     public Dictionary<string, string> EnvOverrides { get; set; } = new();
+
+    /// <summary>
+    /// 是否附加到容器输出
+    /// </summary>
+    public bool Attach { get; set; }
 }
 
 /// <summary>
@@ -219,7 +254,17 @@ public enum StartMode
     /// <summary>
     /// 构建镜像并启动
     /// </summary>
-    BuiltAndStarted
+    BuiltAndStarted,
+
+    /// <summary>
+    /// 新建容器
+    /// </summary>
+    New,
+
+    /// <summary>
+    /// 恢复已停止的容器
+    /// </summary>
+    Resume
 }
 
 /// <summary>

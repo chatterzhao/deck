@@ -68,6 +68,7 @@ public class RestartContainerResult
     public string Message { get; set; } = string.Empty;
     public StartMode RestartMode { get; set; }
     public TimeSpan RestartTime { get; set; }
+    public ContainerInfo? Container { get; set; }
 }
 
 public class ContainerLifecycleResult
@@ -84,16 +85,19 @@ public class ContainerHealthResult
 {
     public bool IsHealthy { get; set; }
     public string Status { get; set; } = string.Empty;
+    public ContainerStatus ContainerStatus { get; set; }
     public List<string> Issues { get; set; } = new();
     public Dictionary<string, object> HealthDetails { get; set; } = new();
     public DateTime LastChecked { get; set; } = DateTime.UtcNow;
+    public string Message { get; set; } = string.Empty;
 }
 
 public class ContainerLogsResult
 {
     public bool Success { get; set; }
     public List<string> LogLines { get; set; } = new();
-    public string Error { get; set; } = string.Empty;
+    public string Logs { get; set; } = string.Empty;
+    public string? Error { get; set; }
     public int TotalLines { get; set; }
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 }
