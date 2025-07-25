@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -13,15 +16,18 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
 {
     private readonly ILogger<EnhancedFileOperationsService> _logger;
     private readonly IPortConflictService _portConflictService;
+    private readonly ITemplateVariableEngine _templateVariableEngine;
     private static readonly Regex EnvLineRegex = new(@"^\s*([^=\s]+)\s*=\s*(.*)$", RegexOptions.Compiled);
     private static readonly Regex CommentOrEmptyLineRegex = new(@"^\s*(#.*)?$", RegexOptions.Compiled);
 
     public EnhancedFileOperationsService(
         ILogger<EnhancedFileOperationsService> logger,
-        IPortConflictService portConflictService)
+        IPortConflictService portConflictService,
+        ITemplateVariableEngine templateVariableEngine)
     {
         _logger = logger;
         _portConflictService = portConflictService;
+        _templateVariableEngine = templateVariableEngine;
     }
 
     public async Task<StandardPortsResult> ProcessStandardPortsAsync(string envFilePath, EnhancedFileOperationOptions? options = null)
@@ -156,7 +162,7 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
         return result;
     }
 
-    public Task<FileCopyResult> CopyWithHiddenFilesAsync(string sourceDirectory, string targetDirectory, EnhancedFileOperationOptions? options = null)
+    public async Task<FileCopyResult> CopyWithHiddenFilesAsync(string sourceDirectory, string targetDirectory, EnhancedFileOperationOptions? options = null)
     {
         options ??= new EnhancedFileOperationOptions();
         var result = new FileCopyResult();
@@ -209,6 +215,29 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
                 }
             }
 
+            // 如果提供了变量，则进行变量替换
+            if (options.Variables != null && options.Variables.Count > 0)
+            {
+                _logger.LogInformation("开始替换模板变量，变量数量: {VariableCount}", options.Variables.Count);
+                var replaceResult = await _templateVariableEngine.ReplaceVariablesInDirectoryAsync(targetDirectory, options.Variables);
+                if (!replaceResult.IsSuccess)
+                {
+                    _logger.LogWarning("模板变量替换失败: {ErrorMessage}", replaceResult.ErrorMessage);
+                }
+                else
+                {
+                    var changedFiles = 0;
+                    foreach (var fileResult in replaceResult.FileResults)
+                    {
+                        if (fileResult.Changed)
+                        {
+                            changedFiles++;
+                        }
+                    }
+                    _logger.LogInformation("模板变量替换完成，共修改 {ChangedFileCount} 个文件", changedFiles);
+                }
+            }
+
             result.IsSuccess = true;
             _logger.LogInformation("目录复制完成，成功: {Success}, 跳过: {Skipped}, 失败: {Failed}",
                 result.CopiedFiles.Count, result.SkippedFiles.Count, result.FailedFiles.Count);
@@ -220,7 +249,7 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
             _logger.LogError(ex, "复制目录时发生错误: {Source} -> {Target}", sourceDirectory, targetDirectory);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
     public async Task<ConfigBackupResult> ValidateAndBackupConfigAsync(string configFilePath, EnhancedFileOperationOptions? options = null)

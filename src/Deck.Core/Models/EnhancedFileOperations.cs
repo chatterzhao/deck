@@ -160,4 +160,9 @@ public class EnhancedFileOperationOptions
     /// 覆盖现有文件
     /// </summary>
     public bool OverwriteExisting { get; set; } = true;
+    
+    /// <summary>
+    /// 模板变量字典
+    /// </summary>
+    public IDictionary<string, string> Variables { get; set; } = new Dictionary<string, string>();
 }

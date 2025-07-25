@@ -1,17 +1,12 @@
 using Deck.Core.Interfaces;
+using Deck.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Deck.Services;
 
-/// <summary>
-/// 服务集合扩展方法 - 统一注册 Deck 服务
-/// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    /// 添加 Deck 核心服务
-    /// </summary>
     public static IServiceCollection AddDeckServices(this IServiceCollection services)
     {
         // 注册核心服务
@@ -25,8 +20,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRemoteTemplatesService, RemoteTemplatesService>();
         services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
         services.AddSingleton<IConsoleUIService, ConsoleUIService>();
-        
-        // 注意：StartCommand 在 Deck.Console 中注册，避免循环依赖
         services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
@@ -43,16 +36,19 @@ public static class ServiceCollectionExtensions
         // 注册清理服务
         services.AddSingleton<ICleaningService, CleaningService>();
         
-        // 注册三层工作流程服务（完整实现）
-        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
+        // 注册三层工作流程服务（桩实现）
+        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowServiceStub>();
         
-        // 注册容器管理服务（已修复模型不一致问题）
-        services.AddSingleton<IContainerService, ContainerService>();
+        // 注册模板变量引擎服务
+        services.AddSingleton<ITemplateVariableEngine, TemplateVariableEngine>();
+        
+        // TODO: 容器管理服务需要修复模型不一致问题
+        // services.AddSingleton<IContainerService, ContainerService>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = System.TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Add("User-Agent", "Deck-Network-Service/1.0");
         });
         
@@ -77,32 +73,17 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加 Deck 服务并配置日志
     /// </summary>
-    public static IServiceCollection AddDeckServicesWithLogging(
-        this IServiceCollection services, 
-        LogLevel defaultLogLevel = LogLevel.Information)
+    public static IServiceCollection AddDeckServicesWithLogging(this IServiceCollection services)
     {
+        services.AddDeckServices();
+        
         // 配置日志
         services.AddLogging(builder =>
         {
-            builder.ClearProviders();
+            builder.SetMinimumLevel(LogLevel.Information);
             builder.AddConsole();
-            builder.SetMinimumLevel(defaultLogLevel);
-            
-            // 为 Deck 服务设置适当的日志级别
-            builder.AddFilter("Deck.Services", LogLevel.Information);
-            builder.AddFilter("Microsoft", LogLevel.Warning);
-            builder.AddFilter("System", LogLevel.Warning);
         });
-
-        // 添加 Deck 服务
-        return services.AddDeckServices();
-    }
-
-    /// <summary>
-    /// 添加 Deck 服务用于调试（详细日志）
-    /// </summary>
-    public static IServiceCollection AddDeckServicesForDebug(this IServiceCollection services)
-    {
-        return services.AddDeckServicesWithLogging(LogLevel.Debug);
+        
+        return services;
     }
 }

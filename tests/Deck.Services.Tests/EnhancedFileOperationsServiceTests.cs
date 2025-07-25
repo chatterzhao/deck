@@ -1,9 +1,14 @@
-using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using Deck.Core.Interfaces;
 using Deck.Core.Models;
 using Deck.Services;
+using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+using Xunit;
 
 namespace Deck.Services.Tests;
 
@@ -12,13 +17,15 @@ public class EnhancedFileOperationsServiceTests : IDisposable
     private readonly IEnhancedFileOperationsService _service;
     private readonly ILogger<EnhancedFileOperationsService> _logger;
     private readonly IPortConflictService _portConflictService;
+    private readonly ITemplateVariableEngine _templateVariableEngine;
     private readonly string _testDirectory;
 
     public EnhancedFileOperationsServiceTests()
     {
         _logger = Substitute.For<ILogger<EnhancedFileOperationsService>>();
         _portConflictService = Substitute.For<IPortConflictService>();
-        _service = new EnhancedFileOperationsService(_logger, _portConflictService);
+        _templateVariableEngine = Substitute.For<ITemplateVariableEngine>();
+        _service = new EnhancedFileOperationsService(_logger, _portConflictService, _templateVariableEngine);
         _testDirectory = Path.Combine(Path.GetTempPath(), $"deck-test-{Guid.NewGuid():N}");
     }
 
@@ -53,9 +60,9 @@ public class EnhancedFileOperationsServiceTests : IDisposable
         };
 
         _portConflictService.CheckPortsAsync(Arg.Any<IEnumerable<int>>())
-            .Returns(conflictResults);
+            .Returns(Task.FromResult(conflictResults));
         _portConflictService.FindAvailablePortAsync(5000, Arg.Any<int>(), Arg.Any<int>())
-            .Returns(5001);
+            .Returns(Task.FromResult<int?>(5001));
 
         // Act
         var result = await _service.ProcessStandardPortsAsync(envFilePath);
@@ -217,7 +224,7 @@ public class EnhancedFileOperationsServiceTests : IDisposable
         await File.WriteAllTextAsync(envFilePath, initialContent);
 
         _portConflictService.CheckPortsAsync(Arg.Any<IEnumerable<int>>())
-            .Returns(new List<PortCheckResult>());
+            .Returns(Task.FromResult(new List<PortCheckResult>()));
 
         // Act
         var result = await _service.ProcessStandardPortsAsync(envFilePath);
