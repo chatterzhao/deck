@@ -41,11 +41,11 @@ public static class ServiceCollectionExtensions
         // 注册清理服务
         services.AddSingleton<ICleaningService, CleaningService>();
         
-        // 注册三层工作流程服务（桩实现）
-        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowServiceStub>();
+        // 注册三层工作流程服务（完整实现）
+        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
         
-        // TODO: 容器管理服务需要修复模型不一致问题
-        // services.AddSingleton<IContainerService, ContainerService>();
+        // 注册容器管理服务（已修复模型不一致问题）
+        services.AddSingleton<IContainerService, ContainerService>();
         
         // 注册 HttpClient 用于网络服务
         services.AddHttpClient<INetworkService, NetworkService>(client =>

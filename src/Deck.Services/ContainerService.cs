@@ -170,7 +170,7 @@ public class ContainerService : IContainerService
                     {
                         Success = false,
                         Mode = startMode,
-                        Message = $"Port conflicts detected: {string.Join(", ", portConflictResult.Conflicts.Select(c => c.Port))}"
+                        Message = $"Port conflicts detected on port {portConflictResult.Port}: {string.Join(", ", portConflictResult.ConflictingServices)}"
                     };
                 }
             }
@@ -371,25 +371,36 @@ public class ContainerService : IContainerService
     {
         try
         {
-            var conflicts = new List<PortConflictInfo>();
+            var hasAnyConflict = false;
+            var conflictingServices = new List<string>();
+            var primaryPort = 0;
             
             foreach (var portMapping in container.PortMappings)
             {
-                var conflict = await _portConflictService.CheckPortConflictAsync(portMapping.HostPort);
-                // TODO: 修复端口冲突检查逻辑
-                // if (conflict != null)
-                // {
-                //     conflicts.Add(conflict);
-                // }
+                if (int.TryParse(portMapping.Value, out int hostPort))
+                {
+                    var conflict = await _portConflictService.DetectPortConflictAsync(hostPort, DeckProtocolType.TCP);
+                    if (conflict != null && conflict.HasConflict)
+                    {
+                        hasAnyConflict = true;
+                        primaryPort = hostPort;
+                        
+                        if (conflict.OccupyingProcess != null)
+                        {
+                            conflictingServices.Add($"{conflict.OccupyingProcess.ProcessName} (PID: {conflict.OccupyingProcess.ProcessId})");
+                        }
+                    }
+                }
             }
 
-            // TODO: 创建适合的PortConflictResult结构
             return new PortConflictResult
             {
-                Port = 0,
+                Port = primaryPort,
                 Protocol = DeckProtocolType.TCP,
-                HasConflict = false,
-                ConflictingServices = new List<string>(),
+                HasConflict = hasAnyConflict,
+                ConflictingServices = conflictingServices,
+                OccupyingProcess = hasAnyConflict ? $"Multiple processes detected for container {container.Name}" : null,
+                Resolution = hasAnyConflict ? "Consider stopping conflicting services or using alternative ports" : null
             };
         }
         catch (Exception ex)
@@ -401,6 +412,8 @@ public class ContainerService : IContainerService
                 Protocol = DeckProtocolType.TCP,
                 HasConflict = false,
                 ConflictingServices = new List<string>(),
+                OccupyingProcess = null,
+                Resolution = $"Error during conflict check: {ex.Message}"
             };
         }
     }
@@ -410,7 +423,7 @@ public class ContainerService : IContainerService
         var startTime = DateTime.UtcNow;
         try
         {
-            var result = operation switch
+            ContainerLifecycleResult result = operation switch
             {
                 ContainerOperation.Start => await ConvertStartResult(await StartContainerAsync(containerName)),
                 ContainerOperation.Stop => await ConvertStopResult(await StopContainerAsync(containerName)),
@@ -418,7 +431,7 @@ public class ContainerService : IContainerService
                 ContainerOperation.Remove => await RemoveContainerAsync(containerName),
                 ContainerOperation.Pause => await PauseContainerAsync(containerName),
                 ContainerOperation.Unpause => await UnpauseContainerAsync(containerName),
-                ContainerOperation.Kill => await StopContainerAsync(containerName, force: true).ContinueWith(t => ConvertStopResult(t.Result)),
+                ContainerOperation.Kill => await ConvertStopResult(await StopContainerAsync(containerName, force: true)),
                 _ => throw new ArgumentException($"Unsupported operation: {operation}")
             };
 
@@ -438,7 +451,7 @@ public class ContainerService : IContainerService
         }
     }
 
-    public async Task<List<ContainerInfo>> FilterContainersByProjectAsync(List<ContainerInfo> containers, string projectPath, ProjectType projectType)
+    public Task<List<ContainerInfo>> FilterContainersByProjectAsync(List<ContainerInfo> containers, string projectPath, ProjectType projectType)
     {
         try
         {
@@ -456,12 +469,12 @@ public class ContainerService : IContainerService
             }
 
             // 按创建时间排序，最新的在前面
-            return filtered.OrderByDescending(c => c.CreatedAt).ToList();
+            return Task.FromResult(filtered.OrderByDescending(c => c.Created).ToList());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to filter containers by project");
-            return containers;
+            return Task.FromResult(containers);
         }
     }
 
@@ -565,7 +578,7 @@ public class ContainerService : IContainerService
         var startTime = DateTime.UtcNow;
         try
         {
-            var shellType = options?.ShellType ?? "/bin/bash";
+            var shellType = options?.Shell ?? "/bin/bash";
             var workingDir = options?.WorkingDirectory ?? "/";
             var user = options?.User ?? "root";
 
@@ -627,12 +640,12 @@ public class ContainerService : IContainerService
                 Id = container.GetProperty("Id").GetString() ?? string.Empty,
                 Name = container.GetProperty("Name").GetString()?.TrimStart('/') ?? containerName,
                 Status = ParseContainerStatusFromInspect(container),
-                Image = container.GetProperty("Config").GetProperty("Image").GetString() ?? string.Empty,
-                CreatedAt = DateTime.Parse(container.GetProperty("Created").GetString() ?? DateTime.UtcNow.ToString()),
-                PortMappings = ParsePortMappings(container),
-                EnvironmentVariables = ParseEnvironmentVariables(container),
+                ImageName = container.GetProperty("Config").GetProperty("Image").GetString() ?? string.Empty,
+                Created = DateTime.Parse(container.GetProperty("Created").GetString() ?? DateTime.UtcNow.ToString()),
+                PortMappings = ParsePortMappingsAsDictionary(container),
+                Environment = ParseEnvironmentVariables(container),
                 ProjectType = DetectProjectTypeFromContainer(container),
-                ProjectRootDirectory = ExtractProjectRootDirectory(container)
+                ProjectRoot = ExtractProjectRootDirectory(container)
             };
         }
         catch (Exception ex)
@@ -720,7 +733,7 @@ public class ContainerService : IContainerService
     {
         var args = new List<string> { "start" };
         
-        if (options?.DetachedMode == true)
+        if (options?.Detached == true)
             args.Add("-d");
 
         args.Add(containerName);
@@ -733,13 +746,53 @@ public class ContainerService : IContainerService
         if (container == null)
             return new List<int>();
 
-        return container.PortMappings.Select(pm => pm.HostPort).ToList();
+        var ports = new List<int>();
+        foreach (var portMapping in container.PortMappings)
+        {
+            if (int.TryParse(portMapping.Value, out int hostPort))
+            {
+                ports.Add(hostPort);
+            }
+        }
+        return ports;
     }
 
     private async Task<List<ContainerInfo>> GetContainersByStatusAsync(ContainerStatus status)
     {
         var allContainers = await GetAllContainersAsync();
         return allContainers.Where(c => c.Status == status).ToList();
+    }
+
+    private Dictionary<string, string> ParsePortMappingsAsDictionary(JsonElement container)
+    {
+        try
+        {
+            var portMappings = new Dictionary<string, string>();
+            
+            if (container.TryGetProperty("NetworkSettings", out var networkSettings) &&
+                networkSettings.TryGetProperty("Ports", out var ports))
+            {
+                foreach (var port in ports.EnumerateObject())
+                {
+                    var containerPort = port.Name.Split('/')[0];
+                    
+                    if (port.Value.ValueKind == JsonValueKind.Array && port.Value.GetArrayLength() > 0)
+                    {
+                        var hostPortStr = port.Value[0].GetProperty("HostPort").GetString();
+                        if (!string.IsNullOrEmpty(hostPortStr))
+                        {
+                            portMappings[containerPort] = hostPortStr;
+                        }
+                    }
+                }
+            }
+            
+            return portMappings;
+        }
+        catch
+        {
+            return new Dictionary<string, string>();
+        }
     }
 
     private List<PortMapping> ParsePortMappings(JsonElement container)
@@ -754,7 +807,8 @@ public class ContainerService : IContainerService
                 foreach (var port in ports.EnumerateObject())
                 {
                     var containerPort = int.Parse(port.Name.Split('/')[0]);
-                    var protocol = port.Name.Split('/').Length > 1 ? port.Name.Split('/')[1] : "tcp";
+                    var protocolStr = port.Name.Split('/').Length > 1 ? port.Name.Split('/')[1] : "tcp";
+                    var protocol = protocolStr.ToLowerInvariant() == "udp" ? DeckProtocolType.UDP : DeckProtocolType.TCP;
                     
                     if (port.Value.ValueKind == JsonValueKind.Array && port.Value.GetArrayLength() > 0)
                     {
@@ -865,7 +919,7 @@ public class ContainerService : IContainerService
         if (Directory.GetFiles(projectPath, "*.csproj").Any())
             return ProjectType.Avalonia;
         if (File.Exists(Path.Combine(projectPath, "package.json")))
-            return ProjectType.React;
+            return ProjectType.Node;
         
         return ProjectType.Unknown;
     }
@@ -894,8 +948,8 @@ public class ContainerService : IContainerService
             return true;
 
         // 方式4：基于项目根目录
-        if (!string.IsNullOrEmpty(container.ProjectRootDirectory) && 
-            container.ProjectRootDirectory.Contains(projectName, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(container.ProjectRoot) && 
+            container.ProjectRoot.Contains(projectName, StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;
@@ -911,38 +965,38 @@ public class ContainerService : IContainerService
         return suggestions;
     }
 
-    private async Task<ContainerLifecycleResult> ConvertStartResult(StartContainerResult startResult)
+    private Task<ContainerLifecycleResult> ConvertStartResult(StartContainerResult startResult)
     {
-        return new ContainerLifecycleResult
+        return Task.FromResult(new ContainerLifecycleResult
         {
             Success = startResult.Success,
             Operation = ContainerOperation.Start,
             Message = startResult.Message,
             Container = startResult.Container,
             OperationTime = startResult.StartupTime
-        };
+        });
     }
 
-    private async Task<ContainerLifecycleResult> ConvertStopResult(StopContainerResult stopResult)
+    private Task<ContainerLifecycleResult> ConvertStopResult(StopContainerResult stopResult)
     {
-        return new ContainerLifecycleResult
+        return Task.FromResult(new ContainerLifecycleResult
         {
             Success = stopResult.Success,
             Operation = ContainerOperation.Stop,
             Message = stopResult.Message,
             OperationTime = stopResult.StopTime
-        };
+        });
     }
 
-    private async Task<ContainerLifecycleResult> ConvertRestartResult(RestartContainerResult restartResult)
+    private Task<ContainerLifecycleResult> ConvertRestartResult(RestartContainerResult restartResult)
     {
-        return new ContainerLifecycleResult
+        return Task.FromResult(new ContainerLifecycleResult
         {
             Success = restartResult.Success,
             Operation = ContainerOperation.Restart,
             Message = restartResult.Message,
             OperationTime = restartResult.RestartTime
-        };
+        });
     }
 
     private async Task<ContainerLifecycleResult> RemoveContainerAsync(string containerName)
