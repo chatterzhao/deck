@@ -17,6 +17,7 @@ public class ContainerCommandsTests
     private readonly Mock<ILoggingService> _mockLoggingService;
     private readonly Mock<IDirectoryManagementService> _mockDirectoryManagement;
     private readonly Mock<ILogger> _mockLogger;
+    private readonly Mock<IGlobalExceptionHandler> _mockGlobalExceptionHandler;
 
     public ContainerCommandsTests()
     {
@@ -25,6 +26,7 @@ public class ContainerCommandsTests
         _mockLoggingService = new Mock<ILoggingService>();
         _mockDirectoryManagement = new Mock<IDirectoryManagementService>();
         _mockLogger = new Mock<ILogger>();
+        _mockGlobalExceptionHandler = new Mock<IGlobalExceptionHandler>();
 
         _mockLoggingService
             .Setup(x => x.GetLogger(It.IsAny<string>()))
@@ -42,7 +44,8 @@ public class ContainerCommandsTests
             _mockConsoleDisplay.Object,
             _mockInteractiveSelection.Object,
             _mockLoggingService.Object,
-            _mockDirectoryManagement.Object
+            _mockDirectoryManagement.Object,
+            _mockGlobalExceptionHandler.Object
         );
 
         _mockDirectoryManagement
@@ -71,7 +74,8 @@ public class ContainerCommandsTests
             _mockConsoleDisplay.Object,
             _mockInteractiveSelection.Object,
             _mockLoggingService.Object,
-            _mockDirectoryManagement.Object
+            _mockDirectoryManagement.Object,
+            _mockGlobalExceptionHandler.Object
         );
 
         var mockImages = new List<ConfigurationOption>
@@ -127,7 +131,8 @@ public class ContainerCommandsTests
             _mockConsoleDisplay.Object,
             _mockInteractiveSelection.Object,
             _mockLoggingService.Object,
-            _mockDirectoryManagement.Object
+            _mockDirectoryManagement.Object,
+            _mockGlobalExceptionHandler.Object
         );
 
         _mockDirectoryManagement
@@ -257,7 +262,8 @@ public class ContainerCommandsTests
             _mockConsoleDisplay.Object,
             _mockInteractiveSelection.Object,
             _mockLoggingService.Object,
-            _mockDirectoryManagement.Object
+            _mockDirectoryManagement.Object,
+            _mockGlobalExceptionHandler.Object
         );
 
         _mockDirectoryManagement
@@ -282,7 +288,8 @@ public class ContainerCommandsTests
             _mockConsoleDisplay.Object,
             _mockInteractiveSelection.Object,
             _mockLoggingService.Object,
-            _mockDirectoryManagement.Object
+            _mockDirectoryManagement.Object,
+            _mockGlobalExceptionHandler.Object
         );
 
         var mockImages = new List<ConfigurationOption>

@@ -15,10 +15,11 @@ public class RestartCommand : ContainerCommandBase
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
-        IDirectoryManagementService directoryManagement)
+        IDirectoryManagementService directoryManagement,
+        IGlobalExceptionHandler globalExceptionHandler)
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
-        _stopCommand = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        _stopCommand = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
     }
 
     /// <summary>

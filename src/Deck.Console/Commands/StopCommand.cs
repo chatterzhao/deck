@@ -9,13 +9,17 @@ namespace Deck.Console.Commands;
 /// </summary>
 public class StopCommand : ContainerCommandBase
 {
+    private readonly IGlobalExceptionHandler _globalExceptionHandler; // 添加全局异常处理服务
+
     public StopCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
-        IDirectoryManagementService directoryManagement)
+        IDirectoryManagementService directoryManagement,
+        IGlobalExceptionHandler globalExceptionHandler) // 添加全局异常处理服务参数
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
+        _globalExceptionHandler = globalExceptionHandler; // 初始化全局异常处理服务
     }
 
     /// <summary>
@@ -69,8 +73,15 @@ public class StopCommand : ContainerCommandBase
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Stop command execution failed");
-            ConsoleDisplay.ShowError($"执行停止命令时出错: {ex.Message}");
+            // 使用全局异常处理服务处理异常
+            var context = new ExceptionContext
+            {
+                CommandName = "Stop",
+                Operation = "执行Stop命令",
+                ResourcePath = imageName
+            };
+            
+            var result = await _globalExceptionHandler.HandleExceptionAsync(ex, context);
             return false;
         }
     }

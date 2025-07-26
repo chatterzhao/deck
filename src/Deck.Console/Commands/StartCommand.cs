@@ -11,16 +11,19 @@ namespace Deck.Console.Commands;
 public class StartCommand : ContainerCommandBase
 {
     private readonly IStartCommandService _startCommandService;
+    private readonly IGlobalExceptionHandler _globalExceptionHandler;
 
     public StartCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelectionService,
         ILoggingService loggingService,
         IDirectoryManagementService directoryManagement,
-        IStartCommandService startCommandService)
+        IStartCommandService startCommandService,
+        IGlobalExceptionHandler globalExceptionHandler)
         : base(consoleDisplay, interactiveSelectionService, loggingService, directoryManagement)
     {
         _startCommandService = startCommandService;
+        _globalExceptionHandler = globalExceptionHandler;
     }
 
     /// <summary>
@@ -43,9 +46,16 @@ public class StartCommand : ContainerCommandBase
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Start command execution failed");
-            ConsoleDisplay.ShowError($"启动命令执行失败: {ex.Message}");
-            return false;
+            // 使用全局异常处理服务处理异常
+            var context = new ExceptionContext
+            {
+                CommandName = "Start",
+                Operation = "执行Start命令",
+                ResourcePath = envType
+            };
+            
+            var result = await _globalExceptionHandler.HandleExceptionAsync(ex, context);
+            return result.IsHandled;
         }
     }
 

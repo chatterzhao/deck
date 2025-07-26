@@ -17,17 +17,40 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
-// 创建根命令
-var rootCommand = CreateRootCommand(host.Services);
+try
+{
+    // 创建根命令
+    var rootCommand = CreateRootCommand(host.Services);
 
-// 执行命令
-var result = await rootCommand.InvokeAsync(args);
+    // 执行命令
+    var result = await rootCommand.InvokeAsync(args);
 
-// 清理资源
-await host.StopAsync();
-host.Dispose();
+    // 清理资源
+    await host.StopAsync();
+    host.Dispose();
 
-return result;
+    return result;
+}
+catch (Exception ex)
+{
+    // 全局异常处理
+    var exceptionHandler = host.Services.GetRequiredService<IGlobalExceptionHandler>();
+    var consoleDisplay = host.Services.GetRequiredService<IConsoleDisplay>();
+    
+    var context = new ExceptionContext
+    {
+        CommandName = "未知命令",
+        Operation = "程序执行"
+    };
+    
+    await exceptionHandler.HandleExceptionAsync(ex, context);
+    
+    // 清理资源
+    await host.StopAsync();
+    host.Dispose();
+    
+    return 1; // 返回错误码
+}
 
 static RootCommand CreateRootCommand(IServiceProvider services)
 {
@@ -71,32 +94,38 @@ static RootCommand CreateRootCommand(IServiceProvider services)
 static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
 {
     // 添加 start 命令
-    var startEnvTypeArg = new Argument<string?>("env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne };
+    var startEnvTypeOpt = new Option<string?>("--env-type") { Description = "环境类型 (可选)", Arity = ArgumentArity.ZeroOrOne };
     var startCommand = new Command("start", "智能启动开发环境")
     {
-        startEnvTypeArg
+        startEnvTypeOpt
     };
     startCommand.SetHandler(async (string? envType) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Start");
         logger.LogInformation("Start command called with env-type: {EnvType}", envType ?? "auto-detect");
         
-        try
+        var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
+        var loggingService = services.GetRequiredService<ILoggingService>();
+        var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var startCommandService = services.GetRequiredService<IStartCommandService>();
+        var interactiveSelectionService = services.GetRequiredService<IInteractiveSelectionService>();
+        var globalExceptionHandler = services.GetRequiredService<IGlobalExceptionHandler>();
+        
+        var command = new StartCommand(
+            consoleDisplay, 
+            interactiveSelectionService,
+            loggingService, 
+            directoryManagement,
+            startCommandService,
+            globalExceptionHandler);
+        
+        var success = await command.ExecuteAsync(envType);
+        
+        if (!success)
         {
-            var command = services.GetRequiredService<StartCommand>();
-            var success = await command.ExecuteAsync(envType);
-            
-            if (!success)
-            {
-                Environment.Exit(1);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Start command execution failed");
             Environment.Exit(1);
         }
-    }, startEnvTypeArg);
+    }, startEnvTypeOpt);
     rootCommand.AddCommand(startCommand);
     
     // 添加 stop 命令
@@ -114,8 +143,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var globalExceptionHandler = services.GetRequiredService<IGlobalExceptionHandler>();
         
-        var command = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var command = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
         var success = await command.ExecuteAsync(imageName);
         
         if (!success)
@@ -140,8 +170,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var globalExceptionHandler = services.GetRequiredService<IGlobalExceptionHandler>();
         
-        var command = new RestartCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var command = new RestartCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
         var success = await command.ExecuteAsync(imageName);
         
         if (!success)

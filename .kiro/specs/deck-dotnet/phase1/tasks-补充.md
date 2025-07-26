@@ -11,51 +11,11 @@
 
 ---
 
-## 🛠 完成下方的任务列表需要强制遵循的规范
-
-### 📋 工作流程
-1. **任务规划**：根据本任务清单开展工作
-2. **分支管理**：
-   - 每个任务创建独立的Git分支
-   - 分支命名规范: `feature/<task-number-description>`
-3. **需求分析**：
-   - 仔细阅读需求文档、设计文档
-   - 仔细阅读已有代码实现
-4. **开发策略**：
-   - 根据任务特性决定开发顺序：
-     - 先实现功能
-     - 或先编写测试用例
-     - 自己决定顺序，但是一定要根据验收标准写符合要求的测试用例
-5. **代码实现**：完成符合需求的功能开发(代码要符合.net 的编码规范要符合严格的AOT)
-6. **质量保证**：
-   - 所有代码必须通过测试
-   - 包括单元测试和集成测试
-7. **文档更新**：更新本文档的任务状态为完成，更新 `/Users/zhaoyu/Downloads/coding/deck/deck-dotnet/.kiro/specs/deck-dotnet/tasks.md`内对应的完成状态（假如有需要更新的）
-8. **代码集成**：
-   - 完成后提交代码
-   - 合并到develop分支
-9. **任务迭代**：继续规划下一个任务
-
-### 📈 任务执行策略
-- **优先级排序**：先解决阻塞性问题，再完善核心功能，最后处理优化项目
-- **时间管理**：为每个任务预估时间，保持开发进度可控
-- **质量保障**：每个任务完成后进行充分测试，保持代码质量
-- **文档同步**：及时更新文档，确保实现与文档一致
-
-### ✅ 成功标准
-- 所有任务通过验收标准验证
-- 代码通过单元测试和集成测试
-- 功能符合需求文档要求
-- 不引入新的阻塞性问题
-
----
-
 ## 🔴 阻塞性问题（高优先级）
 
 ### 1. 修复 ServiceCollectionExtensions.cs 中的模型不一致问题
 **状态**: ✅ 已完成  
 **优先级**: 🔥 最高  
-**问题编号**: validation-gap-analysis.md 问题 #1  
 **位置**: [ServiceCollectionExtensions.cs](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Services/ServiceCollectionExtensions.cs):47-48
 
 **问题描述**:
@@ -72,14 +32,11 @@
   - ✅ 统一容器相关数据模型定义
   - ✅ 修复接口签名不匹配问题
   - ✅ 确保依赖注入兼容性
-- ✅ 1.3 实现完整的 ThreeLayerWorkflowService
-  - ✅ 创建完整的 ThreeLayerWorkflowService 实现替代 ThreeLayerWorkflowServiceStub
-  - ✅ 确保与 ContainerService 正确集成
-- ✅ 1.4 重新启用核心服务
+- ✅ 1.3 重新启用核心服务
   - ✅ 取消注释 ContainerService 注册（第47行）
-  - ✅ 更新 ThreeLayerWorkflowService 注册为完整实现（第45行）
+  - ✅ 取消注释 ThreeLayerWorkflowService 注册（第45行改为完整实现）
   - ✅ 验证服务正常启动
-- ✅ 1.5 验证功能完整性
+- ✅ 1.4 验证功能完整性
   - ✅ 测试容器管理功能
   - ✅ 测试三层工作流程功能
   - ✅ 确保无运行时错误
@@ -94,8 +51,7 @@
 ### 2. 创建完整的 StartCommand 实现
 **状态**: ✅ 已完成  
 **优先级**: 🔥 高  
-**问题编号**: validation-gap-analysis.md 问题 #2  
-**问题**: 缺少完整的 `StartCommand.cs` 命令实现，`StartCommandServiceSimple.cs` 只实现了部分服务功能
+**问题**: 缺少 `StartCommand.cs` 文件，仅有基础功能的 `StartCommandServiceSimple.cs`
 
 **任务清单**:
 - ✅ 2.1 分析 StartCommandServiceSimple.cs 的功能范围
@@ -103,7 +59,7 @@
   - ✅ 找出缺失的核心功能
   - ✅ 确定完整 StartCommand 需要的接口定义
 - ✅ 2.2 设计完整的 StartCommand 架构
-  - ✅ 定义 StartCommand 类结构（位于 [Deck.Console/Commands](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Console/Commands) 目录）
+  - ✅ 定义 StartCommand 类结构
   - ✅ 设计三层配置选择流程
   - ✅ 集成交互式选择服务
 - ✅ 2.3 实现完整的 StartCommand.cs
@@ -117,82 +73,58 @@
   - ✅ 创建单元测试覆盖
 
 **验收标准**:
-- ✅ 需求1标准1-2（核心三层配置选择界面）完全实现
-- ✅ Start 命令支持完整的三层配置选择流程
-- ✅ 集成所有相关服务（端口检测、交互式选择等）
+- ✅ 实现完整的三层配置选择界面（需求1标准1-2）
+- ✅ 集成端口冲突检测和解决（需求4标准6-10）
+- ✅ 支持 Templates 双工作流程选择（需求6标准1-6）
+- ✅ 通过单元测试验证核心功能
 
 ---
 
 ### 3. 实现模板变量替换引擎
-**状态**: [x] 已完成  
-**优先级**: 🔥 高  
-**问题编号**: validation-gap-analysis.md 问题 #3  
-**问题**: 缺失 `${VAR}` 和 `{{VAR}}` 格式的变量替换引擎
-
-**任务清单**:
-- [x] 3.1 设计变量替换引擎架构
-  - [x] 定义 ITemplateVariableEngine 接口
-  - [x] 设计变量格式解析规则（${VAR} 和 {{VAR}}）
-  - [x] 设计变量上下文管理
-- [x] 3.2 实现 TemplateVariableEngine 核心功能
-  - [x] 实现变量模式匹配和解析
-  - [x] 实现变量值替换逻辑
-  - [x] 支持嵌套变量和条件替换
-  - [x] 添加变量验证和错误处理
-- [x] 3.3 集成到配置处理流程
-  - [x] 在 EnhancedFileOperationsService 中集成变量替换
-  - [x] 在模板复制过程中应用变量替换
-  - [x] 集成到三层配置工作流程中
-
-**验收标准**:
-- ✅ 需求5标准5 - 支持 `${VAR}` 和 `{{VAR}}` 格式的变量替换
-- ✅ 模板定制化功能完全可用
-
----
-
-### 4. 实现配置合并功能
 **状态**: ✅ 已完成  
 **优先级**: 🔥 高  
-**问题编号**: validation-gap-analysis.md 问题 #5  
-**问题**: 缺失基础配置与覆盖配置合并功能
+**问题**: 缺少模板变量替换功能（需求5标准5）
 
 **任务清单**:
-- ✅ 4.1 设计配置合并架构
-  - ✅ 定义 IConfigurationMerger 接口
-  - ✅ 设计配置合并规则和优先级
-- ✅ 4.2 实现配置合并核心功能
-  - ✅ 实现基础配置与覆盖配置合并逻辑
-  - ✅ 处理配置文件优先级
-  - ✅ 验证合并后配置的完整性
-- ✅ 4.3 集成到配置处理流程
-  - ✅ 在配置加载过程中应用配置合并
-  - ✅ 确保合并后的配置能正确传递给后续流程
+- ✅ 3.1 设计模板变量替换引擎架构
+  - ✅ 定义 ITemplateVariableEngine 接口
+  - ✅ 设计变量上下文管理
+  - ✅ 设计变量验证和错误处理
+- ✅ 3.2 实现模板变量替换引擎
+  - ✅ 实现 ITemplateVariableEngine 接口
+  - ✅ 支持 `${VAR}` 和 `{{VAR}}` 格式
+  - ✅ 实现文件和目录级别的变量替换
+- ✅ 3.3 集成到现有系统
+  - ✅ 在 ServiceCollectionExtensions 中注册服务
+  - ✅ 在 StartCommand 中集成变量替换
+  - ✅ 在模板处理流程中应用变量替换
 
 **验收标准**:
-- ✅ 需求5标准4 - 配置合并功能（基础配置与覆盖配置合并）
-- ✅ 配置合并功能正常工作
+- ✅ 支持 `${VAR}` 和 `{{VAR}}` 格式的变量替换（需求5标准5）
+- ✅ 在模板复制过程中应用变量替换
+- ✅ 集成到三层配置工作流程中
 
 ---
 
 ## 🟡 功能缺口（中优先级）
 
-### 5. 完善容器引擎抽象层
+### 4. 实现容器引擎抽象层
 **状态**: ✅ 已完成  
 **优先级**: 🟡 中  
 **问题编号**: validation-gap-analysis.md 问题 #4  
 **问题**: 缺乏统一的容器引擎抽象接口
 
 **任务清单**:
-- ✅ 5.1 设计容器引擎抽象层架构
+- ✅ 4.1 设计容器引擎抽象层架构
   - ✅ 定义 IContainerEngine 基础接口
   - ✅ 设计 PodmanEngine 和 DockerEngine 实现
   - ✅ 定义容器引擎检测和选择逻辑
-- ✅ 5.2 实现容器引擎抽象层
+- ✅ 4.2 实现容器引擎抽象层
   - ✅ 实现 IContainerEngine 接口
   - ✅ 实现 PodmanEngine 具体实现
   - ✅ 实现 DockerEngine 具体实现（可选）
   - ✅ 实现引擎自动检测和选择
-- ✅ 5.3 集成到现有系统
+- ✅ 4.3 集成到现有系统
   - ✅ 在 SystemDetectionService 中集成引擎检测
   - ✅ 在 ContainerService 中使用抽象层
   - ✅ 在 Doctor 命令中集成检测结果
@@ -201,6 +133,32 @@
 - ✅ 需求4标准1 - 检测容器引擎并优先使用Podman
 - ✅ 容器操作通过统一抽象层执行
 - ✅ 支持 Podman 和 Docker 的透明切换
+
+---
+
+### 5. 实现配置合并功能
+**状态**: ✅ 已完成  
+**优先级**: 🟡 中  
+**问题编号**: validation-gap-analysis.md 问题 #5  
+**问题**: 缺少配置合并功能（需求5标准4）
+
+**任务清单**:
+- ✅ 5.1 分析配置合并需求
+  - ✅ 理解基础配置与覆盖配置合并逻辑
+  - ✅ 分析.env文件处理流程
+  - ✅ 确定合并优先级规则
+- ✅ 5.2 实现配置合并功能
+  - ✅ 实现配置合并算法
+  - ✅ 集成到启动流程中
+  - ✅ 验证合并结果正确性
+- ✅ 5.3 测试和验证
+  - ✅ 测试各种配置合并场景
+  - ✅ 验证合并后配置的正确性
+  - ✅ 确保用户体验友好
+
+**验收标准**:
+- ✅ 需求5标准4 - 配置合并功能（基础配置与覆盖配置合并）
+- ✅ 配置合并功能正常工作
 
 ---
 
@@ -232,102 +190,29 @@
 ---
 
 ### 7. 建立全局错误处理机制
-**状态**: [ ] 未开始  
+**状态**: ✅ 已完成  
 **优先级**: 🟡 中  
 **问题编号**: validation-gap-analysis.md 问题 #7  
 **问题**: 缺少统一的全局异常处理中间件和自动恢复机制
 
 **任务清单**:
-- [ ] 7.1 设计全局错误处理架构
-  - [ ] 定义 GlobalExceptionHandler 结构
-  - [ ] 设计错误分类和处理策略
-  - [ ] 设计自动恢复机制
-- [ ] 7.2 实现全局错误处理系统
-  - [ ] 实现 GlobalExceptionHandler 
-  - [ ] 实现用户友好的错误消息生成
-  - [ ] 实现错误日志记录和调试信息
-- [ ] 7.3 集成到所有命令和服务
-  - [ ] 在 Program.cs 中注册全局异常处理
-  - [ ] 在各个命令中集成错误处理
-  - [ ] 在核心服务中集成错误处理
+- ✅ 7.1 设计全局错误处理架构
+  - ✅ 定义 GlobalExceptionHandler 结构
+  - ✅ 设计错误分类和处理策略
+  - ✅ 设计自动恢复机制
+- ✅ 7.2 实现全局错误处理系统
+  - ✅ 实现 GlobalExceptionHandler 
+  - ✅ 实现用户友好的错误消息生成
+  - ✅ 实现错误日志记录和调试信息
+- ✅ 7.3 集成到所有命令和服务
+  - ✅ 在 Program.cs 中注册全局异常处理
+  - ✅ 在各个命令中集成错误处理
+  - ✅ 在核心服务中集成错误处理
 
 **验收标准**:
 - ✅ 统一的错误处理和用户友好的错误提示
 - ✅ 自动恢复机制在可能的情况下生效
 - ✅ 完整的错误日志记录用于调试
-
----
-
-## ✅ 已完成任务
-
-### 1. 修复 ServiceCollectionExtensions.cs 中的模型不一致问题
-**状态**: ✅ 已完成  
-**优先级**: 🔥 最高  
-**问题编号**: validation-gap-analysis.md 问题 #1  
-**位置**: [ServiceCollectionExtensions.cs](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Services/ServiceCollectionExtensions.cs):47-48
-
-**问题描述**:
-- ContainerService.cs（1000+行完整实现）被禁用
-- ThreeLayerWorkflowService 只有桩实现，需要完整实现（而非已有完整实现被禁用）
-- 原因标注为"模型不一致问题"
-
-**任务清单**:
-- ✅ 1.1 分析模型不一致的具体原因
-  - ✅ 检查 ContainerService 的依赖接口定义
-  - ✅ 检查 ThreeLayerWorkflowService 的依赖接口定义  
-  - ✅ 识别数据模型冲突点
-- ✅ 1.2 修复数据模型不一致问题
-  - ✅ 统一容器相关数据模型定义
-  - ✅ 修复接口签名不匹配问题
-  - ✅ 确保依赖注入兼容性
-- ✅ 1.3 实现完整的 ThreeLayerWorkflowService
-  - ✅ 创建完整的 ThreeLayerWorkflowService 实现替代 ThreeLayerWorkflowServiceStub
-  - ✅ 确保与 ContainerService 正确集成
-- ✅ 1.4 重新启用核心服务
-  - ✅ 取消注释 ContainerService 注册（第47行）
-  - ✅ 更新 ThreeLayerWorkflowService 注册为完整实现（第45行）
-  - ✅ 验证服务正常启动
-- ✅ 1.5 验证功能完整性
-  - ✅ 测试容器管理功能
-  - ✅ 测试三层工作流程功能
-  - ✅ 确保无运行时错误
-
-**验收标准**:
-- ✅ ContainerService 和 ThreeLayerWorkflowService 正常注册和启动
-- ✅ 需求3（三层配置）和需求4（容器管理）的核心验收标准可以执行
-- ✅ 无数据模型冲突相关的编译或运行时错误
-
----
-
-### 2. 创建完整的 StartCommand 实现
-**状态**: ✅ 已完成  
-**优先级**: 🔥 高  
-**问题编号**: validation-gap-analysis.md 问题 #2  
-**问题**: 缺少完整的 `StartCommand.cs` 命令实现，`StartCommandServiceSimple.cs` 只实现了部分服务功能
-
-**任务清单**:
-- ✅ 2.1 分析 StartCommandServiceSimple.cs 的功能范围
-  - ✅ 识别已实现的功能特性
-  - ✅ 找出缺失的核心功能
-  - ✅ 确定完整 StartCommand 需要的接口定义
-- ✅ 2.2 设计完整的 StartCommand 架构
-  - ✅ 定义 StartCommand 类结构（位于 [Deck.Console/Commands](file:///Users/zhaoyu/Downloads/coding/deck/deck-dotnet/src/Deck.Console/Commands) 目录）
-  - ✅ 设计三层配置选择流程
-  - ✅ 集成交互式选择服务
-- ✅ 2.3 实现完整的 StartCommand.cs
-  - ✅ 实现核心三层配置选择界面
-  - ✅ 集成端口冲突检测和解决
-  - ✅ 实现智能环境检测和推荐
-  - ✅ 添加 Templates 双工作流程选择
-- ✅ 2.4 集成和测试
-  - ✅ 在 Program.cs 中集成新的 StartCommand
-  - ✅ 替换或扩展 StartCommandServiceSimple 的使用
-  - ✅ 创建单元测试覆盖
-
-**验收标准**:
-- ✅ 需求1标准1-2（核心三层配置选择界面）完全实现
-- ✅ Start 命令支持完整的三层配置选择流程
-- ✅ 集成所有相关服务（端口检测、交互式选择等）
 
 ---
 
@@ -342,6 +227,11 @@
 - [ ] 8.1 验证现有容器命令的完整性
 - [ ] 8.2 补充缺失的容器生命周期管理功能
 - [ ] 8.3 优化命令的用户体验和错误处理
+
+**验收标准**:
+- ✅ 所有容器管理命令完整实现
+- ✅ 用户体验优化
+- ✅ 完善的错误处理机制
 
 ---
 
@@ -366,4 +256,4 @@
 
 ---
 
-**注意**: 本任务清单基于 `validation-gap-analysis.md` 的准确分析结果，聚焦于解决当前阻塞第一阶段完成的关键问题。
+**注意**: 本任务清单基于 `validation-gap-analysis.md` 的准确分析结果，聚焦于解决当前阻塞性第一阶段完成的关键问题。
