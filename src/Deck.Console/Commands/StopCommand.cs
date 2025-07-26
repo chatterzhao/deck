@@ -10,16 +10,19 @@ namespace Deck.Console.Commands;
 public class StopCommand : ContainerCommandBase
 {
     private readonly IGlobalExceptionHandler _globalExceptionHandler; // 添加全局异常处理服务
+    private readonly IContainerService _containerService; // 添加容器服务
 
     public StopCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
         IDirectoryManagementService directoryManagement,
-        IGlobalExceptionHandler globalExceptionHandler) // 添加全局异常处理服务参数
+        IGlobalExceptionHandler globalExceptionHandler,
+        IContainerService containerService) // 添加容器服务参数
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
         _globalExceptionHandler = globalExceptionHandler; // 初始化全局异常处理服务
+        _containerService = containerService; // 初始化容器服务
     }
 
     /// <summary>
@@ -51,10 +54,18 @@ public class StopCommand : ContainerCommandBase
             // 显示停止信息
             ConsoleDisplay.ShowInfo($"⏹️  正在停止环境: {selectedImageName}");
 
-            // 构建停止命令
-            var result = await ExecuteStopCommandAsync(selectedImageName, cancellationToken);
+            // 获取实际的容器名称
+            var containerName = await GetActualContainerNameAsync(selectedImageName);
+            if (string.IsNullOrEmpty(containerName))
+            {
+                ConsoleDisplay.ShowError($"无法确定 '{selectedImageName}' 的容器名称");
+                return false;
+            }
 
-            if (result)
+            // 使用容器服务停止容器
+            var result = await _containerService.StopContainerAsync(containerName);
+
+            if (result.Success)
             {
                 ConsoleDisplay.ShowSuccess($"✅ 环境 '{selectedImageName}' 已成功停止");
                 
@@ -62,14 +73,14 @@ public class StopCommand : ContainerCommandBase
                 ShowPodmanHint(selectedImageName, "stop");
                 
                 logger.LogInformation("Stop command completed successfully for image: {ImageName}", selectedImageName);
+                return true;
             }
             else
             {
-                ConsoleDisplay.ShowError($"❌ 停止环境 '{selectedImageName}' 失败");
-                logger.LogWarning("Stop command failed for image: {ImageName}", selectedImageName);
+                ConsoleDisplay.ShowError($"❌ 停止环境 '{selectedImageName}' 失败: {result.Message}");
+                logger.LogWarning("Stop command failed for image: {ImageName}. Error: {ErrorMessage}", selectedImageName, result.Message);
+                return false;
             }
-
-            return result;
         }
         catch (Exception ex)
         {
@@ -87,80 +98,36 @@ public class StopCommand : ContainerCommandBase
     }
 
     /// <summary>
-    /// 执行实际的停止命令
+    /// 获取实际的容器名称
     /// </summary>
-    private async Task<bool> ExecuteStopCommandAsync(string imageName, CancellationToken cancellationToken)
+    private async Task<string?> GetActualContainerNameAsync(string imageName)
     {
         try
         {
-            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
-            var imagePath = Path.Combine(imagesDir, imageName);
-            var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            if (!File.Exists(composePath))
+            // 首先尝试使用镜像名称作为容器名称
+            var directNameContainer = await _containerService.GetContainerInfoAsync(imageName);
+            if (directNameContainer != null)
             {
-                ConsoleDisplay.ShowWarning($"未找到 compose.yaml 文件: {composePath}");
-                return false;
+                return imageName;
             }
 
-            // 使用 podman-compose 停止容器
-            var startInfo = new ProcessStartInfo
+            // 然后尝试使用镜像名-dev格式
+            var devName = $"{imageName}-dev";
+            var devContainer = await _containerService.GetContainerInfoAsync(devName);
+            if (devContainer != null)
             {
-                FileName = "podman-compose",
-                Arguments = $"-f \"{composePath}\" down",
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            
-            var outputLines = new List<string>();
-            var errorLines = new List<string>();
-
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputLines.Add(e.Data);
-                    ConsoleDisplay.WriteLine($"    {e.Data}");
-                }
-            };
-
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorLines.Add(e.Data);
-                    ConsoleDisplay.ShowWarning($"    {e.Data}");
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            await process.WaitForExitAsync(cancellationToken);
-
-            var success = process.ExitCode == 0;
-
-            if (!success && errorLines.Any())
-            {
-                ConsoleDisplay.ShowError("停止过程中出现错误:");
-                foreach (var error in errorLines)
-                {
-                    ConsoleDisplay.ShowError($"  {error}");
-                }
+                return devName;
             }
 
-            return success;
+            // 如果找不到确切的容器，返回镜像名称作为默认值
+            return imageName;
         }
         catch (Exception ex)
         {
-            ConsoleDisplay.ShowError($"执行停止命令失败: {ex.Message}");
-            return false;
+            LoggingService.GetLogger("Deck.Console.Stop")
+                .LogWarning(ex, "Failed to get actual container name for image: {ImageName}", imageName);
+            return imageName; // 回退到镜像名称
         }
     }
+
 }

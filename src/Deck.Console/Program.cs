@@ -144,8 +144,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
         var globalExceptionHandler = services.GetRequiredService<IGlobalExceptionHandler>();
+        var containerService = services.GetRequiredService<IContainerService>(); // 添加容器服务依赖
         
-        var command = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
+        var command = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler, containerService);
         var success = await command.ExecuteAsync(imageName);
         
         if (!success)
@@ -171,8 +172,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
         var globalExceptionHandler = services.GetRequiredService<IGlobalExceptionHandler>();
+        var containerService = services.GetRequiredService<IContainerService>(); // 添加容器服务依赖
         
-        var command = new RestartCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
+        var command = new RestartCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler, containerService);
         var success = await command.ExecuteAsync(imageName);
         
         if (!success)
@@ -199,8 +201,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var containerService = services.GetRequiredService<IContainerService>(); // 添加容器服务依赖
         
-        var command = new LogsCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var command = new LogsCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, containerService);
         var success = await command.ExecuteAsync(imageName, follow);
         
         if (!success)
@@ -225,8 +228,9 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
         var interactiveSelection = services.GetRequiredService<IInteractiveSelectionService>();
         var loggingService = services.GetRequiredService<ILoggingService>();
         var directoryManagement = services.GetRequiredService<IDirectoryManagementService>();
+        var containerService = services.GetRequiredService<IContainerService>(); // 添加容器服务依赖
         
-        var command = new ShellCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement);
+        var command = new ShellCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, containerService);
         var success = await command.ExecuteAsync(imageName);
         
         if (!success)

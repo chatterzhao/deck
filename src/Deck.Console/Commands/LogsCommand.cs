@@ -9,13 +9,17 @@ namespace Deck.Console.Commands;
 /// </summary>
 public class LogsCommand : ContainerCommandBase
 {
+    private readonly IContainerService _containerService;
+
     public LogsCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
-        IDirectoryManagementService directoryManagement)
+        IDirectoryManagementService directoryManagement,
+        IContainerService containerService)
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
+        _containerService = containerService;
     }
 
     /// <summary>
@@ -54,11 +58,22 @@ public class LogsCommand : ContainerCommandBase
                 ConsoleDisplay.ShowInfo($"📋 正在查看 '{selectedImageName}' 的日志:");
             }
 
-            // 执行日志命令
-            var result = await ExecuteLogsCommandAsync(selectedImageName, follow, cancellationToken);
-
-            if (result)
+            // 获取实际的容器名称
+            var containerName = await GetActualContainerNameAsync(selectedImageName);
+            if (string.IsNullOrEmpty(containerName))
             {
+                ConsoleDisplay.ShowError($"无法确定 '{selectedImageName}' 的容器名称");
+                return false;
+            }
+
+            // 使用容器服务获取日志
+            var result = await _containerService.GetContainerLogsAsync(containerName, follow ? 0 : 100); // 如果follow则获取所有日志，否则获取最后100行
+
+            if (result.Success)
+            {
+                // 使用颜色分类显示日志
+                DisplayColoredLogs(result.Logs);
+                
                 if (!follow)
                 {
                     ConsoleDisplay.ShowSuccess($"✅ 日志查看完成");
@@ -68,14 +83,21 @@ public class LogsCommand : ContainerCommandBase
                 ShowPodmanHint(selectedImageName, "logs", follow ? "-f" : null);
                 
                 logger.LogInformation("Logs command completed successfully for image: {ImageName}", selectedImageName);
+                return true;
             }
             else
             {
-                ConsoleDisplay.ShowError($"❌ 查看日志失败");
-                logger.LogWarning("Logs command failed for image: {ImageName}", selectedImageName);
+                ConsoleDisplay.ShowError($"❌ 查看日志失败: {result.Error}");
+                logger.LogWarning("Logs command failed for image: {ImageName}. Error: {ErrorMessage}", selectedImageName, result.Error);
+                
+                // 给用户一些建议
+                ConsoleDisplay.ShowInfo("\n💡 提示:");
+                ConsoleDisplay.WriteLine("  - 确保容器正在运行: deck start " + selectedImageName);
+                ConsoleDisplay.WriteLine("  - 检查容器状态: deck ps");
+                ConsoleDisplay.WriteLine($"  - 手动查看日志: podman logs {containerName}");
+                
+                return false;
             }
-
-            return result;
         }
         catch (OperationCanceledException)
         {
@@ -96,126 +118,67 @@ public class LogsCommand : ContainerCommandBase
     }
 
     /// <summary>
-    /// 执行实际的日志查看命令
+    /// 使用颜色分类显示日志
     /// </summary>
-    private async Task<bool> ExecuteLogsCommandAsync(string imageName, bool follow, CancellationToken cancellationToken)
+    private void DisplayColoredLogs(string logs)
+    {
+        if (string.IsNullOrEmpty(logs))
+            return;
+
+        var lines = logs.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            if (line.Contains("ERROR", StringComparison.OrdinalIgnoreCase) || 
+                line.Contains("FATAL", StringComparison.OrdinalIgnoreCase))
+            {
+                ConsoleDisplay.ShowError(line);
+            }
+            else if (line.Contains("WARN", StringComparison.OrdinalIgnoreCase))
+            {
+                ConsoleDisplay.ShowWarning(line);
+            }
+            else if (line.Contains("INFO", StringComparison.OrdinalIgnoreCase))
+            {
+                ConsoleDisplay.ShowInfo(line);
+            }
+            else
+            {
+                ConsoleDisplay.WriteLine(line);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取实际的容器名称
+    /// </summary>
+    private async Task<string?> GetActualContainerNameAsync(string imageName)
     {
         try
         {
-            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
-            var imagePath = Path.Combine(imagesDir, imageName);
-            var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            if (!File.Exists(composePath))
+            // 首先尝试使用镜像名称作为容器名称
+            var directNameContainer = await _containerService.GetContainerInfoAsync(imageName);
+            if (directNameContainer != null)
             {
-                ConsoleDisplay.ShowWarning($"未找到 compose.yaml 文件: {composePath}");
-                return false;
+                return imageName;
             }
 
-            // 构建命令参数
-            var arguments = $"-f \"{composePath}\" logs";
-            if (follow)
+            // 然后尝试使用镜像名-dev格式
+            var devName = $"{imageName}-dev";
+            var devContainer = await _containerService.GetContainerInfoAsync(devName);
+            if (devContainer != null)
             {
-                arguments += " -f";
+                return devName;
             }
 
-            // 使用 podman-compose 查看日志
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "podman-compose",
-                Arguments = arguments,
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            
-            var outputLines = new List<string>();
-            var errorLines = new List<string>();
-
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputLines.Add(e.Data);
-                    // 日志输出使用不同颜色显示
-                    if (e.Data.Contains("ERROR") || e.Data.Contains("FATAL"))
-                    {
-                        ConsoleDisplay.ShowError(e.Data);
-                    }
-                    else if (e.Data.Contains("WARN"))
-                    {
-                        ConsoleDisplay.ShowWarning(e.Data);
-                    }
-                    else if (e.Data.Contains("INFO"))
-                    {
-                        ConsoleDisplay.ShowInfo(e.Data);
-                    }
-                    else
-                    {
-                        ConsoleDisplay.WriteLine(e.Data);
-                    }
-                }
-            };
-
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorLines.Add(e.Data);
-                    ConsoleDisplay.ShowError(e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            try
-            {
-                await process.WaitForExitAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // 用户取消时终止进程
-                if (!process.HasExited)
-                {
-                    process.Kill(true);
-                    await process.WaitForExitAsync();
-                }
-                throw;
-            }
-
-            var success = process.ExitCode == 0;
-
-            if (!success && errorLines.Any())
-            {
-                ConsoleDisplay.ShowError("查看日志过程中出现错误:");
-                foreach (var error in errorLines)
-                {
-                    ConsoleDisplay.ShowError($"  {error}");
-                }
-                
-                // 给用户一些建议
-                ConsoleDisplay.ShowInfo("\n💡 提示:");
-                ConsoleDisplay.WriteLine("  - 确保容器正在运行: deck start " + imageName);
-                ConsoleDisplay.WriteLine("  - 检查容器状态: podman ps");
-                ConsoleDisplay.WriteLine($"  - 手动查看日志: podman-compose -f ~/.deck/images/{imageName}/compose.yaml logs");
-            }
-
-            return success;
-        }
-        catch (OperationCanceledException)
-        {
-            throw; // 重新抛出取消异常
+            // 如果找不到确切的容器，返回镜像名称作为默认值
+            return imageName;
         }
         catch (Exception ex)
         {
-            ConsoleDisplay.ShowError($"执行日志命令失败: {ex.Message}");
-            return false;
+            LoggingService.GetLogger("Deck.Console.Logs")
+                .LogWarning(ex, "Failed to get actual container name for image: {ImageName}", imageName);
+            return imageName; // 回退到镜像名称
         }
     }
 }

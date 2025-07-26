@@ -9,13 +9,17 @@ namespace Deck.Console.Commands;
 /// </summary>
 public class ShellCommand : ContainerCommandBase
 {
+    private readonly IContainerService _containerService;
+
     public ShellCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
-        IDirectoryManagementService directoryManagement)
+        IDirectoryManagementService directoryManagement,
+        IContainerService containerService)
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
+        _containerService = containerService;
     }
 
     /// <summary>
@@ -47,16 +51,16 @@ public class ShellCommand : ContainerCommandBase
             // 显示进入Shell信息
             ConsoleDisplay.ShowInfo($"💻 正在进入 '{selectedImageName}' 容器环境...");
 
-            // 首先检查容器是否运行
-            var containerName = await GetContainerNameAsync(selectedImageName);
+            // 获取实际的容器名称
+            var containerName = await GetActualContainerNameAsync(selectedImageName);
             if (string.IsNullOrEmpty(containerName))
             {
-                ConsoleDisplay.ShowError($"无法确定容器名称或容器未运行");
+                ConsoleDisplay.ShowError($"无法确定 '{selectedImageName}' 的容器名称");
                 return false;
             }
 
             // 检查容器是否在运行
-            var isRunning = await CheckContainerRunningAsync(containerName);
+            var isRunning = await _containerService.IsContainerRunningAsync(containerName);
             if (!isRunning)
             {
                 ConsoleDisplay.ShowWarning($"容器 '{containerName}' 没有运行");
@@ -66,6 +70,12 @@ public class ShellCommand : ContainerCommandBase
 
             // 显示教育性的 Podman 命令提示
             ShowPodmanHint(selectedImageName, "shell");
+
+            // 显示进入提示
+            ConsoleDisplay.ShowInfo($"🚀 进入容器开发环境: {containerName}");
+            ConsoleDisplay.WriteLine($"   工作目录: /workspace");
+            ConsoleDisplay.WriteLine($"   退出方式: 输入 'exit' 或按 Ctrl+D");
+            ConsoleDisplay.WriteLine();
 
             // 执行Shell命令
             var result = await ExecuteShellCommandAsync(selectedImageName, containerName, cancellationToken);
@@ -79,101 +89,25 @@ public class ShellCommand : ContainerCommandBase
             {
                 ConsoleDisplay.ShowError($"❌ 进入容器环境失败");
                 logger.LogWarning("Shell command failed for image: {ImageName}", selectedImageName);
+                
+                // 给用户一些建议
+                ConsoleDisplay.ShowInfo("\n💡 故障排除建议:");
+                ConsoleDisplay.WriteLine("  - 确保容器正在运行: deck start " + selectedImageName);
+                ConsoleDisplay.WriteLine("  - 检查容器状态: deck ps");
+                ConsoleDisplay.WriteLine($"  - 手动进入容器: podman exec -it {containerName} bash");
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            ConsoleDisplay.ShowInfo("\nShell会话已取消");
+            return true;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Shell command execution failed");
             ConsoleDisplay.ShowError($"执行Shell命令时出错: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 获取容器名称
-    /// </summary>
-    private async Task<string?> GetContainerNameAsync(string imageName)
-    {
-        try
-        {
-            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
-            var imagePath = Path.Combine(imagesDir, imageName);
-            var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            if (!File.Exists(composePath))
-            {
-                return null;
-            }
-
-            // 方法1: 尝试使用 podman-compose config --services 获取服务名
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "podman-compose",
-                Arguments = $"-f \"{composePath}\" config --services",
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            process.Start();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode == 0)
-            {
-                var output = await process.StandardOutput.ReadToEndAsync();
-                var services = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                if (services.Length > 0)
-                {
-                    return services[0].Trim(); // 使用第一个服务
-                }
-            }
-
-            // 方法2: 使用约定的容器名称
-            return $"{imageName}-dev";
-        }
-        catch
-        {
-            // 如果出错，使用默认约定
-            return $"{imageName}-dev";
-        }
-    }
-
-    /// <summary>
-    /// 检查容器是否在运行
-    /// </summary>
-    private async Task<bool> CheckContainerRunningAsync(string containerName)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "podman",
-                Arguments = $"ps -q -f name={containerName}",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            process.Start();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode == 0)
-            {
-                var output = await process.StandardOutput.ReadToEndAsync();
-                return !string.IsNullOrWhiteSpace(output);
-            }
-
-            return false;
-        }
-        catch
-        {
             return false;
         }
     }
@@ -188,12 +122,6 @@ public class ShellCommand : ContainerCommandBase
             var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
             var imagePath = Path.Combine(imagesDir, imageName);
             var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            // 显示进入提示
-            ConsoleDisplay.ShowInfo($"🚀 进入容器开发环境: {containerName}");
-            ConsoleDisplay.WriteLine($"   工作目录: /workspace");
-            ConsoleDisplay.WriteLine($"   退出方式: 输入 'exit' 或按 Ctrl+D");
-            ConsoleDisplay.WriteLine();
 
             // 方法1: 优先使用 podman-compose exec
             var startInfo = new ProcessStartInfo
@@ -233,21 +161,45 @@ public class ShellCommand : ContainerCommandBase
         }
         catch (OperationCanceledException)
         {
-            ConsoleDisplay.ShowInfo("\nShell会话已取消");
-            return true;
+            throw; // 重新抛出取消异常
         }
         catch (Exception ex)
         {
             ConsoleDisplay.ShowError($"执行Shell命令失败: {ex.Message}");
-            
-            // 给用户一些建议
-            ConsoleDisplay.ShowInfo("\n💡 故障排除建议:");
-            ConsoleDisplay.WriteLine("  - 确保容器正在运行: deck start " + imageName);
-            ConsoleDisplay.WriteLine("  - 检查容器状态: podman ps");
-            ConsoleDisplay.WriteLine($"  - 手动进入容器: podman exec -it {containerName} bash");
-            ConsoleDisplay.WriteLine($"  - 或使用: podman-compose -f ~/.deck/images/{imageName}/compose.yaml exec {containerName} bash");
-            
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 获取实际的容器名称
+    /// </summary>
+    private async Task<string?> GetActualContainerNameAsync(string imageName)
+    {
+        try
+        {
+            // 首先尝试使用镜像名称作为容器名称
+            var directNameContainer = await _containerService.GetContainerInfoAsync(imageName);
+            if (directNameContainer != null)
+            {
+                return imageName;
+            }
+
+            // 然后尝试使用镜像名-dev格式
+            var devName = $"{imageName}-dev";
+            var devContainer = await _containerService.GetContainerInfoAsync(devName);
+            if (devContainer != null)
+            {
+                return devName;
+            }
+
+            // 如果找不到确切的容器，返回镜像名称作为默认值
+            return imageName;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.GetLogger("Deck.Console.Shell")
+                .LogWarning(ex, "Failed to get actual container name for image: {ImageName}", imageName);
+            return imageName; // 回退到镜像名称
         }
     }
 }

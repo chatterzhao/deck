@@ -9,17 +9,20 @@ namespace Deck.Console.Commands;
 /// </summary>
 public class RestartCommand : ContainerCommandBase
 {
-    private readonly StopCommand _stopCommand;
+    private readonly IGlobalExceptionHandler _globalExceptionHandler;
+    private readonly IContainerService _containerService;
 
     public RestartCommand(
         IConsoleDisplay consoleDisplay,
         IInteractiveSelectionService interactiveSelection,
         ILoggingService loggingService,
         IDirectoryManagementService directoryManagement,
-        IGlobalExceptionHandler globalExceptionHandler)
+        IGlobalExceptionHandler globalExceptionHandler,
+        IContainerService containerService)
         : base(consoleDisplay, interactiveSelection, loggingService, directoryManagement)
     {
-        _stopCommand = new StopCommand(consoleDisplay, interactiveSelection, loggingService, directoryManagement, globalExceptionHandler);
+        _globalExceptionHandler = globalExceptionHandler;
+        _containerService = containerService;
     }
 
     /// <summary>
@@ -51,10 +54,18 @@ public class RestartCommand : ContainerCommandBase
             // 显示重启信息
             ConsoleDisplay.ShowInfo($"🔄 正在重启环境: {selectedImageName}");
 
-            // 方法1: 直接使用 podman-compose restart 命令
-            var result = await ExecuteRestartCommandAsync(selectedImageName, cancellationToken);
+            // 获取实际的容器名称
+            var containerName = await GetActualContainerNameAsync(selectedImageName);
+            if (string.IsNullOrEmpty(containerName))
+            {
+                ConsoleDisplay.ShowError($"无法确定 '{selectedImageName}' 的容器名称");
+                return false;
+            }
 
-            if (result)
+            // 使用容器服务重启容器
+            var result = await _containerService.RestartContainerAsync(containerName);
+
+            if (result.Success)
             {
                 ConsoleDisplay.ShowSuccess($"✅ 环境 '{selectedImageName}' 已成功重启");
                 
@@ -62,14 +73,14 @@ public class RestartCommand : ContainerCommandBase
                 ShowPodmanHint(selectedImageName, "restart");
                 
                 logger.LogInformation("Restart command completed successfully for image: {ImageName}", selectedImageName);
+                return true;
             }
             else
             {
-                ConsoleDisplay.ShowError($"❌ 重启环境 '{selectedImageName}' 失败");
-                logger.LogWarning("Restart command failed for image: {ImageName}", selectedImageName);
+                ConsoleDisplay.ShowError($"❌ 重启环境 '{selectedImageName}' 失败: {result.Message}");
+                logger.LogWarning("Restart command failed for image: {ImageName}. Error: {ErrorMessage}", selectedImageName, result.Message);
+                return false;
             }
-
-            return result;
         }
         catch (Exception ex)
         {
@@ -80,169 +91,35 @@ public class RestartCommand : ContainerCommandBase
     }
 
     /// <summary>
-    /// 执行实际的重启命令
+    /// 获取实际的容器名称
     /// </summary>
-    private async Task<bool> ExecuteRestartCommandAsync(string imageName, CancellationToken cancellationToken)
+    private async Task<string?> GetActualContainerNameAsync(string imageName)
     {
         try
         {
-            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
-            var imagePath = Path.Combine(imagesDir, imageName);
-            var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            if (!File.Exists(composePath))
+            // 首先尝试使用镜像名称作为容器名称
+            var directNameContainer = await _containerService.GetContainerInfoAsync(imageName);
+            if (directNameContainer != null)
             {
-                ConsoleDisplay.ShowWarning($"未找到 compose.yaml 文件: {composePath}");
-                return false;
+                return imageName;
             }
 
-            // 使用 podman-compose 重启容器
-            var startInfo = new ProcessStartInfo
+            // 然后尝试使用镜像名-dev格式
+            var devName = $"{imageName}-dev";
+            var devContainer = await _containerService.GetContainerInfoAsync(devName);
+            if (devContainer != null)
             {
-                FileName = "podman-compose",
-                Arguments = $"-f \"{composePath}\" restart",
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            
-            var outputLines = new List<string>();
-            var errorLines = new List<string>();
-
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputLines.Add(e.Data);
-                    ConsoleDisplay.WriteLine($"    {e.Data}");
-                }
-            };
-
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorLines.Add(e.Data);
-                    ConsoleDisplay.ShowWarning($"    {e.Data}");
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            await process.WaitForExitAsync(cancellationToken);
-
-            var success = process.ExitCode == 0;
-
-            if (!success && errorLines.Any())
-            {
-                ConsoleDisplay.ShowError("重启过程中出现错误:");
-                foreach (var error in errorLines)
-                {
-                    ConsoleDisplay.ShowError($"  {error}");
-                }
-                
-                // 如果直接重启失败，尝试先停止再启动的方法
-                ConsoleDisplay.ShowInfo("尝试使用停止然后启动的方式重启...");
-                
-                return await FallbackRestartAsync(imageName, cancellationToken);
+                return devName;
             }
 
-            return success;
+            // 如果找不到确切的容器，返回镜像名称作为默认值
+            return imageName;
         }
         catch (Exception ex)
         {
-            ConsoleDisplay.ShowError($"执行重启命令失败: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 备用重启方法：先停止后启动
-    /// </summary>
-    private async Task<bool> FallbackRestartAsync(string imageName, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var imagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deck", "images");
-            var imagePath = Path.Combine(imagesDir, imageName);
-            var composePath = Path.Combine(imagePath, "compose.yaml");
-
-            // 停止
-            ConsoleDisplay.ShowInfo("正在停止容器...");
-            var stopInfo = new ProcessStartInfo
-            {
-                FileName = "podman-compose",
-                Arguments = $"-f \"{composePath}\" down",
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using (var stopProcess = new Process { StartInfo = stopInfo })
-            {
-                stopProcess.Start();
-                await stopProcess.WaitForExitAsync(cancellationToken);
-                
-                if (stopProcess.ExitCode != 0)
-                {
-                    ConsoleDisplay.ShowWarning("停止过程可能有问题，继续尝试启动...");
-                }
-            }
-
-            // 等待一下确保完全停止
-            await Task.Delay(2000, cancellationToken);
-
-            // 启动
-            ConsoleDisplay.ShowInfo("正在启动容器...");
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "podman-compose",
-                Arguments = $"-f \"{composePath}\" up -d",
-                WorkingDirectory = imagePath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var startProcess = new Process { StartInfo = startInfo };
-            
-            startProcess.OutputDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    ConsoleDisplay.WriteLine($"    {e.Data}");
-                }
-            };
-
-            startProcess.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    ConsoleDisplay.ShowWarning($"    {e.Data}");
-                }
-            };
-
-            startProcess.Start();
-            startProcess.BeginOutputReadLine();
-            startProcess.BeginErrorReadLine();
-            
-            await startProcess.WaitForExitAsync(cancellationToken);
-
-            return startProcess.ExitCode == 0;
-        }
-        catch (Exception ex)
-        {
-            ConsoleDisplay.ShowError($"备用重启方法失败: {ex.Message}");
-            return false;
+            LoggingService.GetLogger("Deck.Console.Restart")
+                .LogWarning(ex, "Failed to get actual container name for image: {ImageName}", imageName);
+            return imageName; // 回退到镜像名称
         }
     }
 }
