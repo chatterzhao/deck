@@ -56,7 +56,7 @@ public class ImagesCommandTests
         // Assert
         result.Should().BeTrue();
         _mockConsoleDisplay.Verify(x => x.ShowStatusMessage("📋 正在加载三层统一镜像列表..."), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("🏗️  Deck 三层统一镜像管理"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("🏗️  Deck 三层统一镜像管理"), Times.Once);
         _mockImagesUnifiedService.Verify(x => x.GetUnifiedResourceListAsync(null), Times.Once);
     }
 
@@ -80,8 +80,8 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowWarningMessage("未找到任何镜像资源"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("使用 'deck start <env-type>' 创建第一个镜像"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowWarning("未找到任何镜像资源"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("使用 'deck start <env-type>' 创建第一个镜像"), Times.Once);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeFalse();
-        _mockConsoleDisplay.Verify(x => x.ShowErrorMessage("列表显示失败: Service error"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowError("列表显示失败: Service error"), Times.Once);
     }
 
     #endregion
@@ -140,7 +140,7 @@ public class ImagesCommandTests
         // Assert
         result.Should().BeTrue();
         _mockConsoleDisplay.Verify(x => x.ShowStatusMessage($"🧹 正在分析镜像清理策略 (保留: {keepCount} 个)..."), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowSuccessMessage("清理完成: 删除了 2 个资源"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowSuccess("清理完成: 删除了 2 个资源"), Times.Once);
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("没有需要清理的资源"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("没有需要清理的资源"), Times.Once);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("已取消清理操作"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("已取消清理操作"), Times.Once);
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeFalse();
-        _mockConsoleDisplay.Verify(x => x.ShowErrorMessage("清理失败: Cleaning failed"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowError("清理失败: Cleaning failed"), Times.Once);
     }
 
     #endregion
@@ -241,7 +241,7 @@ public class ImagesCommandTests
         // Assert
         result.Should().BeTrue();
         _mockConsoleDisplay.Verify(x => x.ShowStatusMessage($"ℹ️  正在获取镜像详细信息: {imageName}..."), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage($"📦 镜像详细信息: {imageName}"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo($"📦 镜像详细信息: {imageName}"), Times.Once);
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeFalse();
-        _mockConsoleDisplay.Verify(x => x.ShowErrorMessage($"未找到镜像: {imageName}"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowError($"未找到镜像: {imageName}"), Times.Once);
     }
 
     [Fact]
@@ -319,7 +319,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("已取消操作"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("已取消操作"), Times.Once);
     }
 
     #endregion
@@ -334,11 +334,11 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("🛡️  Deck 三层统一管理 - Images目录权限说明"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("📋 三层架构说明:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("🔐 Images目录权限规则:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("🔄 推荐工作流程:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfoMessage("💡 相关命令:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("🛡️  Deck 三层统一管理 - Images目录权限说明"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("📋 三层架构说明:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("🔐 Images目录权限规则:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("🔄 推荐工作流程:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("💡 相关命令:"), Times.Once);
     }
 
     [Fact]
@@ -346,7 +346,7 @@ public class ImagesCommandTests
     {
         // Arrange
         _mockConsoleDisplay
-            .Setup(x => x.ShowInfoMessage(It.IsAny<string>()))
+            .Setup(x => x.ShowInfo(It.IsAny<string>()))
             .Throws(new InvalidOperationException("Display error"));
 
         // Act
@@ -354,7 +354,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeFalse();
-        _mockConsoleDisplay.Verify(x => x.ShowErrorMessage("帮助显示失败: Display error"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowError("帮助显示失败: Display error"), Times.Once);
     }
 
     #endregion

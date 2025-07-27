@@ -1,6 +1,7 @@
 using Deck.Console.Commands;
 using Deck.Core.Interfaces;
 using Deck.Core.Models;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -86,23 +87,129 @@ public class DoctorCommandTests
             Warnings = new List<string>()
         };
 
-        var networkConnectivity = new NetworkConnectivityResult
+        // 只设置模板仓库连接测试
+        _mockNetworkService
+            .Setup(x => x.TestTemplateRepositoryAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(true);
+
+        _mockSystemDetectionService
+            .Setup(x => x.GetSystemInfoAsync())
+            .ReturnsAsync(systemInfo);
+
+        _mockSystemDetectionService
+            .Setup(x => x.DetectContainerEngineAsync())
+            .ReturnsAsync(containerEngine);
+
+        _mockSystemDetectionService
+            .Setup(x => x.DetectProjectTypeAsync(It.IsAny<string>()))
+            .ReturnsAsync(projectInfo);
+
+        _mockSystemDetectionService
+            .Setup(x => x.CheckSystemRequirementsAsync())
+            .ReturnsAsync(systemRequirements);
+
+        _mockDirectoryManagementService
+            .Setup(x => x.ValidateDirectoryStructureAsync())
+            .ReturnsAsync(new DirectoryStructureResult { IsValid = true });
+
+        // Act
+        var result = await _doctorCommand.ExecuteAsync();
+
+        // Assert
+        Assert.True(result);
+
+        // Verify display methods were called
+        _mockConsoleDisplay.Verify(x => x.ShowInfo(It.IsAny<string>()), Times.AtLeast(1));
+        _mockConsoleDisplay.Verify(x => x.ShowTitle(It.IsAny<string>()), Times.AtLeast(4));
+        _mockConsoleDisplay.Verify(x => x.ShowSuccess(It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TemplateRepositoryFailed_ShowsGuidance()
+    {
+        // Arrange
+        SetupBasicMocks();
+
+        _mockNetworkService
+            .Setup(x => x.TestTemplateRepositoryAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(false); // 模板仓库连接失败
+
+        // Act
+        var result = await _doctorCommand.ExecuteAsync();
+
+        // Assert
+        result.Should().BeFalse();
+
+        // 验证显示了正确的引导信息
+        _mockConsoleDisplay.Verify(x => x.ShowWarning("  ⚠️  所有模板仓库均无法连接"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("  💡 解决方案:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("     1. 检查网络连接"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("     2. 手动修改 .deck/config.json 更换仓库地址"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("     3. 使用本地模板（如果已下载）"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("     4. 在 .deck/templates/ 目录下手动创建模板"), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PrimaryRepositoryFailsFallbackSucceeds_ReturnsTrue()
+    {
+        // Arrange
+        SetupBasicMocks();
+
+        _mockNetworkService
+            .SetupSequence(x => x.TestTemplateRepositoryAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(false) // 主要仓库失败
+            .ReturnsAsync(true); // 备用仓库成功
+
+        // Act
+        var result = await _doctorCommand.ExecuteAsync();
+
+        // Assert
+        result.Should().BeTrue();
+        
+        // 验证测试了两个仓库
+        _mockNetworkService.Verify(x => x.TestTemplateRepositoryAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
+    }
+
+    private void SetupBasicMocks()
+    {
+        var systemInfo = new SystemInfo
         {
-            IsConnected = true
+            OperatingSystem = OperatingSystemType.MacOS,
+            Architecture = SystemArchitecture.ARM64,
+            Version = "macOS 14.0",
+            AvailableMemoryMb = 8192,
+            AvailableDiskSpaceGb = 50,
+            IsWsl = false
         };
 
-        var registryResult = new RegistryConnectivityResult
+        var containerEngine = new ContainerEngineInfo
         {
-            IsAvailable = true
+            Type = ContainerEngineType.Podman,
+            IsAvailable = true,
+            Version = "5.5.2"
         };
 
-        var serviceResults = new List<ServiceConnectivityResult>
+        var projectInfo = new ProjectTypeInfo
         {
-            new ServiceConnectivityResult
+            DetectedTypes = new List<ProjectType> { ProjectType.DotNet },
+            RecommendedType = ProjectType.DotNet,
+            ProjectRoot = "/test/path",
+            ProjectFiles = new List<string> { "*.csproj" }
+        };
+
+        var systemRequirements = new SystemRequirementsResult
+        {
+            MeetsRequirements = true,
+            Checks = new List<RequirementCheck>
             {
-                IsAvailable = true,
-                ServiceType = NetworkServiceType.GitHub
-            }
+                new RequirementCheck
+                {
+                    Name = "测试检查",
+                    Passed = true,
+                    Description = "测试通过"
+                }
+            },
+            Warnings = new List<string>()
         };
 
         _mockSystemDetectionService
@@ -121,28 +228,9 @@ public class DoctorCommandTests
             .Setup(x => x.CheckSystemRequirementsAsync())
             .ReturnsAsync(systemRequirements);
 
-        _mockNetworkService
-            .Setup(x => x.CheckConnectivityAsync(It.IsAny<int>()))
-            .ReturnsAsync(networkConnectivity);
-
-        _mockNetworkService
-            .Setup(x => x.CheckRegistryConnectivityAsync(It.IsAny<ContainerRegistryType>(), It.IsAny<int>()))
-            .ReturnsAsync(registryResult);
-
-        _mockNetworkService
-            .Setup(x => x.CheckMultipleServicesAsync(It.IsAny<IEnumerable<NetworkServiceType>>(), It.IsAny<int>()))
-            .ReturnsAsync(serviceResults);
-
-        // Act
-        var result = await _doctorCommand.ExecuteAsync();
-
-        // Assert
-        Assert.True(result);
-
-        // Verify display methods were called
-        _mockConsoleDisplay.Verify(x => x.ShowInfo(It.IsAny<string>()), Times.AtLeast(1));
-        _mockConsoleDisplay.Verify(x => x.ShowTitle(It.IsAny<string>()), Times.AtLeast(4));
-        _mockConsoleDisplay.Verify(x => x.ShowSuccess(It.IsAny<string>()), Times.Once);
+        _mockDirectoryManagementService
+            .Setup(x => x.ValidateDirectoryStructureAsync())
+            .ReturnsAsync(new DirectoryStructureResult { IsValid = true });
     }
 
     [Fact]
@@ -190,24 +278,10 @@ public class DoctorCommandTests
             Warnings = new List<string> { "系统资源不足" }
         };
 
-        var networkConnectivity = new NetworkConnectivityResult
-        {
-            IsConnected = false  // 网络不可用
-        };
-
-        var registryResult = new RegistryConnectivityResult
-        {
-            IsAvailable = false
-        };
-
-        var serviceResults = new List<ServiceConnectivityResult>
-        {
-            new ServiceConnectivityResult
-            {
-                IsAvailable = false,
-                ServiceType = NetworkServiceType.GitHub
-            }
-        };
+        // 只设置模板仓库测试
+        _mockNetworkService
+            .Setup(x => x.TestTemplateRepositoryAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(true);
 
         _mockSystemDetectionService
             .Setup(x => x.GetSystemInfoAsync())
@@ -225,17 +299,9 @@ public class DoctorCommandTests
             .Setup(x => x.CheckSystemRequirementsAsync())
             .ReturnsAsync(systemRequirements);
 
-        _mockNetworkService
-            .Setup(x => x.CheckConnectivityAsync(It.IsAny<int>()))
-            .ReturnsAsync(networkConnectivity);
-
-        _mockNetworkService
-            .Setup(x => x.CheckRegistryConnectivityAsync(It.IsAny<ContainerRegistryType>(), It.IsAny<int>()))
-            .ReturnsAsync(registryResult);
-
-        _mockNetworkService
-            .Setup(x => x.CheckMultipleServicesAsync(It.IsAny<IEnumerable<NetworkServiceType>>(), It.IsAny<int>()))
-            .ReturnsAsync(serviceResults);
+        _mockDirectoryManagementService
+            .Setup(x => x.ValidateDirectoryStructureAsync())
+            .ReturnsAsync(new DirectoryStructureResult { IsValid = true });
 
         // Act
         var result = await _doctorCommand.ExecuteAsync();
@@ -261,7 +327,7 @@ public class DoctorCommandTests
         // Assert
         Assert.False(result);
 
-        // Verify error was displayed
-        _mockConsoleDisplay.Verify(x => x.ShowError(It.IsAny<string>()), Times.Once);
+        // Verify error was displayed (可能多次调用，因为每个检查步骤失败时都会显示错误)
+        _mockConsoleDisplay.Verify(x => x.ShowError(It.IsAny<string>()), Times.AtLeast(1));
     }
 }

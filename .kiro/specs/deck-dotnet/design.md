@@ -901,93 +901,92 @@ public class ImagePermissionService : IImagePermissionService
 }
 ```
 
-#### NetworkService - 网络检测服务（新增关键缺失服务）
+#### NetworkService - 网络检测服务（简化实现 - 专注模板同步）
 
 ```csharp
+/// <summary>
+/// 网络服务 - 专注于模板同步的网络处理
+/// 不再进行通用网络测试，只处理实际需要的场景
+/// </summary>
 public interface INetworkService
 {
-    Task<NetworkConnectivityResult> CheckConnectivityAsync();
-    Task<bool> IsRepositoryAccessibleAsync(string repositoryUrl);
-    Task<RegistryAccessResult> CheckContainerRegistryAccessAsync();
-    Task<PackageManagerAccessResult> CheckPackageManagerAccessAsync();
-    Task<NetworkFallbackStrategy> GetFallbackStrategyAsync(NetworkIssueType issueType);
+    /// <summary>
+    /// 测试模板仓库连接性 - 仅在实际同步模板时使用
+    /// </summary>
+    Task<bool> TestTemplateRepositoryAsync(string repositoryUrl, int timeout = 10000);
+    
+    /// <summary>
+    /// 废弃方法 - 保持向后兼容性
+    /// </summary>
+    [Obsolete("不再进行通用网络测试，只在模板同步时检测仓库连接性")]
+    Task<NetworkConnectivityResult> CheckConnectivityAsync(int timeout = 5000);
+    
+    // 其他接口方法为向后兼容而保留，实际返回默认值
 }
 
 public class NetworkService : INetworkService
 {
-    private readonly HttpClient _httpClient;
     private readonly ILogger<NetworkService> _logger;
+    private readonly HttpClient _httpClient;
     
-    public async Task<NetworkConnectivityResult> CheckConnectivityAsync()
+    /// <summary>
+    /// 核心功能：测试模板仓库连接性
+    /// 仅用于 doctor 命令和模板同步过程中的连接性检查
+    /// </summary>
+    public async Task<bool> TestTemplateRepositoryAsync(string repositoryUrl, int timeout = 10000)
     {
-        var results = new List<ConnectivityCheck>();
+        _logger.LogInformation("测试模板仓库连接性: {RepositoryUrl}", repositoryUrl);
         
-        // 检查基础网络连接
-        results.Add(await CheckEndpointAsync("https://www.google.com", "基础网络连接"));
-        
-        // 检查GitHub连接（模板仓库）
-        results.Add(await CheckEndpointAsync("https://github.com", "GitHub访问"));
-        
-        // 检查容器镜像仓库
-        results.Add(await CheckEndpointAsync("https://docker.io", "Docker Hub访问"));
-        results.Add(await CheckEndpointAsync("https://quay.io", "Quay.io访问"));
+        try
+        {
+            using var cts = new CancellationTokenSource(timeout);
+            using var request = new HttpRequestMessage(HttpMethod.Head, repositoryUrl);
+            request.Headers.Add("User-Agent", "Deck-Template-Sync/1.0");
+            
+            using var response = await _httpClient.SendAsync(request, cts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogWarning("模板仓库连接超时: {RepositoryUrl}", repositoryUrl);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "模板仓库连接失败: {RepositoryUrl}", repositoryUrl);
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// 废弃方法：不再进行通用网络测试
+    /// 返回兼容的默认值以保持向后兼容性
+    /// </summary>
+    [Obsolete("不再进行通用网络测试，只在模板同步时检测仓库连接性")]
+    public async Task<NetworkConnectivityResult> CheckConnectivityAsync(int timeout = 5000)
+    {
+        await Task.CompletedTask;
+        _logger.LogWarning("CheckConnectivityAsync 已废弃，不再进行通用网络测试");
         
         return new NetworkConnectivityResult
         {
-            IsConnected = results.Any(r => r.IsSuccess),
-            HasGitHubAccess = results.FirstOrDefault(r => r.Name == "GitHub访问")?.IsSuccess ?? false,
-            HasRegistryAccess = results.Where(r => r.Name.Contains("访问")).Any(r => r.IsSuccess),
-            Results = results
+            CheckTime = DateTime.UtcNow,
+            IsConnected = true,
+            OverallStatus = ConnectivityStatus.Connected
         };
     }
     
-    public async Task<NetworkFallbackStrategy> GetFallbackStrategyAsync(NetworkIssueType issueType)
-    {
-        return issueType switch
-        {
-            NetworkIssueType.NoInternet => new NetworkFallbackStrategy
-            {
-                Message = "网络连接不可用，使用本地缓存的模板和配置",
-                Actions = new[]
-                {
-                    "使用 ~/.deck/templates/ 本地模板",
-                    "跳过模板自动更新",
-                    "使用离线模式启动环境"
-                },
-                ContinueOffline = true
-            },
-            NetworkIssueType.GitHubBlocked => new NetworkFallbackStrategy
-            {
-                Message = "GitHub访问受限，建议配置代理或使用镜像源",
-                Actions = new[]
-                {
-                    "配置HTTP代理: deck config set proxy.http http://proxy:8080",
-                    "使用Gitee镜像: deck config set templates.repository https://gitee.com/xxx/templates",
-                    "手动下载模板包"
-                },
-                ContinueOffline = false
-            },
-            NetworkIssueType.RegistryBlocked => new NetworkFallbackStrategy
-            {
-                Message = "容器镜像仓库访问受限，建议配置镜像加速",
-                Actions = new[]
-                {
-                    "配置Docker Hub镜像: 修改 ~/.docker/daemon.json",
-                    "使用国内镜像源（如阿里云、腾讯云）",
-                    "预先拉取必要的基础镜像"
-                },
-                ContinueOffline = true
-            },
-            _ => new NetworkFallbackStrategy
-            {
-                Message = "网络检测完成，继续正常操作",
-                Actions = Array.Empty<string>(),
-                ContinueOffline = true
-            }
-        };
-    }
+    // 其他方法实现为存根，返回默认值以保持向后兼容性
+    // （详细实现已简化，专注于模板同步功能）
 }
 ```
+
+**设计简化说明：**
+
+1. **专注核心功能**：只保留 `TestTemplateRepositoryAsync` 方法，专门用于测试模板仓库连接性
+2. **简化责任边界**：不再测试 Docker Hub、GitHub API 等外部服务，这些由 Docker/Podman 和用户网络配置负责
+3. **保持向后兼容**：废弃的方法标记为 `[Obsolete]` 但仍然实现，返回默认值
+4. **用户指导优化**：当模板同步失败时，提供明确的解决方案指导
 
 #### ContainerService - 容器管理服务
 

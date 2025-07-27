@@ -3,15 +3,22 @@ using Deck.Core.Models;
 namespace Deck.Core.Interfaces;
 
 /// <summary>
-/// 网络检测服务接口 - 提供网络连通性检测、代理配置、镜像源检测等功能
-/// 支持离线模式和网络异常的Fallback策略
+/// 网络服务接口 - 专注于模板同步的网络处理
+/// 不再进行通用网络测试，只处理实际需要的场景
 /// </summary>
 public interface INetworkService
 {
     /// <summary>
-    /// 检测网络连通性
+    /// 测试模板仓库连接性 - 仅在实际同步模板时使用
     /// </summary>
+    /// <param name="repositoryUrl">仓库地址</param>
     /// <param name="timeout">超时时间（毫秒）</param>
+    Task<bool> TestTemplateRepositoryAsync(string repositoryUrl, int timeout = 10000);
+
+    /// <summary>
+    /// 废弃：不再进行通用网络连通性检测
+    /// </summary>
+    [Obsolete("不再进行通用网络测试，只在模板同步时检测仓库连接性")]
     Task<NetworkConnectivityResult> CheckConnectivityAsync(int timeout = 5000);
 
     /// <summary>

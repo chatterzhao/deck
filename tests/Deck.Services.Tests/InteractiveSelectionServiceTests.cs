@@ -225,7 +225,7 @@ public class InteractiveSelectionServiceTests : IDisposable
     }
 
     [Fact]
-    public void ShowProgressBar_WithCompletedProgress_ShouldDisplayCompletion()
+    public async Task ShowProgressBar_WithCompletedProgress_ShouldDisplayCompletion()
     {
         // Arrange
         var progress = _service.ShowProgressBar("Processing", 100);
@@ -237,6 +237,9 @@ public class InteractiveSelectionServiceTests : IDisposable
             Total = 100,
             IsCompleted = true
         });
+
+        // Wait for the progress callback to execute
+        await Task.Delay(100);
 
         // Assert
         var output = _consoleOutput.ToString();

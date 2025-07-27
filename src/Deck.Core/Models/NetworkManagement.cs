@@ -1404,15 +1404,7 @@ public static class NetworkServiceEndpoints
     /// </summary>
     public static readonly Dictionary<NetworkServiceType, string> ServiceUrls = new()
     {
-        { NetworkServiceType.GitHub, "https://api.github.com" },
-        { NetworkServiceType.DockerHub, "https://registry-1.docker.io/v2/" },
-        { NetworkServiceType.QuayIo, "https://quay.io/api/v1/" },
-        { NetworkServiceType.AliyunRegistry, "https://registry.cn-hangzhou.aliyuncs.com/v2/" },
-        { NetworkServiceType.TencentRegistry, "https://ccr.ccs.tencentyun.com/v2/" },
-        { NetworkServiceType.NetEaseRegistry, "https://hub.c.163.com/v2/" },
-        { NetworkServiceType.UstcRegistry, "https://docker.mirrors.ustc.edu.cn/v2/" },
-        { NetworkServiceType.TsinghuaRegistry, "https://docker.mirrors.tuna.tsinghua.edu.cn/v2/" },
-        { NetworkServiceType.HttpConnectivity, "https://www.google.com" },
+        { NetworkServiceType.HttpConnectivity, "https://httpbin.org/get" }, // 通用HTTP测试端点
         { NetworkServiceType.DnsResolution, "8.8.8.8" }
     };
 
@@ -1435,14 +1427,6 @@ public static class NetworkServiceEndpoints
     /// </summary>
     public static readonly Dictionary<NetworkServiceType, string> ServiceNames = new()
     {
-        { NetworkServiceType.GitHub, "GitHub" },
-        { NetworkServiceType.DockerHub, "Docker Hub" },
-        { NetworkServiceType.QuayIo, "Quay.io" },
-        { NetworkServiceType.AliyunRegistry, "阿里云容器仓库" },
-        { NetworkServiceType.TencentRegistry, "腾讯云容器仓库" },
-        { NetworkServiceType.NetEaseRegistry, "网易云容器仓库" },
-        { NetworkServiceType.UstcRegistry, "中科大镜像站" },
-        { NetworkServiceType.TsinghuaRegistry, "清华大学镜像站" },
         { NetworkServiceType.HttpConnectivity, "HTTP连通性" },
         { NetworkServiceType.DnsResolution, "DNS解析" }
     };
