@@ -186,7 +186,7 @@ public class ConfigurationValidator : IConfigurationValidator
                 CanAutoFix = true,
                 AutoFixAction = (cfg) =>
                 {
-                    cfg.RemoteTemplates.Repository = "https://github.com/chatterzhao/deck-templates.git";
+                    cfg.RemoteTemplates.Repository = "https://gitee.com/zhaoquan/deck.git";
                     return Task.FromResult(cfg);
                 }
             });

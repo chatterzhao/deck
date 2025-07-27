@@ -145,7 +145,7 @@ public class ConfigurationMergerTests
 
         // Assert
         // When override has default values (not null), override values should be used
-        result.RemoteTemplates.Repository.Should().Be("https://github.com/chatterzhao/deck-templates.git"); // Override default
+        result.RemoteTemplates.Repository.Should().Be("https://gitee.com/zhaoquan/deck.git"); // Override default
         result.RemoteTemplates.Branch.Should().Be("main"); // Override default
         result.RemoteTemplates.CacheTtl.Should().Be("24h"); // Override default
         result.RemoteTemplates.AutoUpdate.Should().BeTrue(); // Override default

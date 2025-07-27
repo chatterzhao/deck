@@ -2,11 +2,11 @@
 # Deck .NET版本配置文件
 # =============================================================================
 # 此文件用于配置远程模板仓库，参考deck-shell的配置设计
-# 更多信息请参考: https://github.com/chatterzhao/deck
+# 更多信息请参考: https://gitee.com/zhaoquan/deck
 # =============================================================================
 
 remote_templates:
-  repository: https://github.com/chatterzhao/deck-templates.git
+  repository: https://gitee.com/zhaoquan/deck.git
   branch: main
   cache_ttl: 24h
   auto_update: true

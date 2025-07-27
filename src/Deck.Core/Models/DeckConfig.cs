@@ -21,7 +21,7 @@ public class RemoteTemplatesConfig
     /// <summary>
     /// 模板仓库URL
     /// </summary>
-    public string Repository { get; set; } = "https://github.com/chatterzhao/deck-templates.git";
+    public string Repository { get; set; } = "https://gitee.com/zhaoquan/deck.git";
 
     /// <summary>
     /// 模板仓库分支

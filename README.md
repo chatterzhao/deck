@@ -19,7 +19,7 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 
 ### 下载预编译版本
 
-从 [Github Releases](https://github.com/chatterzhao/deck/releases)或 [Gitee Releases](https://gitee.com/zhaoquan/deck-shell/releases/) 页面下载适合您系统的版本：
+从 [Github Releases](https://github.com/chatterzhao/deck/releases)或 [Gitee Releases](https://gitee.com/zhaoquan/deck/releases/) 页面下载适合您系统的版本：
 
 - **Windows**: `deck-vX.X.X-win-x64.msi` 或 `deck-vX.X.X-win-arm64.msi`
 - **Linux**: `deck-vX.X.X-linux-x64.deb` / `deck-vX.X.X-linux-x64.rpm` 或 ARM64 版本
@@ -189,7 +189,7 @@ Deck 在项目目录下自动创建 `.deck/config.json` 配置文件，url将被
 // .deck/config.json
 {
   "remoteTemplates": {
-    "repository": "https://github.com/chatterzhao/deck-templates.git",
+    "repository": "https://gitee.com/zhaoquan/deck.git",
     "branch": "main",
     "cacheTtl": "24h",
     "autoUpdate": true
@@ -374,7 +374,7 @@ $ deck ps
 
 ```bash
 # 克隆仓库
-git clone https://github.com/chatterzhao/deck.git # 或 git clone https://gitee.com/zhaoquan/deck.git
+git clone https://gitee.com/zhaoquan/deck.git # 或 git clone https://gitee.com/zhaoquan/deck.git
 cd deck
 
 # 安装依赖

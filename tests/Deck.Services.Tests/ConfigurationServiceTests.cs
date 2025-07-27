@@ -37,7 +37,7 @@ public class ConfigurationServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(config);
-        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.RemoteTemplates.Repository);
+        Assert.Equal("https://gitee.com/zhaoquan/deck.git", config.RemoteTemplates.Repository);
         Assert.Equal("main", config.RemoteTemplates.Branch);
         Assert.True(config.RemoteTemplates.AutoUpdate);
         
@@ -54,7 +54,7 @@ public class ConfigurationServiceTests : IDisposable
         // Assert
         Assert.NotNull(config);
         Assert.NotNull(config.RemoteTemplates);
-        Assert.Equal("https://github.com/chatterzhao/deck-templates.git", config.RemoteTemplates.Repository);
+        Assert.Equal("https://gitee.com/zhaoquan/deck.git", config.RemoteTemplates.Repository);
         Assert.Equal("main", config.RemoteTemplates.Branch);
         Assert.Equal("24h", config.RemoteTemplates.CacheTtl);
         Assert.True(config.RemoteTemplates.AutoUpdate);

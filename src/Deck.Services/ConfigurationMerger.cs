@@ -51,7 +51,7 @@ public class ConfigurationMerger : IConfigurationMerger
         }
         else
         {
-            merged.RemoteTemplates.Repository = "https://github.com/chatterzhao/deck-templates.git";
+            merged.RemoteTemplates.Repository = "https://gitee.com/zhaoquan/deck.git";
         }
 
         // Branch

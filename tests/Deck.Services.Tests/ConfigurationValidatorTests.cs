@@ -25,7 +25,7 @@ public class ConfigurationValidatorTests
         {
             RemoteTemplates = new RemoteTemplatesConfig
             {
-                Repository = "https://github.com/chatterzhao/deck-templates.git",
+                Repository = "https://gitee.com/zhaoquan/deck.git",
                 Branch = "main",
                 CacheTtl = "24h",
                 AutoUpdate = true
@@ -85,7 +85,7 @@ public class ConfigurationValidatorTests
         // Arrange
         var config = new RemoteTemplatesConfig
         {
-            Repository = "https://github.com/chatterzhao/deck-templates.git",
+            Repository = "https://gitee.com/zhaoquan/deck.git",
             Branch = "main",
             CacheTtl = "invalid-ttl"
         };
@@ -105,7 +105,7 @@ public class ConfigurationValidatorTests
         // Arrange
         var config = new RemoteTemplatesConfig
         {
-            Repository = "https://github.com/chatterzhao/deck-templates.git",
+            Repository = "https://gitee.com/zhaoquan/deck.git",
             Branch = "main branch", // 包含空格
             CacheTtl = "24h"
         };
@@ -148,7 +148,7 @@ public class ConfigurationValidatorTests
         {
             RemoteTemplates = new RemoteTemplatesConfig
             {
-                Repository = "https://github.com/chatterzhao/deck-templates.git",
+                Repository = "https://gitee.com/zhaoquan/deck.git",
                 Branch = ""
             }
         };
@@ -173,7 +173,7 @@ public class ConfigurationValidatorTests
         // Arrange
         var config = new RemoteTemplatesConfig
         {
-            Repository = "https://github.com/chatterzhao/deck-templates.git",
+            Repository = "https://gitee.com/zhaoquan/deck.git",
             Branch = "main",
             CacheTtl = cacheTtl
         };

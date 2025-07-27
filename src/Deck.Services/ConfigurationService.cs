@@ -165,7 +165,7 @@ public class ConfigurationService : IConfigurationService
         {
             RemoteTemplates = new RemoteTemplatesConfig
             {
-                Repository = "https://github.com/chatterzhao/deck-templates.git",
+                Repository = "https://gitee.com/zhaoquan/deck.git",
                 Branch = "main",
                 CacheTtl = "24h",
                 AutoUpdate = true
@@ -196,7 +196,7 @@ public class ConfigurationService : IConfigurationService
 // Deck .NET版本配置文件
 // =============================================================================
 // 此文件用于配置远程模板仓库，参考deck-shell的配置设计
-// 更多信息请参考: https://github.com/chatterzhao/deck
+// 更多信息请参考: https://gitee.com/zhaoquan/deck
 // =============================================================================
 
 ";
