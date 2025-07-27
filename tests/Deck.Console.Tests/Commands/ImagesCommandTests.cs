@@ -258,8 +258,8 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowStatusMessage($"ℹ️  正在获取镜像详细信息: {imageName}..."), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo($"📦 镜像详细信息: {imageName}"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo($"ℹ️  正在获取镜像详细信息: {imageName}..."), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowTitle($"📦 镜像详细信息: {imageName}"), Times.Once);
     }
 
     [Fact]

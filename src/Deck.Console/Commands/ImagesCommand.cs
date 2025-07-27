@@ -334,9 +334,9 @@ public class ImagesCommand
 
         var selectableItems = resourceList.Images
             .Where(image => image.IsAvailable)
-            .Select(image => new SelectableOption
+            .Select(image => new SelectableItem<string>
             {
-                Value = image.Name,
+                Item = image.Name,
                 DisplayName = image.Name,
                 Description = $"{image.RelativeTime} - {(image.IsAvailable ? "可用" : "不可用")}",
                 IsAvailable = image.IsAvailable
@@ -348,19 +348,12 @@ public class ImagesCommand
             return null;
         }
 
-        var selector = new InteractiveSelector<SelectableOption>
-        {
-            Prompt = "请选择镜像",
-            Items = selectableItems,
-            AllowMultiple = false,
-            Required = false,
-            EnableSearch = true,
-            SearchPlaceholder = "输入镜像名称进行搜索..."
-        };
+        var result = await _interactiveSelection.ShowSingleSelectionAsync(
+            "选择镜像",
+            selectableItems,
+            true);
 
-        var result = await _interactiveSelection.ShowSingleSelectionAsync(selector);
-
-        return result.IsCancelled ? null : result.SelectedItems.FirstOrDefault()?.Value;
+        return result?.Item;
     }
 
     private void ShowImagesPermissionHelp()

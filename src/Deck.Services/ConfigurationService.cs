@@ -46,7 +46,12 @@ public class ConfigurationService : IConfigurationService
 
         try
         {
-            var jsonContent = await File.ReadAllTextAsync(configPath);
+            var fileContent = await File.ReadAllTextAsync(configPath);
+            
+            // 查找JSON内容的开始位置（跳过注释头）
+            var jsonStartIndex = fileContent.IndexOf('{');
+            var jsonContent = jsonStartIndex >= 0 ? fileContent.Substring(jsonStartIndex) : fileContent;
+            
             var config = JsonSerializer.Deserialize<DeckConfig>(jsonContent, DeckJsonSerializerContext.Default.DeckConfig);
             
             if (config == null)
@@ -90,11 +95,10 @@ public class ConfigurationService : IConfigurationService
         var configPath = GetConfigFilePath();
         var configDir = Path.GetDirectoryName(configPath);
         
-        // 确保.deck目录存在
-        if (!string.IsNullOrEmpty(configDir) && !Directory.Exists(configDir))
+        // 确保.deck目录存在 - 使用重试机制处理并发竞争
+        if (!string.IsNullOrEmpty(configDir))
         {
-            Directory.CreateDirectory(configDir);
-            _logger.LogDebug("创建配置目录: {ConfigDir}", configDir);
+            await EnsureDirectoryExistsAsync(configDir);
         }
 
         try
@@ -111,7 +115,8 @@ public class ConfigurationService : IConfigurationService
             // 添加配置文件头部注释
             var configWithComments = GenerateConfigWithComments(jsonContent);
             
-            await File.WriteAllTextAsync(configPath, configWithComments);
+            // 使用重试机制写入文件，处理并发竞争条件
+            await WriteFileWithRetryAsync(configPath, configWithComments);
             _logger.LogDebug("成功保存配置文件: {ConfigPath}", configPath);
         }
         catch (Exception ex)
@@ -119,6 +124,92 @@ public class ConfigurationService : IConfigurationService
             _logger.LogError(ex, "保存配置文件失败: {ConfigPath}", configPath);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 确保目录存在的健壮方法，处理并发竞争条件
+    /// </summary>
+    private async Task EnsureDirectoryExistsAsync(string directoryPath)
+    {
+        const int maxRetries = 3;
+        const int delayMs = 50;
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                    _logger.LogDebug("创建配置目录: {ConfigDir}", directoryPath);
+                }
+                
+                // 验证目录创建成功
+                if (Directory.Exists(directoryPath))
+                {
+                    return;
+                }
+            }
+            catch (DirectoryNotFoundException) when (i < maxRetries - 1)
+            {
+                _logger.LogWarning("目录创建失败，重试中... 尝试 {Attempt}/{MaxRetries}", i + 1, maxRetries);
+                await Task.Delay(delayMs);
+                continue;
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                _logger.LogWarning("目录创建遇到IO异常，重试中... 尝试 {Attempt}/{MaxRetries}", i + 1, maxRetries);
+                await Task.Delay(delayMs);
+                continue;
+            }
+        }
+
+        throw new InvalidOperationException($"无法创建配置目录: {directoryPath}");
+    }
+
+    /// <summary>
+    /// 带重试机制的文件写入方法
+    /// </summary>
+    private async Task WriteFileWithRetryAsync(string filePath, string content)
+    {
+        const int maxRetries = 3;
+        const int delayMs = 50;
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await File.WriteAllTextAsync(filePath, content);
+                
+                // 验证文件写入成功
+                if (File.Exists(filePath))
+                {
+                    return;
+                }
+            }
+            catch (DirectoryNotFoundException) when (i < maxRetries - 1)
+            {
+                _logger.LogWarning("文件写入失败(目录不存在)，重试中... 尝试 {Attempt}/{MaxRetries}: {FilePath}", i + 1, maxRetries, filePath);
+                
+                // 重新确保目录存在
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    await EnsureDirectoryExistsAsync(directory);
+                }
+                
+                await Task.Delay(delayMs);
+                continue;
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                _logger.LogWarning("文件写入遇到IO异常，重试中... 尝试 {Attempt}/{MaxRetries}: {FilePath}", i + 1, maxRetries, filePath);
+                await Task.Delay(delayMs);
+                continue;
+            }
+        }
+
+        throw new InvalidOperationException($"无法写入配置文件: {filePath}");
     }
 
     public async Task<ConfigValidationResult> ValidateConfigAsync(DeckConfig config)
@@ -177,13 +268,38 @@ public class ConfigurationService : IConfigurationService
 
     public string GetConfigFilePath()
     {
-        var currentDir = Directory.GetCurrentDirectory();
-        return Path.Combine(currentDir, ".deck", "config.json");
+        try
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+            return Path.Combine(currentDir, ".deck", "config.json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "无法获取当前工作目录，使用临时目录作为备用");
+            // 使用临时目录作为备用方案
+            var tempDir = Path.GetTempPath();
+            var fallbackDir = Path.Combine(tempDir, $"deck-fallback-{Environment.ProcessId}");
+            
+            if (!Directory.Exists(fallbackDir))
+            {
+                Directory.CreateDirectory(fallbackDir);
+            }
+            
+            return Path.Combine(fallbackDir, ".deck", "config.json");
+        }
     }
 
     public bool ConfigExists()
     {
-        return File.Exists(GetConfigFilePath());
+        try
+        {
+            return File.Exists(GetConfigFilePath());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "检查配置文件存在性时发生错误");
+            return false;
+        }
     }
 
 

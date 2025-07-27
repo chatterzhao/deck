@@ -10,6 +10,8 @@ namespace Deck.Services.Tests;
 /// ConsoleDisplayService 单元测试
 /// 测试控制台显示服务的各项功能
 /// </summary>
+[Collection("ConsoleDisplayTests")]
+[CollectionDefinition("ConsoleDisplayTests", DisableParallelization = true)]
 public class ConsoleDisplayServiceTests : IDisposable
 {
     private readonly IConsoleDisplay _consoleDisplay;
@@ -18,16 +20,35 @@ public class ConsoleDisplayServiceTests : IDisposable
 
     public ConsoleDisplayServiceTests()
     {
+        // 不要在构造函数中设置全局 Console.Out，因为这会影响并行测试
         _consoleDisplay = new ConsoleDisplayService();
         _stringWriter = new StringWriter();
         _originalOut = Console.Out;
-        Console.SetOut(_stringWriter);
     }
 
     public void Dispose()
     {
-        Console.SetOut(_originalOut);
+        // 确保恢复原始输出
+        if (Console.Out != _originalOut)
+        {
+            Console.SetOut(_originalOut);
+        }
         _stringWriter?.Dispose();
+    }
+
+    private void CaptureConsoleOutput(Action action)
+    {
+        // 临时重定向控制台输出并执行操作
+        var originalOut = Console.Out;
+        try
+        {
+            Console.SetOut(_stringWriter);
+            action();
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
     }
 
     [Fact]
@@ -38,7 +59,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var testMessage = "Hello World";
 
         // Act
-        _consoleDisplay.WriteLine(testMessage);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.WriteLine(testMessage);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -53,7 +77,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var testMessage = "Colored Message";
 
         // Act
-        _consoleDisplay.WriteLine(testMessage, ConsoleColor.Red);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.WriteLine(testMessage, ConsoleColor.Red);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -70,7 +97,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Operation successful";
 
         // Act
-        _consoleDisplay.ShowSuccess(message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowSuccess(message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -87,7 +117,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Error occurred";
 
         // Act
-        _consoleDisplay.ShowError(message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowError(message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -104,7 +137,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Warning message";
 
         // Act
-        _consoleDisplay.ShowWarning(message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowWarning(message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -121,7 +157,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Information";
 
         // Act
-        _consoleDisplay.ShowInfo(message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowInfo(message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -138,7 +177,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var title = "Main Title";
 
         // Act
-        _consoleDisplay.ShowTitle(title);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowTitle(title);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -155,7 +197,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var subtitle = "Sub Title";
 
         // Act
-        _consoleDisplay.ShowSubtitle(subtitle);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowSubtitle(subtitle);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -173,7 +218,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var character = '-';
 
         // Act
-        _consoleDisplay.ShowSeparator(length, character);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowSeparator(length, character);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -188,7 +236,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var items = new[] { "Item 1", "Item 2", "Item 3" };
 
         // Act
-        _consoleDisplay.ShowList(items);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowList(items);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -214,7 +265,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         };
 
         // Act
-        _consoleDisplay.ShowTable(headers, rows);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowTable(headers, rows);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -249,7 +303,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Processing...";
 
         // Act
-        _consoleDisplay.ShowProgress(current, total, message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowProgress(current, total, message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -270,7 +327,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var description = "Installing packages";
 
         // Act
-        _consoleDisplay.ShowStep(stepNumber, totalSteps, description);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowStep(stepNumber, totalSteps, description);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -288,7 +348,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Launch successful";
 
         // Act
-        _consoleDisplay.ShowIconMessage(icon, message, ConsoleColor.Green);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowIconMessage(icon, message, ConsoleColor.Green);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -306,7 +369,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var title = "Test Box";
 
         // Act
-        _consoleDisplay.ShowBox(content, title);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowBox(content, title);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -328,7 +394,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var lines = new[] { "Line 1", "Line 2", "Line 3" };
 
         // Act
-        _consoleDisplay.ShowBox(lines);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowBox(lines);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -369,7 +438,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var title = "Available Options";
 
         // Act
-        _consoleDisplay.ShowSelectableList(items, title);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowSelectableList(items, title);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -394,7 +466,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var message = "Debug information";
 
         // Act
-        _consoleDisplay.ShowDebug(message);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowDebug(message);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
@@ -435,7 +510,10 @@ public class ConsoleDisplayServiceTests : IDisposable
         var rows = Array.Empty<string[]>();
 
         // Act
-        _consoleDisplay.ShowTable(headers, rows);
+        CaptureConsoleOutput(() => 
+        {
+            _consoleDisplay.ShowTable(headers, rows);
+        });
 
         // Assert
         var output = _stringWriter.ToString();
