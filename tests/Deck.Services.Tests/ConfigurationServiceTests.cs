@@ -77,17 +77,16 @@ public class ConfigurationServiceTests : IDisposable
     [Fact]
     public async Task GetConfigAsync_AfterSaving_ShouldLoadCorrectly()
     {
-        // Arrange
+        // Arrange - 先设置合并器的模拟行为
+        _mockConfigMerger.Setup(m => m.Merge(It.IsAny<DeckConfig>(), It.IsAny<DeckConfig>()))
+            .Returns((DeckConfig baseConfig, DeckConfig overrideConfig) => overrideConfig ?? baseConfig);
+
         var originalConfig = await _configurationService.CreateDefaultConfigAsync();
         originalConfig.RemoteTemplates.Repository = "https://custom.repo.com/templates.git";
         originalConfig.RemoteTemplates.Branch = "develop";
         originalConfig.RemoteTemplates.AutoUpdate = false;
         
         await _configurationService.SaveConfigAsync(originalConfig);
-
-        // 设置合并器的模拟行为
-        _mockConfigMerger.Setup(m => m.Merge(It.IsAny<DeckConfig>(), It.IsAny<DeckConfig>()))
-            .Returns((DeckConfig baseConfig, DeckConfig overrideConfig) => overrideConfig ?? baseConfig);
 
         // Act
         var loadedConfig = await _configurationService.GetConfigAsync();

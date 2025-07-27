@@ -55,8 +55,8 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowStatusMessage("📋 正在加载三层统一镜像列表..."), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("🏗️  Deck 三层统一镜像管理"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo("📋 正在加载三层统一镜像列表..."), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowTitle("🏗️  Deck 三层统一镜像管理"), Times.Once);
         _mockImagesUnifiedService.Verify(x => x.GetUnifiedResourceListAsync(null), Times.Once);
     }
 
@@ -123,10 +123,17 @@ public class ImagesCommandTests
 
         _mockInteractiveSelection
             .Setup(x => x.ShowSingleSelectionAsync(
-                It.IsAny<string>(),
-                It.IsAny<List<SelectableItem<CleaningOption>>>(),
-                true))
-            .ReturnsAsync(new SelectableItem<CleaningOption> { Item = cleaningOptions[0] });
+                It.IsAny<InteractiveSelector<SelectableOption>>(),
+                It.IsAny<SelectionStyle?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SelectionResult<SelectableOption>
+            {
+                IsCancelled = false,
+                SelectedItems = new List<SelectableOption>
+                {
+                    new SelectableOption { Value = cleaningOptions[0].Id }
+                }
+            });
 
         _mockImagesUnifiedService
             .Setup(x => x.ExecuteCleaningAsync(
@@ -139,7 +146,7 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowStatusMessage($"🧹 正在分析镜像清理策略 (保留: {keepCount} 个)..."), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowInfo($"🧹 正在分析镜像清理策略 (保留: {keepCount} 个)..."), Times.Once);
         _mockConsoleDisplay.Verify(x => x.ShowSuccess("清理完成: 删除了 2 个资源"), Times.Once);
     }
 
@@ -171,10 +178,14 @@ public class ImagesCommandTests
 
         _mockInteractiveSelection
             .Setup(x => x.ShowSingleSelectionAsync(
-                It.IsAny<string>(),
-                It.IsAny<List<SelectableItem<CleaningOption>>>(),
-                true))
-            .ReturnsAsync((SelectableItem<CleaningOption>?)null);
+                It.IsAny<InteractiveSelector<SelectableOption>>(),
+                It.IsAny<SelectionStyle?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SelectionResult<SelectableOption>
+            {
+                IsCancelled = true,
+                SelectedItems = new List<SelectableOption>()
+            });
 
         // Act
         var result = await _imagesCommand.ExecuteCleanAsync();
@@ -201,10 +212,17 @@ public class ImagesCommandTests
 
         _mockInteractiveSelection
             .Setup(x => x.ShowSingleSelectionAsync(
-                It.IsAny<string>(),
-                It.IsAny<List<SelectableItem<CleaningOption>>>(),
-                true))
-            .ReturnsAsync(new SelectableItem<CleaningOption> { Item = cleaningOptions[0] });
+                It.IsAny<InteractiveSelector<SelectableOption>>(),
+                It.IsAny<SelectionStyle?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SelectionResult<SelectableOption>
+            {
+                IsCancelled = false,
+                SelectedItems = new List<SelectableOption>
+                {
+                    new SelectableOption { Value = cleaningOptions[0].Id }
+                }
+            });
 
         _mockImagesUnifiedService
             .Setup(x => x.ExecuteCleaningAsync(
@@ -334,11 +352,11 @@ public class ImagesCommandTests
 
         // Assert
         result.Should().BeTrue();
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("🛡️  Deck 三层统一管理 - Images目录权限说明"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("📋 三层架构说明:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("🔐 Images目录权限规则:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("🔄 推荐工作流程:"), Times.Once);
-        _mockConsoleDisplay.Verify(x => x.ShowInfo("💡 相关命令:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowTitle("🛡️  Deck 三层统一管理 - Images目录权限说明"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowSubtitle("📋 三层架构说明:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowSubtitle("🔐 Images目录权限规则:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowSubtitle("🔄 推荐工作流程:"), Times.Once);
+        _mockConsoleDisplay.Verify(x => x.ShowSubtitle("💡 相关命令:"), Times.Once);
     }
 
     [Fact]

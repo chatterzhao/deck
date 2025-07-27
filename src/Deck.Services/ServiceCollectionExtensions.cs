@@ -30,10 +30,12 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IContainerEngineFactory, ContainerEngineFactory>();
         services.AddTransient<IContainerService, ContainerService>();
         services.AddTransient<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
+        services.AddTransient<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddTransient<IConsoleDisplay, ConsoleDisplayService>();
         services.AddTransient<IDirectoryManagementService, DirectoryManagementService>();
         services.AddTransient<IStartCommandService, StartCommandServiceSimple>();
         services.AddTransient<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
+        services.AddTransient<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
         services.AddTransient<ITemplateVariableEngine, TemplateVariableEngine>();
         services.AddTransient<IGlobalExceptionHandler, GlobalExceptionHandler>();
         services.AddTransient<IContainerEngine, PodmanEngine>();
