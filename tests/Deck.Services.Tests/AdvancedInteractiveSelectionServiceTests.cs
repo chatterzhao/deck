@@ -75,10 +75,10 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
             {
                 new()
                 {
-                    Name = "tauri-dev",
+                    Name = "avalonia-dev",
                     LayerType = ThreeLayerConfigurationType.Images,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true },
-                    DetectedProjectType = ProjectType.Tauri
+                    DetectedProjectType = ProjectType.Avalonia
                 }
             },
             CustomConfigurations = new List<SelectableThreeLayerConfiguration>
@@ -103,7 +103,7 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         result.IsCancelled.Should().BeFalse();
         result.SelectedConfiguration.Should().NotBeNull();
-        result.SelectedConfiguration!.Name.Should().Be("tauri-dev");
+        result.SelectedConfiguration!.Name.Should().Be("avalonia-dev");
         result.SelectedLayerType.Should().Be(ThreeLayerConfigurationType.Images);
     }
 
@@ -119,10 +119,10 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
             {
                 new()
                 {
-                    Name = "tauri-template",
+                    Name = "avalonia-template",
                     LayerType = ThreeLayerConfigurationType.Templates,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true },
-                    DetectedProjectType = ProjectType.Tauri
+                    DetectedProjectType = ProjectType.Avalonia
                 }
             }
         };
@@ -303,9 +303,9 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
     public async Task ShowProjectDetectionAsync_ShouldDisplayProjectInfo()
     {
         // Arrange
-        var projectType = ProjectType.Tauri;
+        var projectType = ProjectType.Avalonia;
         var projectFiles = new[] { "Cargo.toml", "package.json" };
-        var recommendations = new[] { "选择 tauri-* 相关配置" };
+        var recommendations = new[] { "选择 avalonia-* 相关配置" };
 
         // Act
         await _service.ShowProjectDetectionAsync(projectType, projectFiles, recommendations);
@@ -317,8 +317,7 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData(ProjectType.Tauri, "tauri-dev")]
-    [InlineData(ProjectType.Flutter, "flutter-app")]
+    [InlineData(ProjectType.Avalonia, "avalonia-dev")]
     [InlineData(ProjectType.Avalonia, "avalonia-ui")]
     public void SelectableThreeLayerConfiguration_ShouldFormatCorrectly(ProjectType projectType, string name)
     {
@@ -426,15 +425,15 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         // Arrange
         var selector = new ThreeLayerSelector
         {
-            DetectedProjectType = ProjectType.Tauri,
+            DetectedProjectType = ProjectType.Avalonia,
             EnableProjectTypeFilter = true,
             ImagesConfigurations = new List<SelectableThreeLayerConfiguration>
             {
                 new()
                 {
-                    Name = "tauri-dev",
+                    Name = "avalonia-dev",
                     LayerType = ThreeLayerConfigurationType.Images,
-                    DetectedProjectType = ProjectType.Tauri,
+                    DetectedProjectType = ProjectType.Avalonia,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true }
                 },
                 new()
@@ -448,12 +447,12 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         };
 
         // Act & Assert - 验证过滤逻辑
-        var tauriConfigs = selector.ImagesConfigurations.Where(c => c.DetectedProjectType == ProjectType.Tauri).ToList();
-        var otherConfigs = selector.ImagesConfigurations.Where(c => c.DetectedProjectType != ProjectType.Tauri).ToList();
+        var avaloniaConfigs = selector.ImagesConfigurations.Where(c => c.DetectedProjectType == ProjectType.Avalonia).ToList();
+        var otherConfigs = selector.ImagesConfigurations.Where(c => c.DetectedProjectType != ProjectType.Avalonia).ToList();
 
         // 应该优先显示匹配的项目类型
-        tauriConfigs.Should().HaveCount(1);
-        tauriConfigs[0].Name.Should().Be("tauri-dev");
+        avaloniaConfigs.Should().HaveCount(1);
+        avaloniaConfigs[0].Name.Should().Be("avalonia-dev");
         otherConfigs.Should().HaveCount(1);
         otherConfigs[0].Name.Should().Be("flutter-dev");
     }

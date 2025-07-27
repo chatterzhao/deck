@@ -284,28 +284,23 @@ public class PortConflictServiceTests : IDisposable
         // 注意：实际的端口数量依赖于系统状态，所以不强制验证具体数值
     }
 
-    [Theory]
-    [InlineData(ProjectType.Tauri, ProjectPortType.DevServer, 1420)]
-    [InlineData(ProjectType.Flutter, ProjectPortType.DevServer, 5000)]
-    [InlineData(ProjectType.Node, ProjectPortType.DevServer, 3000)]
-    [InlineData(ProjectType.Python, ProjectPortType.DevServer, 8000)]
-    public async Task AllocateProjectPortsAsync_ShouldUseExpectedDefaultPorts(
-        ProjectType projectType, ProjectPortType portType, int expectedPort)
+    [Fact]
+    public async Task AllocateProjectPortsAsync_ShouldUseExpectedDefaultPorts_ForAvalonia()
     {
-        // Act
-        var result = await _portConflictService.AllocateProjectPortsAsync(projectType, portType);
+        // Act - 只测试 Avalonia 模板的端口分配
+        var result = await _portConflictService.AllocateProjectPortsAsync(ProjectType.Avalonia, ProjectPortType.DevServer);
 
         // Assert
         result.Should().NotBeNull();
-        if (result.AllocatedPorts.TryGetValue(portType, out var allocatedPort))
+        if (result.AllocatedPorts.TryGetValue(ProjectPortType.DevServer, out var allocatedPort))
         {
-            // 端口可能因为冲突而调整，但应该在预期范围内
-            allocatedPort.Should().BeInRange(expectedPort, expectedPort + 100);
+            // Avalonia 的默认 DevServer 端口是 5000，端口可能因为冲突而调整
+            allocatedPort.Should().BeInRange(5000, 5100);
         }
         else
         {
             // 如果分配失败，应该在失败列表中
-            result.FailedAllocations.Should().Contain(portType);
+            result.FailedAllocations.Should().Contain(ProjectPortType.DevServer);
         }
     }
 

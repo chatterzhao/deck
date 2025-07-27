@@ -264,7 +264,7 @@ public class DirectoryManagementServiceTests : IDisposable
     public async Task CopyTemplateToCustomAsync_WithValidTemplate_ShouldSucceed()
     {
         // Arrange
-        var templateName = "tauri-default";
+        var templateName = "avalonia-default";
         var customName = "my-custom-config";
         
         SetupValidTemplateForCopy(templateName);
@@ -303,7 +303,7 @@ public class DirectoryManagementServiceTests : IDisposable
     public async Task CopyTemplateToCustomAsync_WithoutCustomName_ShouldGenerateName()
     {
         // Arrange
-        var templateName = "tauri-default";
+        var templateName = "avalonia-default";
         
         SetupValidTemplateForCopy(templateName);
         SetupCustomNameGeneration(templateName);

@@ -401,10 +401,10 @@ public class ImagesCommandTests
             {
                 new()
                 {
-                    Name = "tauri-default",
+                    Name = "avalonia-default",
                     Type = UnifiedResourceType.Templates,
                     Status = ResourceStatus.Builtin,
-                    DisplayLabel = "从模板创建: tauri-default",
+                    DisplayLabel = "从模板创建: avalonia-default",
                     IsAvailable = true
                 },
                 new()

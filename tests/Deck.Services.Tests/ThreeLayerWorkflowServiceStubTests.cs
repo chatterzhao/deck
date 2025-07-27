@@ -35,7 +35,7 @@ public class ThreeLayerWorkflowServiceStubTests
     public async Task ExecuteTemplateWorkflow_WithEditableFlow_ShouldCreateCustomConfigAndExit()
     {
         // Arrange
-        var templateName = "tauri-default";
+        var templateName = "avalonia-default";
         var envType = "auto-detect";
         var expectedCustomName = $"{templateName}-001";
         
@@ -63,7 +63,7 @@ public class ThreeLayerWorkflowServiceStubTests
     public async Task ExecuteTemplateWorkflow_WithDirectBuildFlow_ShouldCompleteFullPipeline()
     {
         // Arrange
-        var templateName = "flutter-default";
+        var templateName = "avalonia-default";
         var envType = "development";
         var customName = $"{templateName}-temp-202410221500";
         var imageName = $"{customName}-build";
@@ -101,7 +101,7 @@ public class ThreeLayerWorkflowServiceStubTests
     public async Task ExecuteCustomConfigWorkflow_ShouldBuildNewImageFromConfig()
     {
         // Arrange
-        var configName = "my-tauri-app";
+        var configName = "my-avalonia-app";
         var imageName = $"{configName}-20241022-1500";
         var customDir = $"/path/to/custom/{configName}";
         

@@ -99,7 +99,7 @@ public class SystemDetectionServiceTests
     }
 
     [Fact]
-    public async Task DetectProjectTypeAsync_WithTauriProject_ShouldDetectTauri()
+    public async Task DetectProjectTypeAsync_WithAvaloniaProject_ShouldDetectAvalonia()
     {
         // Arrange
         var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
@@ -107,23 +107,25 @@ public class SystemDetectionServiceTests
         
         try
         {
-            // 创建 Tauri 项目标识文件 (Cargo.toml + package.json 组合)
-            File.WriteAllText(Path.Combine(tempDir, "Cargo.toml"), """
-                [package]
-                name = "test-app"
-                
-                [dependencies]
-                tauri = { version = "1.0" }
+            // 创建 Avalonia 项目标识文件 (.csproj 文件)
+            File.WriteAllText(Path.Combine(tempDir, "test-app.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Avalonia" Version="11.0.0" />
+                  </ItemGroup>
+                </Project>
                 """);
-            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}");
 
             // Act
             var result = await _systemDetectionService.DetectProjectTypeAsync(tempDir);
 
             // Assert
-            result.DetectedTypes.Should().Contain(ProjectType.Tauri);
-            result.RecommendedType.Should().Be(ProjectType.Tauri);
-            result.ProjectFiles.Should().Contain("Cargo.toml, package.json");
+            result.DetectedTypes.Should().Contain(ProjectType.Avalonia);
+            result.RecommendedType.Should().Be(ProjectType.Avalonia);
+            result.ProjectFiles.Should().Contain("test-app.csproj");
         }
         finally
         {
@@ -162,7 +164,7 @@ public class SystemDetectionServiceTests
     }
 
     [Fact]
-    public async Task DetectProjectTypeAsync_WithAvaloniaProject_ShouldDetectAvalonia()
+    public async Task DetectProjectTypeAsync_WithAvaloniaProjectPriority_ShouldPreferAvalonia()
     {
         // Arrange
         var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
@@ -441,7 +443,7 @@ public class SystemDetectionServiceTests
     }
 
     [Fact]
-    public async Task DetectProjectTypeAsync_WithTauriPriority_ShouldPreferTauri()
+    public async Task DetectProjectTypeAsync_WithAvaloniaProject_ShouldPreferAvalonia()
     {
         // Arrange
         var tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
@@ -449,14 +451,14 @@ public class SystemDetectionServiceTests
         
         try
         {
-            // 创建 Tauri + Flutter + .NET 的混合项目 (测试最高优先级)
-            File.WriteAllText(Path.Combine(tempDir, "Cargo.toml"), """
-                [package]
-                name = "test-app"
-                [dependencies]
-                tauri = "1.0"
+            // 创建 Avalonia + Flutter + .NET 的混合项目 (测试优先级)
+            File.WriteAllText(Path.Combine(tempDir, "test-app.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <ItemGroup>
+                    <PackageReference Include="Avalonia" Version="11.0.0" />
+                  </ItemGroup>
+                </Project>
                 """);
-            File.WriteAllText(Path.Combine(tempDir, "package.json"), "{}");
             File.WriteAllText(Path.Combine(tempDir, "pubspec.yaml"), """
                 name: test_app
                 flutter:
@@ -468,10 +470,10 @@ public class SystemDetectionServiceTests
 
             // Assert
             result.DetectedTypes.Should().HaveCountGreaterThan(1);
-            result.DetectedTypes.Should().Contain(ProjectType.Tauri);
+            result.DetectedTypes.Should().Contain(ProjectType.Avalonia);
             result.DetectedTypes.Should().Contain(ProjectType.Flutter);
-            // Tauri 应该有最高优先级 (1 vs 2)
-            result.RecommendedType.Should().Be(ProjectType.Tauri);
+            // Flutter 应该有更高优先级
+            result.RecommendedType.Should().Be(ProjectType.Flutter);
         }
         finally
         {
