@@ -17,6 +17,9 @@ public static class ServiceCollectionExtensions
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
+        // 添加HttpClient
+        services.AddHttpClient();
+
         // 注册服务
         services.AddSingleton<ILoggingService, LoggingService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
@@ -26,19 +29,24 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImagePermissionService, ImagePermissionService>();
         services.AddSingleton<IPortConflictService, PortConflictService>();
         services.AddTransient<IConfigurationService, ConfigurationService>();
+        services.AddTransient<IConfigurationMerger, ConfigurationMerger>();
         services.AddTransient<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
         services.AddTransient<IContainerEngineFactory, ContainerEngineFactory>();
         services.AddTransient<IContainerService, ContainerService>();
         services.AddTransient<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
         services.AddTransient<IInteractiveSelectionService, InteractiveSelectionService>();
         services.AddTransient<IConsoleDisplay, ConsoleDisplayService>();
+        services.AddTransient<IConsoleUIService, ConsoleUIService>();
         services.AddTransient<IDirectoryManagementService, DirectoryManagementService>();
-        services.AddTransient<IStartCommandService, StartCommandServiceSimple>();
         services.AddTransient<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
         services.AddTransient<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
         services.AddTransient<ITemplateVariableEngine, TemplateVariableEngine>();
         services.AddTransient<IGlobalExceptionHandler, GlobalExceptionHandler>();
         services.AddTransient<IContainerEngine, PodmanEngine>();
         services.AddTransient<IContainerEngine, DockerEngine>();
+
+        // 注册Start命令服务
+        services.AddTransient<IStartCommandService, StartCommandServiceSimple>();
+        
     }
 }

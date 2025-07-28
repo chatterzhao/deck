@@ -308,14 +308,7 @@ public class ConfigurationService : IConfigurationService
     /// </summary>
     private static string GenerateConfigWithComments(string jsonContent)
     {
-        var header = @"// =============================================================================
-// Deck .NET版本配置文件
-// =============================================================================
-// 此文件用于配置远程模板仓库，参考deck-shell的配置设计
-// 更多信息请参考: https://gitee.com/zhaoquan/deck
-// =============================================================================
-
-";
+        var header = @"";
         return header + jsonContent;
     }
 }

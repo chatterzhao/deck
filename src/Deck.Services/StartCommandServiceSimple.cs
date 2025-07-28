@@ -12,6 +12,8 @@ public class StartCommandServiceSimple : IStartCommandService
     private readonly ILogger<StartCommandServiceSimple> _logger;
     private readonly IConsoleUIService _consoleUIService;
     private readonly IEnhancedFileOperationsService _enhancedFileOperationsService;
+    private readonly IConfigurationService _configurationService;
+    private readonly IRemoteTemplatesService _remoteTemplatesService;
 
     // 目录常量
     private const string DeckDir = ".deck";
@@ -22,11 +24,15 @@ public class StartCommandServiceSimple : IStartCommandService
     public StartCommandServiceSimple(
         ILogger<StartCommandServiceSimple> logger,
         IConsoleUIService consoleUIService,
-        IEnhancedFileOperationsService enhancedFileOperationsService)
+        IEnhancedFileOperationsService enhancedFileOperationsService,
+        IConfigurationService configurationService,
+        IRemoteTemplatesService remoteTemplatesService)
     {
         _logger = logger;
         _consoleUIService = consoleUIService;
         _enhancedFileOperationsService = enhancedFileOperationsService;
+        _configurationService = configurationService;
+        _remoteTemplatesService = remoteTemplatesService;
     }
 
     public async Task<StartCommandResult> ExecuteAsync(string? envType, CancellationToken cancellationToken = default)
@@ -39,6 +45,12 @@ public class StartCommandServiceSimple : IStartCommandService
 
             // 初始化目录结构
             InitializeDirectoryStructure();
+            
+            // 确保配置文件存在
+            await EnsureConfigurationAsync(cancellationToken);
+            
+            // 更新模板目录
+            await UpdateTemplatesAsync(cancellationToken);
 
             // 获取三层配置选项
             var options = await GetOptionsAsync(envType, cancellationToken);
@@ -66,6 +78,66 @@ public class StartCommandServiceSimple : IStartCommandService
             _logger.LogError(ex, "Start command execution failed");
             return StartCommandResult.Failure($"执行失败：{ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 确保配置文件存在，如果不存在则创建默认配置
+    /// </summary>
+    private async Task EnsureConfigurationAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var config = await _configurationService.GetConfigAsync();
+            _logger.LogInformation("配置文件已加载或创建: Repository={Repository}, Branch={Branch}", 
+                config.RemoteTemplates.Repository, config.RemoteTemplates.Branch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "确保配置文件存在时发生错误");
+            throw new InvalidOperationException("无法创建或加载配置文件", ex);
+        }
+    }
+
+    /// <summary>
+    /// 更新模板目录内容
+    /// </summary>
+    private async Task UpdateTemplatesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _consoleUIService.ShowInfo("🔄 检查并更新模板...");
+            
+            var config = await _configurationService.GetConfigAsync();
+            if (config.RemoteTemplates.AutoUpdate)
+            {
+                var syncResult = await _remoteTemplatesService.SyncTemplatesAsync(forceUpdate: false);
+                if (syncResult.Success)
+                {
+                    _consoleUIService.ShowSuccess($"✅ 模板同步成功，更新了 {syncResult.SyncedTemplateCount} 个模板");
+                }
+                else
+                {
+                    _consoleUIService.ShowWarning("⚠️ 模板同步失败: " + string.Join(", ", syncResult.SyncLogs));
+                }
+            }
+            else
+            {
+                _consoleUIService.ShowInfo("💡 模板自动更新已禁用");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新模板时发生错误");
+            _consoleUIService.ShowWarning("⚠️ 模板更新失败: " + ex.Message);
+        }
+    }
+
+    private void InitializeDirectoryStructure()
+    {
+        Directory.CreateDirectory(DeckDir);
+        Directory.CreateDirectory(ImagesDir);
+        Directory.CreateDirectory(CustomDir);
+        Directory.CreateDirectory(TemplatesDir);
     }
 
     public Task<StartCommandThreeLayerOptions> GetOptionsAsync(string? envType, CancellationToken cancellationToken = default)
@@ -576,14 +648,6 @@ public class StartCommandServiceSimple : IStartCommandService
             return "avalonia";
         
         return null;
-    }
-
-    private void InitializeDirectoryStructure()
-    {
-        Directory.CreateDirectory(DeckDir);
-        Directory.CreateDirectory(ImagesDir);
-        Directory.CreateDirectory(CustomDir);
-        Directory.CreateDirectory(TemplatesDir);
     }
 
     /// <summary>
