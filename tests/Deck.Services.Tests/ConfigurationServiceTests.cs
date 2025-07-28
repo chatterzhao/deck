@@ -110,7 +110,7 @@ public class ConfigurationServiceTests : IDisposable
 
         // Assert - 验证返回的配置
         Assert.NotNull(config);
-        Assert.Equal("https://gitee.com/zhaoquan/deck.git", config.RemoteTemplates.Repository);
+        Assert.Equal("git@gitee.com:zhaoquan/deck.git", config.RemoteTemplates.Repository);
         Assert.Equal("main", config.RemoteTemplates.Branch);
         Assert.True(config.RemoteTemplates.AutoUpdate);
         
@@ -127,7 +127,7 @@ public class ConfigurationServiceTests : IDisposable
         // Assert
         Assert.NotNull(config);
         Assert.NotNull(config.RemoteTemplates);
-        Assert.Equal("https://gitee.com/zhaoquan/deck.git", config.RemoteTemplates.Repository);
+        Assert.Equal("git@gitee.com:zhaoquan/deck.git", config.RemoteTemplates.Repository);
         Assert.Equal("main", config.RemoteTemplates.Branch);
         Assert.Equal("24h", config.RemoteTemplates.CacheTtl);
         Assert.True(config.RemoteTemplates.AutoUpdate);
@@ -145,6 +145,36 @@ public class ConfigurationServiceTests : IDisposable
         // Assert
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
+    }
+    
+    [Fact]
+    public async Task ValidateConfigAsync_WithInvalidRepositoryUrl_ShouldReturnInvalid()
+    {
+        // Arrange
+        var config = await _configurationService.CreateDefaultConfigAsync();
+        config.RemoteTemplates.Repository = "invalid-url";
+
+        // Act
+        var result = await _configurationService.ValidateConfigAsync(config);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("无效的模板仓库URL"));
+    }
+    
+    [Fact]
+    public async Task ValidateConfigAsync_WithValidSshRepositoryUrl_ShouldReturnValid()
+    {
+        // Arrange
+        var config = await _configurationService.CreateDefaultConfigAsync();
+        config.RemoteTemplates.Repository = "git@gitee-zhaoquan:zhaoquan/deck.git";
+
+        // Act
+        var result = await _configurationService.ValidateConfigAsync(config);
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Errors, e => e.Contains("无效的模板仓库URL"));
     }
 
     [Fact]

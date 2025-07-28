@@ -78,6 +78,25 @@ public class ConfigurationValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("无效的模板仓库URL格式"));
     }
+    
+    [Fact]
+    public async Task ValidateRemoteTemplatesAsync_WithValidSshUrl_ShouldReturnValid()
+    {
+        // Arrange
+        var config = new RemoteTemplatesConfig
+        {
+            Repository = "git@gitee-zhaoquan:zhaoquan/deck.git",
+            Branch = "main"
+        };
+
+        // Act
+        var result = await _validator.ValidateRemoteTemplatesAsync(config);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+    }
 
     [Fact]
     public async Task ValidateRemoteTemplatesAsync_WithInvalidCacheTtl_ShouldReturnWarning()

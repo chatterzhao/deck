@@ -222,8 +222,7 @@ public class ConfigurationService : IConfigurationService
             result.Errors.Add("模板仓库URL不能为空");
             result.IsValid = false;
         }
-        else if (!Uri.TryCreate(config.RemoteTemplates.Repository, UriKind.Absolute, out var uri) ||
-                 (uri.Scheme != "https" && uri.Scheme != "http"))
+        else if (!IsValidGitUrl(config.RemoteTemplates.Repository))
         {
             result.Errors.Add($"无效的模板仓库URL: {config.RemoteTemplates.Repository}");
             result.IsValid = false;
@@ -310,5 +309,27 @@ public class ConfigurationService : IConfigurationService
     {
         var header = @"";
         return header + jsonContent;
+    }
+
+    /// <summary>
+    /// 验证是否为有效的Git URL，支持HTTP/HTTPS和SSH格式
+    /// </summary>
+    private static bool IsValidGitUrl(string url)
+    {
+        // 检查是否为标准的URL格式 (http/https)
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && 
+            (uri.Scheme == "https" || uri.Scheme == "http"))
+        {
+            return true;
+        }
+        
+        // 检查是否为SSH格式 (user@host:path.git 或 user@host:/path.git)
+        var sshPattern = @"^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+:[~]?[a-zA-Z0-9._/-]+\.git$";
+        if (System.Text.RegularExpressions.Regex.IsMatch(url, sshPattern))
+        {
+            return true;
+        }
+        
+        return false;
     }
 }
