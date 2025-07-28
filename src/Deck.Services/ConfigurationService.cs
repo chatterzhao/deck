@@ -256,7 +256,7 @@ public class ConfigurationService : IConfigurationService
         {
             RemoteTemplates = new RemoteTemplatesConfig
             {
-                Repository = "https://gitee.com/zhaoquan/deck.git",
+                Repository = "git@gitee.com:zhaoquan/deck.git",
                 Branch = "main",
                 CacheTtl = "24h",
                 AutoUpdate = true
