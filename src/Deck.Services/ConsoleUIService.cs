@@ -23,7 +23,7 @@ public class ConsoleUIService : IConsoleUIService
         // 显示环境类型信息
         if (options.IsAutoDetected)
         {
-            Console.WriteLine($"\n🚀 启动开发环境（自动检测）");
+            // Console.WriteLine($"\n🚀 启动开发环境（自动检测）");
             if (options.EnvType != "unknown")
             {
                 ShowInfo($"🔍 检测到环境类型：{options.EnvType}");

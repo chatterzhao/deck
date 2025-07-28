@@ -316,7 +316,7 @@ public class AdvancedInteractiveSelectionService : IAdvancedInteractiveSelection
         string[] recommendations,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine($"\n{Rocket} 启动开发环境（自动检测）");
+        // Console.WriteLine($"\n{Rocket} 启动开发环境（自动检测）");
         Console.WriteLine($"{Cyan}{Search} 检测到环境类型：{projectType}{Reset}");
         
         if (projectFiles.Any())

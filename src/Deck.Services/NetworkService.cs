@@ -189,7 +189,6 @@ public class NetworkService : INetworkService
     public async Task<NetworkStatusResult> GetNetworkStatusAsync()
     {
         await Task.CompletedTask;
-        _logger.LogWarning("GetNetworkStatusAsync 已废弃");
         
         return new NetworkStatusResult
         {

@@ -39,9 +39,8 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
-            _logger.LogInformation("Start command execution started with env-type: {EnvType}", envType ?? "auto-detect");
-            
-            _consoleUIService.ShowInfo("🚀 启动容器化工具...");
+            // 只在必要时显示信息，而不是总是显示
+            //_consoleUIService.ShowInfo("🚀 启动容器化工具...");
 
             // 初始化目录结构
             InitializeDirectoryStructure();
@@ -88,8 +87,9 @@ public class StartCommandServiceSimple : IStartCommandService
         try
         {
             var config = await _configurationService.GetConfigAsync();
-            _logger.LogInformation("配置文件已加载或创建: Repository={Repository}, Branch={Branch}", 
-                config.RemoteTemplates.Repository, config.RemoteTemplates.Branch);
+            // 减少冗余日志输出，只在调试时需要
+            //_logger.LogInformation("配置文件已加载或创建: Repository={Repository}, Branch={Branch}", 
+            //    config.RemoteTemplates.Repository, config.RemoteTemplates.Branch);
         }
         catch (Exception ex)
         {
@@ -105,7 +105,8 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
-            _consoleUIService.ShowInfo("🔄 检查并更新模板...");
+            // 只在需要时显示更新信息
+            //_consoleUIService.ShowInfo("🔄 检查并更新模板...");
             
             var config = await _configurationService.GetConfigAsync();
             if (config.RemoteTemplates.AutoUpdate)
@@ -113,7 +114,9 @@ public class StartCommandServiceSimple : IStartCommandService
                 var syncResult = await _remoteTemplatesService.SyncTemplatesAsync(forceUpdate: false);
                 if (syncResult.Success)
                 {
-                    _consoleUIService.ShowSuccess($"✅ 模板同步成功，更新了 {syncResult.SyncedTemplateCount} 个模板");
+                    // 只显示关键信息
+                    _consoleUIService.ShowInfo($"✅ 从 {config.RemoteTemplates.Repository} 同步了 {syncResult.SyncedTemplateCount} 个模板");
+                    //_consoleUIService.ShowSuccess($"✅ 模板同步成功，更新了 {syncResult.SyncedTemplateCount} 个模板");
                 }
                 else
                 {
@@ -122,7 +125,7 @@ public class StartCommandServiceSimple : IStartCommandService
             }
             else
             {
-                _consoleUIService.ShowInfo("💡 模板自动更新已禁用");
+                //_consoleUIService.ShowInfo("💡 模板自动更新已禁用");
             }
         }
         catch (Exception ex)
@@ -151,10 +154,11 @@ public class StartCommandServiceSimple : IStartCommandService
             options.EnvType = projectType ?? "unknown";
             options.IsAutoDetected = true;
             
+            // 只在检测到环境时显示信息
             if (!string.IsNullOrEmpty(projectType))
             {
                 _consoleUIService.ShowInfo($"🔍 检测到环境类型：{projectType}");
-                _consoleUIService.ShowWarning("💡 推荐选择对应的环境类型配置");
+                //_consoleUIService.ShowWarning("💡 推荐选择对应的环境类型配置");
             }
         }
         else
@@ -162,7 +166,7 @@ public class StartCommandServiceSimple : IStartCommandService
             options.EnvType = envType;
             options.IsAutoDetected = false;
             
-            if (envType == "unknown")
+            /*if (envType == "unknown")
             {
                 _consoleUIService.ShowInfo("🔍 显示所有可用配置选项");
                 _consoleUIService.ShowWarning("💡 提示：使用 'deck start <类型>' 可过滤特定环境，如 'deck start tauri'");
@@ -170,7 +174,7 @@ public class StartCommandServiceSimple : IStartCommandService
             else
             {
                 _consoleUIService.ShowInfo($"🔍 仅显示 {envType}- 开头的目录");
-            }
+            }*/
         }
 
         // 加载三层配置

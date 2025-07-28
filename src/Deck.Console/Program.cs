@@ -102,7 +102,6 @@ static void AddSubCommands(RootCommand rootCommand, IServiceProvider services)
     startCommand.SetHandler(async (string? envType) =>
     {
         var logger = services.GetRequiredService<ILoggingService>().GetLogger("Deck.Console.Start");
-        logger.LogInformation("Start command called with env-type: {EnvType}", envType ?? "auto-detect");
         
         var consoleDisplay = services.GetRequiredService<IConsoleDisplay>();
         var loggingService = services.GetRequiredService<ILoggingService>();

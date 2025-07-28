@@ -38,7 +38,6 @@ public class ConfigurationService : IConfigurationService
         
         if (!File.Exists(configPath))
         {
-            _logger.LogInformation("配置文件不存在，创建默认配置: {ConfigPath}", configPath);
             var defaultConfig = await CreateDefaultConfigAsync();
             await SaveConfigAsync(defaultConfig);
             return defaultConfig;
@@ -249,8 +248,6 @@ public class ConfigurationService : IConfigurationService
 
     public async Task<DeckConfig> CreateDefaultConfigAsync()
     {
-        _logger.LogInformation("创建默认配置");
-        
         var config = new DeckConfig
         {
             RemoteTemplates = new RemoteTemplatesConfig

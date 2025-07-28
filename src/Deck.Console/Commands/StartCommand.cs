@@ -36,7 +36,6 @@ public class StartCommand : ContainerCommandBase
         try
         {
             // 1. 参数验证和日志记录
-            logger.LogInformation("Start command called with env-type: {EnvType}", envType ?? "auto-detect");
             
             // 2. 调用核心服务执行业务逻辑
             StartCommandResult result = await _startCommandService.ExecuteAsync(envType, cancellationToken);

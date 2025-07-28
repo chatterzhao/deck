@@ -35,8 +35,6 @@ public class RemoteTemplatesService : IRemoteTemplatesService
         
         try
         {
-            _logger.LogInformation("开始同步远程模板，强制更新: {ForceUpdate}", forceUpdate);
-            
             // 获取配置
             var config = await _configurationService.GetConfigAsync();
             var repoUrl = config?.RemoteTemplates?.Repository ?? DefaultTemplateRepo;
@@ -62,9 +60,6 @@ public class RemoteTemplatesService : IRemoteTemplatesService
             
             // 执行Git同步
             result = await PerformGitSyncAsync(repoUrl, forceUpdate);
-            
-            _logger.LogInformation("模板同步完成，结果: {Success}, 同步数量: {Count}", 
-                result.Success, result.SyncedTemplateCount);
                 
             return result;
         }
