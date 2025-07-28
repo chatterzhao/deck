@@ -138,47 +138,11 @@ set -e
 
 INSTALL_PATH="/usr/local/bin"
 BINARY_NAME="deck"
-SHELL_PROFILES=(
-    "$HOME/.bashrc"
-    "$HOME/.bash_profile" 
-    "$HOME/.zshrc"
-    "$HOME/.profile"
-)
 
 echo "🚀 配置 Deck 环境..."
 
 # 确保二进制文件有执行权限
 chmod +x "$INSTALL_PATH/$BINARY_NAME"
-
-# 检查PATH中是否已包含/usr/local/bin
-if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
-    echo "📝 添加 /usr/local/bin 到 PATH..."
-    
-    # 为当前用户的各种shell配置文件添加PATH
-    for profile in "${SHELL_PROFILES[@]}"; do
-        if [[ -f "$profile" ]] || [[ "$profile" == "$HOME/.zshrc" && -n "${ZSH_VERSION:-}" ]] || [[ "$profile" == "$HOME/.bashrc" && -n "${BASH_VERSION:-}" ]]; then
-            # 检查配置文件中是否已存在PATH设置
-            if ! grep -q "export PATH.*:/usr/local/bin" "$profile" 2>/dev/null; then
-                echo "# Deck CLI Path" >> "$profile"
-                echo 'export PATH="/usr/local/bin:$PATH"' >> "$profile"
-                echo "✅ 已更新 $profile"
-            fi
-        fi
-    done
-    
-    # 为新用户创建默认的shell配置
-    if [[ ! -f "$HOME/.zshrc" && -n "${ZSH_VERSION:-}" ]]; then
-        echo "# Deck CLI Path" > "$HOME/.zshrc"
-        echo 'export PATH="/usr/local/bin:$PATH"' >> "$HOME/.zshrc"
-        echo "✅ 已创建 $HOME/.zshrc"
-    fi
-    
-    if [[ ! -f "$HOME/.bashrc" && -n "${BASH_VERSION:-}" ]]; then
-        echo "# Deck CLI Path" > "$HOME/.bashrc"
-        echo 'export PATH="/usr/local/bin:$PATH"' >> "$HOME/.bashrc"
-        echo "✅ 已创建 $HOME/.bashrc"
-    fi
-fi
 
 # 验证安装
 if command -v deck >/dev/null 2>&1; then
@@ -194,12 +158,11 @@ fi
 
 echo ""
 echo "🎉 Deck 安装完成!"
-echo "💡 如果 'deck' 命令不可用，请重新启动终端或运行:"
-echo "   source ~/.zshrc"
+echo "💡 如果 'deck' 命令不可用，请重新启动终端"
+echo "   或检查 /usr/local/bin 是否在您的 PATH 环境变量中"
 
 exit 0
 PKGEOF
-
         chmod +x "$PKG_SCRIPTS_DIR/postinstall"
         
         # 创建卸载脚本到用户目录
@@ -225,8 +188,6 @@ sudo pkgutil --forget com.deck.deck 2>/dev/null && echo "✅ 已清理包记录"
 
 echo ""
 echo "🎉 Deck 卸载完成!"
-echo "💡 如需清理 shell 配置，请手动编辑 ~/.zshrc 或 ~/.bashrc"
-echo "   删除包含 'Deck CLI Path' 的相关行"
 
 UNINSTALLEOF
 
@@ -342,10 +303,9 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
         fi
         
         if [[ -n "$SHELL_CONFIG" ]]; then
-            echo "" >> "$SHELL_CONFIG"
-            echo "# Added by Deck installer" >> "$SHELL_CONFIG"
-            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_CONFIG"
-            echo "✅ 环境变量配置成功! (添加到 $SHELL_CONFIG)"
+            echo "ℹ️  注意: 请确保 $INSTALL_DIR 在您的 PATH 环境变量中" 
+            echo "   如果 'deck' 命令不可用，请将以下行添加到您的 shell 配置文件 ($SHELL_CONFIG):"
+            echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
         else
             echo "⚠️  请手动添加 $INSTALL_DIR 到 PATH 环境变量"
         fi
