@@ -46,7 +46,15 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IContainerEngine, DockerEngine>();
 
         // 注册Start命令服务
-        services.AddTransient<IStartCommandService, StartCommandServiceSimple>();
+        services.AddTransient<IStartCommandService>(provider =>
+            new StartCommandServiceSimple(
+                provider.GetRequiredService<ILogger<StartCommandServiceSimple>>(),
+                provider.GetRequiredService<ILoggerFactory>(),
+                provider.GetRequiredService<IConsoleUIService>(),
+                provider.GetRequiredService<IEnhancedFileOperationsService>(),
+                provider.GetRequiredService<IConfigurationService>(),
+                provider.GetRequiredService<IRemoteTemplatesService>(),
+                provider.GetRequiredService<IFileSystemService>()));
         
     }
 }

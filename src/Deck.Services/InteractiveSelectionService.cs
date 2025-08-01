@@ -238,8 +238,13 @@ public class InteractiveSelectionService : IInteractiveSelectionService
     {
         var defaultIndicator = !string.IsNullOrEmpty(defaultValue) ? $" [{defaultValue}]" : "";
         
-        while (!cancellationToken.IsCancellationRequested)
+        // 添加一个计数器防止在测试环境中无限循环
+        int attemptCount = 0;
+        const int maxAttempts = 100; // 设置最大尝试次数以防止无限循环
+        
+        while (!cancellationToken.IsCancellationRequested && attemptCount < maxAttempts)
         {
+            attemptCount++;
             Console.Write($"{Cyan}📝 {prompt}{defaultIndicator}: {Reset}");
             var input = Console.ReadLine()?.Trim();
 
@@ -263,6 +268,12 @@ public class InteractiveSelectionService : IInteractiveSelectionService
             return Task.FromResult<string?>(input);
         }
 
+        // 如果达到最大尝试次数，返回默认值（如果有的话）或null
+        if (!string.IsNullOrEmpty(defaultValue))
+        {
+            return Task.FromResult<string?>(defaultValue);
+        }
+        
         return Task.FromResult<string?>(null);
     }
 

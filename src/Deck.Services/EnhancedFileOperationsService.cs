@@ -37,7 +37,11 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
 
         try
         {
-            _logger.LogInformation("开始处理标准端口配置: {EnvFilePath}", envFilePath);
+            // 只在需要时记录日志
+            if (options.CreateBackup)
+            {
+                _logger.LogInformation("开始处理标准端口配置: {EnvFilePath}", envFilePath);
+            }
 
             // 读取当前端口配置
             var currentPorts = await GetStandardPortsAsync(envFilePath);
@@ -49,7 +53,10 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
                 if (!currentPorts.ContainsKey(portVar))
                 {
                     currentPorts[portVar] = defaultPort;
-                    _logger.LogInformation("添加缺失的端口变量: {PortVar}={DefaultPort}", portVar, defaultPort);
+                    if (options.CreateBackup)
+                    {
+                        _logger.LogInformation("添加缺失的端口变量: {PortVar}={DefaultPort}", portVar, defaultPort);
+                    }
                 }
             }
 
@@ -73,18 +80,23 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
                         result.ModifiedPorts[portVar] = availablePort.Value;
                         currentPorts[portVar] = availablePort.Value;
                         result.Warnings.Add($"端口冲突：{portVar} 从 {conflict.Port} 更改为 {availablePort.Value}");
-                        _logger.LogWarning("端口冲突解决: {PortVar} {OldPort} -> {NewPort}", portVar, conflict.Port, availablePort.Value);
+                        if (options.CreateBackup)
+                        {
+                            _logger.LogWarning("端口冲突解决: {PortVar} {OldPort} -> {NewPort}", portVar, conflict.Port, availablePort.Value);
+                        }
                     }
                 }
             }
 
-            // 更新.env文件
-            await UpdateEnvFilePortsAsync(envFilePath, currentPorts, options);
+            // 只有在需要创建备份时才更新.env文件
+            if (options.CreateBackup)
+            {
+                await UpdateEnvFilePortsAsync(envFilePath, currentPorts, options);
+                _logger.LogInformation("标准端口处理完成，修改了 {Count} 个端口", result.ModifiedPorts.Count);
+            }
 
             result.AllPorts = currentPorts;
             result.IsSuccess = true;
-
-            _logger.LogInformation("标准端口处理完成，修改了 {Count} 个端口", result.ModifiedPorts.Count);
         }
         catch (Exception ex)
         {

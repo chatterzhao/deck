@@ -115,9 +115,19 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         {
             Prompt = "Select configuration",
             ShowProjectDetection = false,
+            DetectedProjectType = ProjectType.Unknown,
+            EnableProjectTypeFilter = false,
+            LayerTitles = new Dictionary<ThreeLayerConfigurationType, string>
+            {
+                { ThreeLayerConfigurationType.Images, "已构建镜像" },
+                { ThreeLayerConfigurationType.Custom, "用户自定义配置" },
+                { ThreeLayerConfigurationType.Templates, "模板库" }
+            },
+            ImagesConfigurations = new List<SelectableThreeLayerConfiguration>(),
+            CustomConfigurations = new List<SelectableThreeLayerConfiguration>(),
             TemplatesConfigurations = new List<SelectableThreeLayerConfiguration>
             {
-                new()
+                new SelectableThreeLayerConfiguration
                 {
                     Name = "avalonia-template",
                     LayerType = ThreeLayerConfigurationType.Templates,
@@ -128,6 +138,8 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         };
 
         // 模拟用户输入：选择模板(1)，然后选择工作流程(2)
+        // 第一个输入"1\n"是选择第一个配置项（模板）
+        // 第二个输入"2\n"是选择工作流程（直接构建启动）
         Console.SetIn(new StringReader("1\n2\n"));
 
         // Act
@@ -135,9 +147,12 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
 
         // Assert
         result.IsSuccess.Should().BeTrue();
+        result.IsCancelled.Should().BeFalse();
         result.SelectedConfiguration.Should().NotBeNull();
+        result.SelectedConfiguration!.Name.Should().Be("avalonia-template");
         result.SelectedLayerType.Should().Be(ThreeLayerConfigurationType.Templates);
         result.WorkflowChoice.Should().Be("direct-build");
+        result.ErrorMessage.Should().BeNull();
     }
 
     [Fact]
