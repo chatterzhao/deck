@@ -51,11 +51,27 @@ public class SystemDetectionService : ISystemDetectionService
             return podmanInfo;
         }
 
+        // 如果Podman存在但machine未运行，仍然返回Podman信息，让上层决定是否初始化
+        if (podmanInfo.Type == ContainerEngineType.Podman && !podmanInfo.IsAvailable && 
+            !string.IsNullOrEmpty(podmanInfo.ErrorMessage) && 
+            (podmanInfo.ErrorMessage.Contains("machine") || podmanInfo.ErrorMessage.Contains("connection refused")))
+        {
+            _logger.LogInformation("检测到Podman但machine未运行，返回Podman信息以便尝试初始化");
+            Console.WriteLine("🔧 [调试] 检测到Podman但machine未运行，返回Podman信息以便尝试初始化");
+            return podmanInfo;
+        }
+
         // 检测 Docker 作为备用
         var dockerInfo = await CheckContainerEngineAsync(ContainerEngineType.Docker, "docker");
         if (dockerInfo.IsAvailable)
         {
             return dockerInfo;
+        }
+
+        // 如果都没有可用的引擎，但Podman存在（即使machine未运行），优先返回Podman
+        if (podmanInfo.Type == ContainerEngineType.Podman)
+        {
+            return podmanInfo;
         }
 
         // 都不可用
@@ -422,13 +438,27 @@ public class SystemDetectionService : ISystemDetectionService
 
             if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
             {
-                return new ContainerEngineInfo
+                var engineInfo = new ContainerEngineInfo
                 {
                     Type = type,
                     Version = output.Trim().Split('\n')[0], // 取第一行作为版本信息
                     IsAvailable = true,
                     InstallPath = command
                 };
+
+                // 对于 Podman，还需要检查 machine 状态 (仅限 macOS/Windows)
+                if (type == ContainerEngineType.Podman && !RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    var machineStatus = await CheckPodmanMachineStatusAsync();
+                    if (!machineStatus.IsRunning)
+                    {
+                        _logger.LogWarning("Podman machine 未运行，需要初始化: {Message}", machineStatus.ErrorMessage);
+                        engineInfo.IsAvailable = false;
+                        engineInfo.ErrorMessage = $"Podman machine 未运行: {machineStatus.ErrorMessage}";
+                    }
+                }
+
+                return engineInfo;
             }
 
             return new ContainerEngineInfo
@@ -521,6 +551,160 @@ public class SystemDetectionService : ISystemDetectionService
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 检查 Podman Machine 状态
+    /// </summary>
+    private async Task<(bool IsRunning, string ErrorMessage)> CheckPodmanMachineStatusAsync()
+    {
+        try
+        {
+            // 首先检查是否有任何 machine
+            var listProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "podman",
+                    Arguments = "machine list --format json",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            listProcess.Start();
+            var listOutput = await listProcess.StandardOutput.ReadToEndAsync();
+            var listError = await listProcess.StandardError.ReadToEndAsync();
+            await listProcess.WaitForExitAsync();
+
+            if (listProcess.ExitCode != 0)
+            {
+                // 可能没有初始化任何 machine
+                if (listError.Contains("no such file or directory") || 
+                    listError.Contains("No such file or directory") ||
+                    listError.Contains("machine does not exist") ||
+                    string.IsNullOrWhiteSpace(listOutput))
+                {
+                    return (false, "未找到 Podman machine，需要初始化");
+                }
+                return (false, $"检查 machine 状态失败: {listError}");
+            }
+
+            // 检查是否有运行中的 machine
+            if (string.IsNullOrWhiteSpace(listOutput) || listOutput.Trim() == "[]")
+            {
+                return (false, "未找到任何 Podman machine，需要初始化");
+            }
+
+            // 简单检查是否包含 running 状态
+            if (listOutput.Contains("\"Running\": true") || listOutput.Contains("running"))
+            {
+                return (true, "Podman machine 正在运行");
+            }
+
+            return (false, "Podman machine 存在但未运行，需要启动");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"检查 Podman machine 状态时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 尝试自动初始化和启动 Podman Machine
+    /// </summary>
+    public async Task<bool> TryInitializePodmanMachineAsync()
+    {
+        try
+        {
+            _logger.LogInformation("尝试自动初始化 Podman Machine");
+
+            // 首先尝试启动现有的 machine
+            Console.WriteLine("🔧 [调试] 尝试启动现有的 Podman Machine...");
+            var startResult = await ExecutePodmanCommandAsync("machine start");
+            if (startResult.Success)
+            {
+                _logger.LogInformation("成功启动现有的 Podman Machine");
+                Console.WriteLine("✅ [调试] 成功启动现有的 Podman Machine");
+                return true;
+            }
+            else
+            {
+                }
+
+            // 如果启动失败，尝试初始化新的 machine
+            _logger.LogInformation("启动失败，尝试初始化新的 Podman Machine");
+            var initResult = await ExecutePodmanCommandAsync("machine init");
+            if (!initResult.Success)
+            {
+                _logger.LogWarning("初始化 Podman Machine 失败: {Error}", initResult.ErrorMessage);
+                    return false;
+            }
+            else
+            {
+                Console.WriteLine("✅ [调试] 成功初始化新的 Podman Machine");
+            }
+
+            // 初始化成功后启动
+            var startAfterInitResult = await ExecutePodmanCommandAsync("machine start");
+            if (startAfterInitResult.Success)
+            {
+                _logger.LogInformation("成功初始化并启动 Podman Machine");
+                Console.WriteLine("✅ [调试] 成功初始化并启动 Podman Machine");
+                return true;
+            }
+
+            _logger.LogWarning("初始化后启动 Podman Machine 失败: {Error}", startAfterInitResult.ErrorMessage);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "自动初始化 Podman Machine 时发生错误");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 执行 Podman 命令
+    /// </summary>
+    private async Task<(bool Success, string ErrorMessage)> ExecutePodmanCommandAsync(string arguments)
+    {
+        try
+        {
+            
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "podman",
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            
+
+            if (process.ExitCode == 0)
+            {
+                return (true, string.Empty);
+            }
+
+            return (false, !string.IsNullOrWhiteSpace(error) ? error : "命令执行失败");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ [调试] 执行命令时发生异常: {ex}");
+            return (false, ex.Message);
         }
     }
 

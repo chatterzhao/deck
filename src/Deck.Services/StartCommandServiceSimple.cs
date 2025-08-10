@@ -84,8 +84,6 @@ public class StartCommandServiceSimple : IStartCommandService
                 return StartCommandResult.Failure("用户取消了选择");
             }
 
-            _consoleUIService.ShowSuccess($"✅ 您选择了：{GetOptionDescription(selectedOption)}");
-
             // 根据选择类型执行对应操作
             return selectedOption.Type switch
             {
@@ -128,9 +126,6 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
-            // 只在需要时显示更新信息
-            //_consoleUIService.ShowInfo("🔄 检查并更新模板...");
-            
             var config = await _configurationService.GetConfigAsync();
             if (config.RemoteTemplates.AutoUpdate)
             {
@@ -139,7 +134,6 @@ public class StartCommandServiceSimple : IStartCommandService
                 {
                     // 只显示关键信息
                     _consoleUIService.ShowInfo($"✅ 从 {config.RemoteTemplates.Repository} 同步了 {syncResult.SyncedTemplateCount} 个模板");
-                    //_consoleUIService.ShowSuccess($"✅ 模板同步成功，更新了 {syncResult.SyncedTemplateCount} 个模板");
                 }
                 else
                 {
@@ -147,10 +141,6 @@ public class StartCommandServiceSimple : IStartCommandService
                 }
                 
                 return syncResult;
-            }
-            else
-            {
-                //_consoleUIService.ShowInfo("💡 模板自动更新已禁用");
             }
         }
         catch (Exception ex)
@@ -237,6 +227,30 @@ public class StartCommandServiceSimple : IStartCommandService
             var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
             var containerEngineInfo = await systemService.DetectContainerEngineAsync();
             
+            // 如果容器引擎不可用但错误信息提到 Podman machine，尝试自动初始化
+            if (!containerEngineInfo.IsAvailable && 
+                containerEngineInfo.Type == ContainerEngineType.Podman && 
+                !string.IsNullOrEmpty(containerEngineInfo.ErrorMessage) &&
+                containerEngineInfo.ErrorMessage.Contains("machine"))
+            {
+                _consoleUIService.ShowInfo("🔧 检测到 Podman machine 未运行，尝试自动初始化...");
+                Console.WriteLine("🔧 [调试] 检测到 Podman machine 未运行，尝试自动初始化...");
+                Console.WriteLine($"🔧 [调试] 错误信息: {containerEngineInfo.ErrorMessage}");
+                var initResult = await systemService.TryInitializePodmanMachineAsync();
+                if (initResult)
+                {
+                    _consoleUIService.ShowSuccess("✅ Podman machine 初始化成功");
+                    Console.WriteLine("✅ [调试] Podman machine 初始化成功");
+                    // 重新检测容器引擎
+                    containerEngineInfo = await systemService.DetectContainerEngineAsync();
+                }
+                else
+                {
+                    _consoleUIService.ShowWarning("⚠️ Podman machine 自动初始化失败，请手动运行: podman machine init && podman machine start");
+                    Console.WriteLine("⚠️ [调试] Podman machine 自动初始化失败");
+                }
+            }
+            
             // 检查是否需要重新安装（例如brew安装的情况）
             if (!await CheckAndHandlePodmanReinstallationAsync())
             {
@@ -264,7 +278,6 @@ public class StartCommandServiceSimple : IStartCommandService
             }
             
             var engineName = containerEngineInfo.Type == ContainerEngineType.Podman ? "Podman" : "Docker";
-            _consoleUIService.ShowSuccess($"✅ 检测到容器引擎: {engineName}");
 
             // 处理标准端口管理和冲突检测（仅检测，不修改文件）
             _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
@@ -294,11 +307,6 @@ public class StartCommandServiceSimple : IStartCommandService
                 // 用户确认后才应用端口更改（这次会修改文件）
                 var updateOptions = new EnhancedFileOperationOptions { CreateBackup = true };
                 await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, updateOptions);
-                _consoleUIService.ShowInfo("💡 端口配置已更新到 .env 文件中");
-            }
-            else
-            {
-                _consoleUIService.ShowSuccess("✅ 所有端口配置正常，无冲突");
             }
             
             // 显示其他端口警告
@@ -321,13 +329,11 @@ public class StartCommandServiceSimple : IStartCommandService
             DisplayDevelopmentInfo(portResult.AllPorts);
             
             // 直接启动容器（因为是从已有镜像启动）
-            _consoleUIService.ShowInfo("🚀 正在启动容器...");
             var startSuccess = await StartExistingContainerAsync(containerName, engineName.ToLower(), cancellationToken);
             if (!startSuccess)
             {
                 return StartCommandResult.Failure("容器启动失败");
             }
-            _consoleUIService.ShowSuccess($"✅ 容器启动成功: {containerName}");
 
             return StartCommandResult.Success(imageName, containerName);
         }
@@ -363,6 +369,26 @@ public class StartCommandServiceSimple : IStartCommandService
             var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
             var containerEngineInfo = await systemService.DetectContainerEngineAsync();
             
+            // 如果容器引擎不可用但错误信息提到 Podman machine，尝试自动初始化
+            if (!containerEngineInfo.IsAvailable && 
+                containerEngineInfo.Type == ContainerEngineType.Podman && 
+                !string.IsNullOrEmpty(containerEngineInfo.ErrorMessage) &&
+                containerEngineInfo.ErrorMessage.Contains("machine"))
+            {
+                _consoleUIService.ShowInfo("🔧 检测到 Podman machine 未运行，尝试自动初始化...");
+                var initResult = await systemService.TryInitializePodmanMachineAsync();
+                if (initResult)
+                {
+                    _consoleUIService.ShowSuccess("✅ Podman machine 初始化成功");
+                    // 重新检测容器引擎
+                    containerEngineInfo = await systemService.DetectContainerEngineAsync();
+                }
+                else
+                {
+                    _consoleUIService.ShowWarning("⚠️ Podman machine 自动初始化失败，请手动运行: podman machine init && podman machine start");
+                }
+            }
+            
             // 检查是否需要重新安装（例如brew安装的情况）
             if (!await CheckAndHandlePodmanReinstallationAsync())
             {
@@ -390,7 +416,6 @@ public class StartCommandServiceSimple : IStartCommandService
             }
             
             var engineName = containerEngineInfo.Type == ContainerEngineType.Podman ? "Podman" : "Docker";
-            _consoleUIService.ShowSuccess($"✅ 检测到容器引擎: {engineName}");
 
             // 处理标准端口管理和冲突检测（仅检测，不修改文件）
             _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
@@ -420,7 +445,6 @@ public class StartCommandServiceSimple : IStartCommandService
                 // 用户确认后才应用端口更改（这次会修改文件）
                 var updateOptions = new EnhancedFileOperationOptions { CreateBackup = true };
                 await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, updateOptions);
-                _consoleUIService.ShowInfo("💡 端口配置已更新到 .env 文件中");
             }
             else
             {
@@ -510,7 +534,6 @@ public class StartCommandServiceSimple : IStartCommandService
             }
             
             var engineName = containerEngineInfo.Type == ContainerEngineType.Podman ? "Podman" : "Docker";
-            _consoleUIService.ShowSuccess($"✅ 检测到容器引擎: {engineName}");
 
             if (workflowType == TemplateWorkflowType.CreateEditableConfig)
             {

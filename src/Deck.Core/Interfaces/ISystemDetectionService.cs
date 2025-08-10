@@ -27,4 +27,9 @@ public interface ISystemDetectionService
     /// 检查系统要求
     /// </summary>
     Task<SystemRequirementsResult> CheckSystemRequirementsAsync();
+
+    /// <summary>
+    /// 尝试自动初始化和启动 Podman Machine
+    /// </summary>
+    Task<bool> TryInitializePodmanMachineAsync();
 }
