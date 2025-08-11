@@ -326,14 +326,16 @@ public class StartCommandServiceSimple : IStartCommandService
                 _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
             }
             
-            // 对于Images分支，直接使用目录名作为容器名（与目录名保持一致）
-            var containerName = projectNameResult.UpdatedProjectName ?? imageName;
+            // 对于Images分支，需要根据镜像名称确定环境类型，然后构造正确的容器名称
+            var environment = DetermineEnvironmentFromImageName(imageName);
+            var baseName = projectNameResult.UpdatedProjectName ?? imageName;
+            var containerName = EnvironmentHelper.GetContainerName(baseName, environment);
             
             // 显示开发环境信息（模拟deck-shell的行为）
-            DisplayDevelopmentInfo(portResult.AllPorts);
+            DisplayDevelopmentInfo(portResult.AllPorts, environment);
             
-            // 直接启动容器（因为是从已有镜像启动）
-            var startSuccess = await StartExistingContainerAsync(containerName, engineName.ToLower(), cancellationToken);
+            // 对于已构建镜像，使用docker-compose启动（检查容器是否存在，不存在则构建并启动）
+            var startSuccess = await StartContainerAsync(imageName, containerName, engineName.ToLower(), cancellationToken);
             if (!startSuccess)
             {
                 return StartCommandResult.Failure("容器启动失败");
@@ -1801,6 +1803,23 @@ public class StartCommandServiceSimple : IStartCommandService
             return "avalonia";
         
         return null;
+    }
+
+    /// <summary>
+    /// 根据镜像名称确定环境类型
+    /// 镜像名称格式: {baseName}-{timestamp}-{envSuffix}
+    /// </summary>
+    private EnvironmentType DetermineEnvironmentFromImageName(string imageName)
+    {
+        if (imageName.EndsWith("-dev"))
+            return EnvironmentType.Development;
+        if (imageName.EndsWith("-test"))
+            return EnvironmentType.Test;
+        if (imageName.EndsWith("-prod"))
+            return EnvironmentType.Production;
+        
+        // 默认为开发环境
+        return EnvironmentType.Development;
     }
 
     /// <summary>
