@@ -248,4 +248,51 @@ public class ConsoleUIService : IConsoleUIService
             ShowError($"❌ 请输入有效的序号 (1-{maxNumber})");
         }
     }
+
+    public EnvironmentType? ShowEnvironmentSelection()
+    {
+        Console.WriteLine();
+        ShowInfo("🌐 选择部署环境：");
+        Console.WriteLine();
+
+        var environments = new[]
+        {
+            new { Number = 1, Type = EnvironmentType.Development, Name = "开发环境 (Development)", Description = "开发调试，热重载，详细日志" },
+            new { Number = 2, Type = EnvironmentType.Test, Name = "测试环境 (Test)", Description = "功能测试，模拟生产" },
+            new { Number = 3, Type = EnvironmentType.Production, Name = "生产环境 (Production)", Description = "生产部署，性能优化" }
+        };
+
+        foreach (var env in environments)
+        {
+            var color = env.Type switch
+            {
+                EnvironmentType.Development => Green,
+                EnvironmentType.Test => Yellow,
+                EnvironmentType.Production => Red,
+                _ => Reset
+            };
+            Console.WriteLine($"  {Cyan}{env.Number}.{Reset} {color}{env.Name}{Reset}");
+            Console.WriteLine($"     {env.Description}");
+        }
+
+        Console.WriteLine();
+        Console.Write($"{Blue}请选择环境序号 (1-3，或按 Enter 取消): {Reset}");
+
+        while (true)
+        {
+            var input = Console.ReadLine()?.Trim();
+            
+            if (string.IsNullOrEmpty(input))
+            {
+                return null; // 用户取消
+            }
+
+            if (int.TryParse(input, out var number) && number >= 1 && number <= 3)
+            {
+                return environments[number - 1].Type;
+            }
+
+            Console.Write($"{Red}❌ 请输入有效的序号 (1-3): {Reset}");
+        }
+    }
 }

@@ -21,6 +21,12 @@ public interface IConsoleUIService
     TemplateWorkflowType ShowTemplateWorkflowSelection();
 
     /// <summary>
+    /// 显示环境选择界面
+    /// </summary>
+    /// <returns>选择的环境类型</returns>
+    EnvironmentType? ShowEnvironmentSelection();
+
+    /// <summary>
     /// 显示确认对话框
     /// </summary>
     /// <param name="message">确认消息</param>

@@ -303,6 +303,63 @@ public enum TemplateWorkflowType
 }
 
 /// <summary>
+/// 环境类型
+/// </summary>
+public enum EnvironmentType
+{
+    /// <summary>
+    /// 开发环境
+    /// </summary>
+    Development,
+
+    /// <summary>
+    /// 测试环境
+    /// </summary>
+    Test,
+
+    /// <summary>
+    /// 生产环境
+    /// </summary>
+    Production
+}
+
+/// <summary>
+/// 环境配置选项
+/// </summary>
+public class EnvironmentOption
+{
+    /// <summary>
+    /// 环境类型
+    /// </summary>
+    public EnvironmentType Type { get; set; }
+
+    /// <summary>
+    /// 显示名称
+    /// </summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 容器后缀
+    /// </summary>
+    public string ContainerSuffix { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 端口偏移量
+    /// </summary>
+    public int PortOffset { get; set; }
+
+    /// <summary>
+    /// 环境变量值
+    /// </summary>
+    public string EnvironmentValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 是否为生产环境
+    /// </summary>
+    public bool IsProduction { get; set; }
+}
+
+/// <summary>
 /// 开发信息
 /// </summary>
 public class DevelopmentInfo
@@ -321,6 +378,11 @@ public class DevelopmentInfo
     /// Web端口
     /// </summary>
     public int WebPort { get; set; }
+
+    /// <summary>
+    /// 环境类型
+    /// </summary>
+    public EnvironmentType Environment { get; set; }
 
     /// <summary>
     /// 开发环境URL

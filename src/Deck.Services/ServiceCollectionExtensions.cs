@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IGlobalExceptionHandler, GlobalExceptionHandler>();
         services.AddTransient<IContainerEngine, PodmanEngine>();
         services.AddTransient<IContainerEngine, DockerEngine>();
+        services.AddTransient<IEnvironmentConfigurationService, EnvironmentConfigurationService>();
 
         // 注册Start命令服务
         services.AddTransient<IStartCommandService>(provider =>
@@ -54,7 +55,8 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<IEnhancedFileOperationsService>(),
                 provider.GetRequiredService<IConfigurationService>(),
                 provider.GetRequiredService<IRemoteTemplatesService>(),
-                provider.GetRequiredService<IFileSystemService>()));
+                provider.GetRequiredService<IFileSystemService>(),
+                provider.GetRequiredService<IEnvironmentConfigurationService>()));
         
     }
 }

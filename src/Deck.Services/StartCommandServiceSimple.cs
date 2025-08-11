@@ -25,6 +25,7 @@ public class StartCommandServiceSimple : IStartCommandService
     private readonly IConfigurationService _configurationService;
     private readonly IRemoteTemplatesService _remoteTemplatesService;
     private readonly IFileSystemService _fileSystemService;
+    private readonly IEnvironmentConfigurationService _environmentConfigurationService;
 
     // 目录常量
     private const string DeckDir = ".deck";
@@ -39,7 +40,8 @@ public class StartCommandServiceSimple : IStartCommandService
         IEnhancedFileOperationsService enhancedFileOperationsService,
         IConfigurationService configurationService,
         IRemoteTemplatesService remoteTemplatesService,
-        IFileSystemService fileSystemService)
+        IFileSystemService fileSystemService,
+        IEnvironmentConfigurationService environmentConfigurationService)
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
@@ -48,6 +50,7 @@ public class StartCommandServiceSimple : IStartCommandService
         _configurationService = configurationService;
         _remoteTemplatesService = remoteTemplatesService;
         _fileSystemService = fileSystemService;
+        _environmentConfigurationService = environmentConfigurationService;
     }
 
     public async Task<StartCommandResult> ExecuteAsync(string? envType, CancellationToken cancellationToken = default)
@@ -323,7 +326,8 @@ public class StartCommandServiceSimple : IStartCommandService
                 _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
             }
             
-            var containerName = $"{projectNameResult.UpdatedProjectName ?? imageName}-dev";
+            // 对于Images分支，直接使用目录名作为容器名（与目录名保持一致）
+            var containerName = projectNameResult.UpdatedProjectName ?? imageName;
             
             // 显示开发环境信息（模拟deck-shell的行为）
             DisplayDevelopmentInfo(portResult.AllPorts);
@@ -457,9 +461,17 @@ public class StartCommandServiceSimple : IStartCommandService
                 _consoleUIService.ShowWarning($"⚠️ {warning}");
             }
 
-            // 生成镜像名称（配置名称 + 时间戳）
+            // 显示环境选择
+            var environment = _consoleUIService.ShowEnvironmentSelection();
+            if (environment == null)
+            {
+                return StartCommandResult.Failure("用户取消了环境选择");
+            }
+
+            // 生成镜像名称（配置名称 + 时间戳 + 环境后缀）
             var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-            var imageName = $"{configName}-{timestamp}";
+            var envSuffix = EnvironmentHelper.GetEnvironmentOption(environment.Value).ContainerSuffix;
+            var imageName = $"{configName}-{timestamp}-{envSuffix}";
             
             // 更新 PROJECT_NAME 避免容器名冲突
             _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
@@ -469,13 +481,13 @@ public class StartCommandServiceSimple : IStartCommandService
                 _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
             }
             
-            var containerName = $"{projectNameResult.UpdatedProjectName ?? imageName}-dev";
+            var containerName = EnvironmentHelper.GetContainerName(projectNameResult.UpdatedProjectName ?? imageName, environment.Value);
             
             // 显示开发环境信息
-            DisplayDevelopmentInfo(portResult.AllPorts);
+            DisplayDevelopmentInfo(portResult.AllPorts, environment.Value);
             
             // 实际执行构建和启动流程
-            var buildResult = await BuildAndStartContainer(configName, imageName, containerName, engineName.ToLower(), cancellationToken);
+            var buildResult = await BuildAndStartContainer(configName, imageName, containerName, environment.Value, engineName.ToLower(), cancellationToken);
             if (!buildResult.IsSuccess)
             {
                 return buildResult;
@@ -613,10 +625,18 @@ public class StartCommandServiceSimple : IStartCommandService
         await CopyDirectoryAsync(templatePath, configPath);
         _consoleUIService.ShowSuccess("✅ 模板复制完成");
 
+        // 显示环境选择
+        var environment = _consoleUIService.ShowEnvironmentSelection();
+        if (environment == null)
+        {
+            return StartCommandResult.Failure("用户取消了环境选择");
+        }
+
         // 步骤 2: 复制配置到 images 目录
         _consoleUIService.ShowStep(2, 3, "复制配置到 images 目录");
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-        var imageName = $"{customName}-{timestamp}";
+        var envSuffix = EnvironmentHelper.GetEnvironmentOption(environment.Value).ContainerSuffix;
+        var imageName = $"{customName}-{timestamp}-{envSuffix}";
 
         var sourcePath = Path.Combine(CustomDir, customName);
         var targetPath = Path.Combine(ImagesDir, imageName);
@@ -631,8 +651,15 @@ public class StartCommandServiceSimple : IStartCommandService
         await CopyDirectoryAsync(sourcePath, targetPath);
         _consoleUIService.ShowSuccess("✅ 配置复制完成");
 
-        // 处理端口冲突和项目名称
+        // 更新环境配置文件
+        _consoleUIService.ShowInfo("⚙️ 更新环境配置...");
+        var composeFilePath = Path.Combine(targetPath, "compose.yaml");
         var envFilePath = Path.Combine(targetPath, ".env");
+        
+        await _environmentConfigurationService.UpdateComposeEnvironmentAsync(composeFilePath, environment.Value, imageName);
+        await _environmentConfigurationService.UpdateEnvFileEnvironmentAsync(envFilePath, environment.Value);
+
+        // 处理端口冲突和项目名称
         if (File.Exists(envFilePath))
         {
             // 处理标准端口管理和冲突检测（仅检测，不修改文件）
@@ -684,28 +711,30 @@ public class StartCommandServiceSimple : IStartCommandService
             }
             
             // 显示开发环境信息
-            DisplayDevelopmentInfo(portResult.AllPorts);
+            DisplayDevelopmentInfo(portResult.AllPorts, environment.Value);
         }
 
         // 步骤 3: 构建并启动镜像
         _consoleUIService.ShowStep(3, 3, "构建并启动镜像");
 
+        var containerName = EnvironmentHelper.GetContainerName(imageName, environment.Value);
+
         // 3. 构建并启动容器（使用docker-compose一步完成）
         _consoleUIService.ShowInfo("🔨 正在构建并启动容器...");
-        var startSuccess = await StartContainerAsync(imageName, $"{imageName}-dev", engine, cancellationToken);
+        var startSuccess = await StartContainerAsync(imageName, containerName, engine, cancellationToken);
         if (!startSuccess)
         {
             return StartCommandResult.Failure("容器构建或启动失败");
         }
-        _consoleUIService.ShowSuccess($"✅ 容器构建并启动成功: {imageName}-dev");
+        _consoleUIService.ShowSuccess($"✅ 容器构建并启动成功: {containerName}");
 
-        return StartCommandResult.Success(imageName, $"{imageName}-dev");
+        return StartCommandResult.Success(imageName, containerName);
     }
 
     /// <summary>
     /// 构建镜像并启动容器的实际实现
     /// </summary>
-    private async Task<StartCommandResult> BuildAndStartContainer(string configName, string imageName, string containerName, string engine, CancellationToken cancellationToken)
+    private async Task<StartCommandResult> BuildAndStartContainer(string configName, string imageName, string containerName, EnvironmentType environment, string engine, CancellationToken cancellationToken)
     {
         try
         {
@@ -723,6 +752,14 @@ public class StartCommandServiceSimple : IStartCommandService
             // 复制整个目录
             await CopyDirectoryAsync(sourcePath, targetPath);
             _consoleUIService.ShowSuccess("✅ 配置复制完成");
+
+            // 更新环境配置文件
+            _consoleUIService.ShowInfo("⚙️ 更新环境配置...");
+            var composeFilePath = Path.Combine(targetPath, "compose.yaml");
+            var envFilePath = Path.Combine(targetPath, ".env");
+            
+            await _environmentConfigurationService.UpdateComposeEnvironmentAsync(composeFilePath, environment, imageName);
+            await _environmentConfigurationService.UpdateEnvFileEnvironmentAsync(envFilePath, environment);
 
             // 2. 构建并启动容器（使用docker-compose一步完成）
             _consoleUIService.ShowInfo("🔨 正在构建并启动容器...");
@@ -1767,37 +1804,57 @@ public class StartCommandServiceSimple : IStartCommandService
     }
 
     /// <summary>
-    /// 显示开发环境信息，模拟deck-shell的行为
+    /// 显示开发环境信息，模拟deck-shell的行为（Image分支使用，默认开发环境）
     /// </summary>
     private void DisplayDevelopmentInfo(Dictionary<string, int> ports)
     {
+        DisplayDevelopmentInfo(ports, EnvironmentType.Development);
+    }
+
+    /// <summary>
+    /// 显示开发环境信息，模拟deck-shell的行为
+    /// </summary>
+    private void DisplayDevelopmentInfo(Dictionary<string, int> ports, EnvironmentType environment)
+    {
         if (ports.Count == 0) return;
         
-        _consoleUIService.ShowInfo("📋 开发环境信息：");
+        var envOption = EnvironmentHelper.GetEnvironmentOption(environment);
+        _consoleUIService.ShowInfo($"📋 {envOption.DisplayName}信息：");
         
         if (ports.TryGetValue("DEV_PORT", out var devPort))
         {
-            _consoleUIService.ShowInfo($"  🌐 开发服务：http://localhost:{devPort}");
+            var adjustedPort = EnvironmentHelper.CalculatePort(devPort, environment);
+            _consoleUIService.ShowInfo($"  🌐 开发服务：http://localhost:{adjustedPort}");
         }
         
         if (ports.TryGetValue("DEBUG_PORT", out var debugPort))
         {
-            _consoleUIService.ShowInfo($"  🐛 调试端口：{debugPort}");
+            var adjustedPort = EnvironmentHelper.CalculatePort(debugPort, environment);
+            _consoleUIService.ShowInfo($"  🐛 调试端口：{adjustedPort}");
         }
         
         if (ports.TryGetValue("WEB_PORT", out var webPort))
         {
-            _consoleUIService.ShowInfo($"  📱 Web端口：http://localhost:{webPort}");
+            var adjustedPort = EnvironmentHelper.CalculatePort(webPort, environment);
+            _consoleUIService.ShowInfo($"  📱 Web端口：http://localhost:{adjustedPort}");
         }
         
         if (ports.TryGetValue("HTTPS_PORT", out var httpsPort))
         {
-            _consoleUIService.ShowInfo($"  🔒 HTTPS端口：https://localhost:{httpsPort}");
+            var adjustedPort = EnvironmentHelper.CalculatePort(httpsPort, environment);
+            _consoleUIService.ShowInfo($"  🔒 HTTPS端口：https://localhost:{adjustedPort}");
         }
         
         if (ports.TryGetValue("ANDROID_DEBUG_PORT", out var androidPort))
         {
-            _consoleUIService.ShowInfo($"  📱 Android调试端口：{androidPort}");
+            var adjustedPort = EnvironmentHelper.CalculatePort(androidPort, environment);
+            _consoleUIService.ShowInfo($"  📱 Android调试端口：{adjustedPort}");
+        }
+
+        // 显示环境特定的警告信息
+        if (environment == EnvironmentType.Production)
+        {
+            _consoleUIService.ShowWarning("⚠️ 生产环境已启动，请确保配置正确");
         }
     }
 
