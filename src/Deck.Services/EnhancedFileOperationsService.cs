@@ -64,21 +64,25 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
             var portValues = currentPorts.Values.ToList();
             var conflictResults = await _portConflictService.CheckPortsAsync(portValues);
 
-            // 处理端口冲突
+            // 处理端口冲突 - 确保每个端口都分配到不同的值
+            var usedPorts = new HashSet<int>(currentPorts.Values.Where(p => !conflictResults.Any(c => c.Port == p && !c.IsAvailable)));
+            
             foreach (var conflict in conflictResults.Where(c => !c.IsAvailable))
             {
                 var portVar = currentPorts.FirstOrDefault(p => p.Value == conflict.Port).Key;
                 if (!string.IsNullOrEmpty(portVar))
                 {
-                    var availablePort = await _portConflictService.FindAvailablePortAsync(
+                    var availablePort = await FindNextAvailablePortAsync(
                         conflict.Port,
                         options.PortRangeStart,
-                        options.PortRangeEnd);
+                        options.PortRangeEnd,
+                        usedPorts);
 
                     if (availablePort.HasValue && availablePort != conflict.Port)
                     {
                         result.ModifiedPorts[portVar] = availablePort.Value;
                         currentPorts[portVar] = availablePort.Value;
+                        usedPorts.Add(availablePort.Value); // 记录已使用的端口
                         result.Warnings.Add($"端口冲突：{portVar} 从 {conflict.Port} 更改为 {availablePort.Value}");
                         if (options.CreateBackup)
                         {
@@ -106,6 +110,41 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 查找下一个可用端口，避免与已使用的端口冲突
+    /// </summary>
+    private async Task<int?> FindNextAvailablePortAsync(int preferredPort, int startRange, int endRange, HashSet<int> usedPorts)
+    {
+        // 从首选端口开始搜索
+        for (int port = Math.Max(preferredPort, startRange); port <= endRange; port++)
+        {
+            // 跳过已经被其他变量使用的端口
+            if (usedPorts.Contains(port))
+                continue;
+                
+            var availablePort = await _portConflictService.FindAvailablePortAsync(port, port, port);
+            if (availablePort.HasValue)
+            {
+                return availablePort.Value;
+            }
+        }
+
+        // 如果首选端口之后没有找到，从范围开始处搜索
+        for (int port = startRange; port < Math.Max(preferredPort, startRange); port++)
+        {
+            if (usedPorts.Contains(port))
+                continue;
+                
+            var availablePort = await _portConflictService.FindAvailablePortAsync(port, port, port);
+            if (availablePort.HasValue)
+            {
+                return availablePort.Value;
+            }
+        }
+
+        return null;
     }
 
     public async Task<ProjectNameUpdateResult> UpdateProjectNameAsync(string envFilePath, string imageName, EnhancedFileOperationOptions? options = null)
@@ -291,9 +330,24 @@ public class EnhancedFileOperationsService : IEnhancedFileOperationsService
             Directory.CreateDirectory(backupDir);
 
             var fileName = Path.GetFileName(configFilePath);
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
             var backupFileName = $"{fileName}.{timestamp}.bak";
             var backupFilePath = Path.Combine(backupDir, backupFileName);
+
+            // 如果文件已存在，添加唯一后缀
+            if (File.Exists(backupFilePath))
+            {
+                var counter = 1;
+                var baseFileName = Path.GetFileNameWithoutExtension(backupFileName);
+                var extension = Path.GetExtension(backupFileName);
+                
+                do
+                {
+                    backupFileName = $"{baseFileName}_{counter:D2}{extension}";
+                    backupFilePath = Path.Combine(backupDir, backupFileName);
+                    counter++;
+                } while (File.Exists(backupFilePath) && counter < 100);
+            }
 
             File.Copy(configFilePath, backupFilePath);
 

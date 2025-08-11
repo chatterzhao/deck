@@ -631,26 +631,73 @@ public class StartCommandServiceSimple : IStartCommandService
         await CopyDirectoryAsync(sourcePath, targetPath);
         _consoleUIService.ShowSuccess("✅ 配置复制完成");
 
+        // 处理端口冲突和项目名称
+        var envFilePath = Path.Combine(targetPath, ".env");
+        if (File.Exists(envFilePath))
+        {
+            // 处理标准端口管理和冲突检测（仅检测，不修改文件）
+            _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
+            var detectionOptions = new EnhancedFileOperationOptions { CreateBackup = false };
+            var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, detectionOptions);
+            if (!portResult.IsSuccess)
+            {
+                return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
+            }
+            
+            // 显示端口冲突解决信息并处理用户交互
+            if (portResult.ModifiedPorts.Count > 0)
+            {
+                _consoleUIService.ShowWarning("⚠️ 检测到端口冲突：");
+                foreach (var (portVar, newPort) in portResult.ModifiedPorts)
+                {
+                    _consoleUIService.ShowInfo($"  📌 {portVar}: 建议更改为端口 {newPort}");
+                }
+                
+                // 询问用户是否要应用推荐的端口更改
+                var applyPortChanges = _consoleUIService.ShowConfirmation("是否应用推荐的端口更改？");
+                if (!applyPortChanges)
+                {
+                    return StartCommandResult.Failure("用户取消了构建，请检查端口配置后重试");
+                }
+                
+                // 用户确认后才应用端口更改（这次会修改文件）
+                var updateOptions = new EnhancedFileOperationOptions { CreateBackup = true };
+                await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, updateOptions);
+            }
+            else
+            {
+                _consoleUIService.ShowSuccess("✅ 所有端口配置正常，无冲突");
+            }
+            
+            // 显示其他端口警告
+            foreach (var warning in portResult.Warnings.Where(w => !w.Contains("端口冲突：")))
+            {
+                _consoleUIService.ShowWarning($"⚠️ {warning}");
+            }
+
+            // 更新 PROJECT_NAME 避免容器名冲突
+            _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
+            var projectNameResult = await _enhancedFileOperationsService.UpdateProjectNameAsync(envFilePath, imageName);
+            if (!projectNameResult.IsSuccess)
+            {
+                _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
+            }
+            
+            // 显示开发环境信息
+            DisplayDevelopmentInfo(portResult.AllPorts);
+        }
+
         // 步骤 3: 构建并启动镜像
         _consoleUIService.ShowStep(3, 3, "构建并启动镜像");
 
-        // 3. 构建镜像
-        _consoleUIService.ShowInfo("🔨 正在构建镜像...");
-        var buildSuccess = await BuildImageAsync(targetPath, imageName, engine, cancellationToken);
-        if (!buildSuccess)
-        {
-            return StartCommandResult.Failure("镜像构建失败");
-        }
-        _consoleUIService.ShowSuccess($"✅ 镜像构建完成: {imageName}");
-
-        // 4. 启动容器
-        _consoleUIService.ShowInfo("🚀 正在启动容器...");
+        // 3. 构建并启动容器（使用docker-compose一步完成）
+        _consoleUIService.ShowInfo("🔨 正在构建并启动容器...");
         var startSuccess = await StartContainerAsync(imageName, $"{imageName}-dev", engine, cancellationToken);
         if (!startSuccess)
         {
-            return StartCommandResult.Failure("容器启动失败");
+            return StartCommandResult.Failure("容器构建或启动失败");
         }
-        _consoleUIService.ShowSuccess($"✅ 容器启动成功: {imageName}-dev");
+        _consoleUIService.ShowSuccess($"✅ 容器构建并启动成功: {imageName}-dev");
 
         return StartCommandResult.Success(imageName, $"{imageName}-dev");
     }
@@ -677,23 +724,14 @@ public class StartCommandServiceSimple : IStartCommandService
             await CopyDirectoryAsync(sourcePath, targetPath);
             _consoleUIService.ShowSuccess("✅ 配置复制完成");
 
-            // 2. 构建镜像
-            _consoleUIService.ShowInfo("🔨 正在构建镜像...");
-            var buildSuccess = await BuildImageAsync(targetPath, imageName, engine, cancellationToken);
-            if (!buildSuccess)
-            {
-                return StartCommandResult.Failure("镜像构建失败");
-            }
-            _consoleUIService.ShowSuccess($"✅ 镜像构建完成: {imageName}");
-
-            // 3. 启动容器
-            _consoleUIService.ShowInfo("🚀 正在启动容器...");
+            // 2. 构建并启动容器（使用docker-compose一步完成）
+            _consoleUIService.ShowInfo("🔨 正在构建并启动容器...");
             var startSuccess = await StartContainerAsync(imageName, containerName, engine, cancellationToken);
             if (!startSuccess)
             {
-                return StartCommandResult.Failure("容器启动失败");
+                return StartCommandResult.Failure("容器构建或启动失败");
             }
-            _consoleUIService.ShowSuccess($"✅ 容器启动成功: {containerName}");
+            _consoleUIService.ShowSuccess($"✅ 容器构建并启动成功: {containerName}");
 
             return StartCommandResult.Success(imageName, containerName);
         }
@@ -744,7 +782,7 @@ public class StartCommandServiceSimple : IStartCommandService
             var startInfo = new ProcessStartInfo
             {
                 FileName = engine,
-                Arguments = $"build -t {imageName} .",
+                Arguments = $"compose build --no-cache",
                 WorkingDirectory = contextPath,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -788,11 +826,11 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
-            // 使用compose文件启动容器
+            // 使用compose文件构建并启动容器
             var startInfo = new ProcessStartInfo
             {
                 FileName = engine,
-                Arguments = $"compose up -d",
+                Arguments = $"compose up -d --build",
                 WorkingDirectory = Path.Combine(ImagesDir, imageName),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
