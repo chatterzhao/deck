@@ -779,7 +779,7 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine($"  {programName} start tauri              # 启动 Tauri 环境");
     Console.WriteLine($"  {programName} stop my-app-20241215     # 停止指定镜像");
     Console.WriteLine($"  {programName} logs -f                  # 实时查看日志");
-    Console.WriteLine($"  {programName} custom create tauri-dev  # 创建自定义配置");
+    Console.WriteLine($"  {programName} custom create tauri  # 创建自定义配置");
     Console.WriteLine($"  {programName} ps --all                 # 显示所有容器状态");
     Console.WriteLine($"  {programName} rm my-container          # 删除指定容器");
     Console.WriteLine($"  {programName} install podman           # 安装 Podman");

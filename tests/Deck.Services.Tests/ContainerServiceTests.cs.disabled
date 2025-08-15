@@ -50,8 +50,8 @@ public class ContainerServiceTests
 
     [Theory]
     [InlineData("tauri-20240722-1430", ProjectType.Tauri, true)]
-    [InlineData("flutter-dev-container", ProjectType.Flutter, true)]
-    [InlineData("avalonia-app-20240722", ProjectType.Avalonia, true)]
+    [InlineData("flutter-container", ProjectType.Flutter, true)]
+    [InlineData("avalonia-20240722", ProjectType.Avalonia, true)]
     [InlineData("random-container", ProjectType.Tauri, false)]
     public async Task FilterContainersByProjectAsync_WithDifferentContainerNames_ReturnsCorrectResults(
         string containerName, ProjectType projectType, bool shouldMatch)

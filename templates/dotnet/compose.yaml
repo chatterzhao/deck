@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  avalonia${AVALONIA_VERSION_NAME}:
+  dotnet${DOTNET_VERSION_NAME}:
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,17 +11,20 @@ services:
         UBUNTU_NAME: ${UBUNTU_NAME:-2204}
         DOTNET_VERSION: ${DOTNET_VERSION:-9.0}
         DOTNET_VERSION_NAME: ${DOTNET_VERSION_NAME:-90}
-        AVALONIA_VERSION: ${AVALONIA_VERSION:-11.3.2}
-        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget build-essential ca-certificates libx11-dev libxext-dev libxrender-dev libgtk-3-dev libfontconfig1-dev"}
-        ANDROID_SDK_VERSION: ${ANDROID_SDK_VERSION:-35}
-        ANDROID_NDK_VERSION: ${ANDROID_NDK_VERSION:-25.2.9519653}
-        ANDROID_BUILD_TOOLS_VERSION: ${ANDROID_BUILD_TOOLS_VERSION:-35.0.0}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget build-essential ca-certificates"}
         INSTALL_ANDROID_SUPPORT: ${INSTALL_ANDROID_SUPPORT:-false}
-        INSTALL_NODEJS: ${INSTALL_NODEJS:-false}
-        INSTALL_AVALONIA_TEMPLATES: ${INSTALL_AVALONIA_TEMPLATES:-true}
-    image: localhost/avalonia:${AVALONIA_VERSION_NAME:-11.0}
-    container_name: ${PROJECT_NAME:-avalonia}${AVALONIA_VERSION_NAME}
-    hostname: ${PROJECT_NAME:-avalonia}${AVALONIA_VERSION_NAME}
+        INSTALL_WASM_TOOLS: ${INSTALL_WASM_TOOLS:-true}
+        INSTALL_WASM_EXPERIMENTAL: ${INSTALL_WASM_EXPERIMENTAL:-false}
+        INSTALL_WASI_EXPERIMENTAL: ${INSTALL_WASI_EXPERIMENTAL:-false}
+        INSTALL_DOTNET_WATCH: ${INSTALL_DOTNET_WATCH:-true}
+        INSTALL_DOTNET_FORMAT: ${INSTALL_DOTNET_FORMAT:-true}
+        INSTALL_DOTNET_EF: ${INSTALL_DOTNET_EF:-false}
+        INSTALL_DOTNET_OUTDATED: ${INSTALL_DOTNET_OUTDATED:-false}
+        INSTALL_DOTNET_TRACE: ${INSTALL_DOTNET_TRACE:-false}
+        INSTALL_DOTNET_SERVE: ${INSTALL_DOTNET_SERVE:-false}
+    image: localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION:-9.0}
+    container_name: ${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
+    hostname: ${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
     volumes:
       # Mount project workspace (relative to project root)
       - ../../../../:${WORKSPACE_PATH:-/workspace}
@@ -33,30 +36,13 @@ services:
       - type: volume
         source: apt-lib-cache
         target: /var/lib/apt
-      # .NET中间层缓存 (来自下层.NET基础镜像)
+      # .NET特定缓存 (当前层新增)
       - type: volume
         source: nuget-cache
         target: ${NUGET_PACKAGES:-/opt/nuget-cache}
       - type: volume
         source: dotnet-tools-cache
         target: /root/.dotnet/tools
-      # Avalonia项目层（当前层新增）
-      # Node.js cache (when Node.js support is enabled)
-      - type: volume
-        source: node-cache
-        target: /root/.npm
-      # Android SDK caches (when Android support is enabled)
-      - type: volume
-        source: android-gradle-cache
-        target: /root/.gradle
-      - type: volume
-        source: android-build-cache
-        target: /opt/android-sdk/build-tools
-      # GUI Application Support (X11 forwarding for Linux)
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      # Optional: Mount local cache directories if available
-      # Uncomment these lines if you have local cache directories
-      # - ${NUGET_CACHE_DIR:-./cache/nuget}:${NUGET_PACKAGES:-/workspace/.nuget/packages}:cached
     ports:
       # Development server ports (runtime configurable)
       - "${DEV_PORT:-5000}:5000"
@@ -64,8 +50,6 @@ services:
       # Web development ports
       - "${WEB_PORT:-8080}:8080"
       - "${HTTPS_PORT:-8443}:8443"
-      # Android debugging port
-      - "${ANDROID_DEBUG_PORT:-5037}:5037"
     env_file:
       # Load all environment variables from .env
       - .env
@@ -73,19 +57,13 @@ services:
       # Override specific runtime variables if needed
       - DOTNET_ENVIRONMENT=${DOTNET_ENVIRONMENT:-Development}
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - PROJECT_NAME=${PROJECT_NAME:-avalonia}${AVALONIA_VERSION_NAME}
+      - PROJECT_NAME=${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
       - DOTNET_CLI_TELEMETRY_OPTOUT=1
       - DOTNET_NOLOGO=1
       - DOTNET_USE_POLLING_FILE_WATCHER=${DOTNET_USE_POLLING_FILE_WATCHER:-true}
       - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=${DOTNET_WATCH_RESTART_ON_RUDE_EDIT:-true}
-      # GUI Application Support
-      - DISPLAY=${DISPLAY:-:0}
-      - QT_X11_NO_MITSHM=1
-      - LIBGL_ALWAYS_INDIRECT=1
-      - AVALONIA_X11_BACKENDS=x11
-      - AVALONIA_ENABLE_PLATFORM_THREADING=true
     working_dir: ${WORKSPACE_PATH:-/workspace}
-    command: avalonia bash
+    command: dotnet${DOTNET_VERSION_NAME} bash
     stdin_open: true
     tty: true
     # Resource limits (runtime configurable)
@@ -119,36 +97,20 @@ services:
     # Enable development features
     cap_add:
       - SYS_PTRACE  # For debugging with .NET debugger
-    # Additional GUI support - uncomment if needed
-    # devices:
-    #   - /dev/dri:/dev/dri  # For hardware acceleration
-    # privileged: true  # May be needed for some GUI frameworks
 
 volumes:
-  # Ubuntu 基础层
   apt-cache:
     driver: local
   apt-lib-cache:
     driver: local
-  # .NET 技术栈层
   nuget-cache:
     driver: local
   dotnet-tools-cache:
     driver: local
-  # Avalonia应用层(当前层新增)
-  # Node.js cache volume
-  node-cache:
-    driver: local
-  # Android SDK cache volumes
-  android-gradle-cache:
-    driver: local
-  android-build-cache:
-    driver: local
 
-# Optional: Define networks for multi-service setups
 networks:
   default:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.23.0.0/16
+        - subnet: 172.22.0.0/16

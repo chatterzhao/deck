@@ -75,7 +75,7 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
             {
                 new()
                 {
-                    Name = "avalonia-dev",
+                    Name = "avalonia",
                     LayerType = ThreeLayerConfigurationType.Images,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true },
                     DetectedProjectType = ProjectType.Avalonia
@@ -103,7 +103,7 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         result.IsCancelled.Should().BeFalse();
         result.SelectedConfiguration.Should().NotBeNull();
-        result.SelectedConfiguration!.Name.Should().Be("avalonia-dev");
+        result.SelectedConfiguration!.Name.Should().Be("avalonia");
         result.SelectedLayerType.Should().Be(ThreeLayerConfigurationType.Images);
     }
 
@@ -332,7 +332,7 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData(ProjectType.Avalonia, "avalonia-dev")]
+    [InlineData(ProjectType.Avalonia, "avalonia")]
     [InlineData(ProjectType.Avalonia, "avalonia-ui")]
     public void SelectableThreeLayerConfiguration_ShouldFormatCorrectly(ProjectType projectType, string name)
     {
@@ -446,14 +446,14 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
             {
                 new()
                 {
-                    Name = "avalonia-dev",
+                    Name = "avalonia",
                     LayerType = ThreeLayerConfigurationType.Images,
                     DetectedProjectType = ProjectType.Avalonia,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true }
                 },
                 new()
                 {
-                    Name = "flutter-dev",
+                    Name = "flutter",
                     LayerType = ThreeLayerConfigurationType.Images,
                     DetectedProjectType = ProjectType.Flutter,
                     Status = new ConfigurationStatus { HasComposeYaml = true, HasDockerfile = true, HasEnvFile = true }
@@ -467,8 +467,8 @@ public class AdvancedInteractiveSelectionServiceTests : IDisposable
 
         // 应该优先显示匹配的项目类型
         avaloniaConfigs.Should().HaveCount(1);
-        avaloniaConfigs[0].Name.Should().Be("avalonia-dev");
+        avaloniaConfigs[0].Name.Should().Be("avalonia");
         otherConfigs.Should().HaveCount(1);
-        otherConfigs[0].Name.Should().Be("flutter-dev");
+        otherConfigs[0].Name.Should().Be("flutter");
     }
 }

@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  ubuntu${UBUNTU_NAME}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-22.04}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget ssh build-essential ca-certificates"}
+    image: localhost/ubuntu${UBUNTU_NAME}:${UBUNTU_VERSION:-22.04}
+    container_name: ${PROJECT_NAME:-ubuntu}${UBUNTU_NAME}
+    hostname: ${PROJECT_NAME:-ubuntu}${UBUNTU_NAME}
+    volumes:
+      # 服务卷挂载配置：定义容器运行时需要挂载的卷及其目标路径
+      # Mount project workspace (relative to project root)
+      - ../../../../:${WORKSPACE_PATH:-/workspace}
+      # Persistent cache volumes for faster rebuilds
+      # 存储APT下载的deb包文件，避免重复下载
+      - type: volume
+        source: apt-cache
+        target: /var/cache/apt
+      # 存储APT状态信息和包元数据，确保包管理正确性
+      - type: volume
+        source: apt-lib-cache
+        target: /var/lib/apt
+    env_file:
+      # Load all environment variables from .env
+      - .env
+    environment:
+      # Override specific runtime variables if needed
+      - PROJECT_NAME=${PROJECT_NAME:-ubuntu}${UBUNTU_NAME}
+    working_dir: ${WORKSPACE_PATH:-/workspace}
+    command: dev-info bash
+    stdin_open: true
+    tty: true
+    # Resource limits (runtime configurable)
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-2g}
+          cpus: '${CPU_LIMIT:-2}'
+        reservations:
+          memory: 512m
+          cpus: '0.5'
+    shm_size: ${SHM_SIZE:-512m}
+    # Network configuration
+    network_mode: bridge
+    # DNS configuration for better network performance
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Restart policy
+    restart: unless-stopped
+
+# 卷定义，配合上面 services 服务卷挂载使用
+# 声明Compose环境中可用的卷及其属性
+volumes:
+  # APT包管理器缓存卷，用于存储下载的deb包，提高重建速度
+  apt-cache:
+    driver: local
+  # APT包管理器状态信息缓存卷，存储包状态和元数据
+  apt-lib-cache:
+    driver: local
