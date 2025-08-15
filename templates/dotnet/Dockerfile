@@ -5,12 +5,13 @@
 # Build arguments
 ARG DOCKER_REGISTRY
 ARG UBUNTU_VERSION
+ARG UBUNTU_NAME
 ARG DOTNET_VERSION
 ARG DOTNET_VERSION_NAME
 ARG DEPENDENCIES
 
 # Use the ubuntu image as base (built from ubuntu template)
-FROM localhost/ubuntu${UBUNTU_NAME} as dotnet${DOTNET_VERSION_NAME}
+FROM localhost/ubuntu${UBUNTU_NAME}:${UBUNTU_VERSION} as dotnet${DOTNET_VERSION_NAME}
 
 # Install .NET SDK
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- -c ${DOTNET_VERSION} -InstallDir /usr/bin/dotnet

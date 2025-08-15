@@ -10,7 +10,7 @@ ARG DEPENDENCIES
 # Development Stage - 基于Deck .NET基础镜像的Avalonia开发环境
 # =============================================================================
 # 使用Deck .NET基础开发镜像作为基础
-FROM localhost/dotnet${DOTNET_VERSION_NAME} as avalonia${AVALONIA_VERSION_NAME}
+FROM localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION} as avalonia${AVALONIA_VERSION_NAME}
 
 # Install additional system dependencies specific to Avalonia
 RUN apt-get update && apt-get install -y ${DEPENDENCIES} && rm -rf /var/lib/apt/lists/*
