@@ -35,7 +35,8 @@ Deck .NET 版基于 .NET 9 构建，AOT，跨平台原生性能，支持 Windows
 
 #### macOS
 1. 下载 `.pkg` 安装包
-2. 双击运行安装程序，按向导完成安装
+2. 双击运行安装程序（双击安装包后，如果提示安全问题，问是否移动到“废纸篓”，不要点这个按钮，点其他的按钮，比如“确定”，然后打开“系统设置”中的“安全性和隐私”，滚到底，在安全区域，点击“仍要打开”）
+3. 按向导完成安装
 3. 安装完成后，在终端中运行 `deck --help` 验证
 4. 终端执行 `deck-uninstall`
 
@@ -354,17 +355,25 @@ cd deck
 # 安装依赖
 dotnet restore
 
-# macOS 构建，构建后在 build/release 下按您系统平台找到 deck.console 即可复制路径到终端执行
-./scripts/build.sh # 或 Windows ./scripts/build.ps1
-
-# macOS 打包
-./scripts/package.sh # 或 Windows ./scripts/package.ps1
-
 # 运行测试
 dotnet test
 
 # 运行开发版本
 dotnet run --project src/Deck.Console
+
+# macOS 构建（本地）
+# 构建后在 build/release 下按您系统平台找到 deck.console 即可复制路径到终端执行
+./scripts/build.sh # 或 Windows ./scripts/build.ps1
+
+# macOS 打包（本地）
+./scripts/package.sh # 或 Windows ./scripts/package.ps1
+
+# 使用 GitHub 发布
+# 通过 tag 触发 GitHub Action
+git tag vxx && git push origin vxx
+
+# 删除本地和远程 tag
+git tag -d vxx && git push --delete origin vxx
 ```
 
 ### 项目结构
