@@ -14,7 +14,23 @@ public static class ServiceCollectionExtensions
         {
             builder.ClearProviders();
             builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Information);
+#if DEBUG
+            // 调试模式下启用详细日志
+            builder.SetMinimumLevel(LogLevel.Debug);
+#else
+            // 发布模式下只显示警告及以上级别的日志
+            builder.SetMinimumLevel(LogLevel.Warning);
+#endif
+
+            // 为特定类别设置日志级别
+#if DEBUG
+            builder.AddFilter("Deck.Services.ConfigurationService", LogLevel.Information);
+            builder.AddFilter("Deck.Services.SystemDetectionService", LogLevel.Information);
+#else
+            // 发布模式下进一步限制特定服务的日志
+            builder.AddFilter("Deck.Services.ConfigurationService", LogLevel.Warning);
+            builder.AddFilter("Deck.Services.SystemDetectionService", LogLevel.Warning);
+#endif
         });
 
         // 添加HttpClient
