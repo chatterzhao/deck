@@ -55,10 +55,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$ENABLE_AOT" == "true" ]]; then
+    echo "⚠️  注意：AOT模式下仅支持构建当前宿主系统平台的二进制文件"
     echo "🚀 开始跨平台构建 Deck v$VERSION (AOT优化)..."
 else
+    echo "⚠️  注意：开发模式下将构建所有平台的二进制文件"
     echo "🚀 开始跨平台构建 Deck v$VERSION (开发模式)..."
 fi
+
+echo ""
+echo "⚠️  跨平台构建说明:"
+echo "   虽然此脚本可以在单一环境中构建所有平台的二进制文件，"
+echo "   但为了获得最佳兼容性，建议在目标平台上进行构建。"
+echo "   特别是使用AOT编译时，应在相应的目标平台上构建。"
+echo ""
 
 # 切换到项目根目录
 cd "$(dirname "$0")/.."
