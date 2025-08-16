@@ -1,32 +1,31 @@
+# Define build arguments for base image reference
 ARG DOCKER_REGISTRY
 ARG UBUNTU_VERSION
 ARG UBUNTU_NAME
 ARG DOTNET_VERSION
 ARG DOTNET_VERSION_NAME
 ARG AVALONIA_VERSION
-ARG DEPENDENCIES
 
-# =============================================================================
-# Development Stage - 基于Deck .NET基础镜像的Avalonia开发环境
-# =============================================================================
-# 使用Deck .NET基础开发镜像作为基础
 FROM localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION} as avalonia${AVALONIA_VERSION_NAME}
+
+# Define build arguments after FROM instruction to ensure they are in the correct scope
+ARG DEPENDENCIES
+ARG INSTALL_AVALONIA_TEMPLATES
+ARG INSTALL_ANDROID_SUPPORT
+ARG ANDROID_SDK_VERSION
+ARG ANDROID_NDK_VERSION  
+ARG ANDROID_BUILD_TOOLS_VERSION
 
 # Install additional system dependencies specific to Avalonia
 RUN apt-get update && apt-get install -y ${DEPENDENCIES} && rm -rf /var/lib/apt/lists/*
 
 # Install Avalonia templates with specific version (optional)
-ARG INSTALL_AVALONIA_TEMPLATES
 RUN if [ "$INSTALL_AVALONIA_TEMPLATES" = "true" ]; then \
         dotnet new install Avalonia.Templates::${AVALONIA_VERSION} || \
         dotnet new install Avalonia.Templates; \
     fi
 
 # Install Android SDK and tools for mobile development (optional)
-ARG ANDROID_SDK_VERSION
-ARG ANDROID_NDK_VERSION  
-ARG ANDROID_BUILD_TOOLS_VERSION
-
 # Only set Android environment if Android support is enabled
 RUN if [ "$INSTALL_ANDROID_SUPPORT" = "true" ]; then \
         export ANDROID_HOME=/opt/android-sdk && \

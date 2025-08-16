@@ -47,8 +47,9 @@ deck start ubuntu --editable
 - `DEPENDENCIES`：要安装的额外系统包
 - `PROJECT_NAME`：容器名称
 - `WORKSPACE_PATH`：挂载项目文件的路径
-- `MEMORY_LIMIT`：容器内存限制
-- `CPU_LIMIT`：容器 CPU 限制
+- `MEMORY_LIMIT`：容器内存限制（默认：2g）
+- `CPU_LIMIT`：容器 CPU 限制（默认：2）
+- `SHM_SIZE`：共享内存大小（默认：512m）
 
 ## 缓存
 

@@ -5,9 +5,12 @@
 # Stage 1: Base Ubuntu system with common tools
 ARG DOCKER_REGISTRY
 ARG UBUNTU_VERSION
-ARG DEPENDENCIES
+ARG UBUNTU_NAME
 
 FROM ${DOCKER_REGISTRY}/ubuntu:${UBUNTU_VERSION} as ubuntu${UBUNTU_NAME}
+
+# Define build arguments after FROM instruction to ensure they are in the correct scope
+ARG DEPENDENCIES
 
 # Prevent interactive dialogs during package installation
 ENV DEBIAN_FRONTEND=noninteractive

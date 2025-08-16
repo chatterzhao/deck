@@ -8,6 +8,7 @@ services:
       args:
         DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
         UBUNTU_VERSION: ${UBUNTU_VERSION:-22.04}
+        UBUNTU_NAME: ${UBUNTU_NAME:-2204}
         DEPENDENCIES: ${DEPENDENCIES:-"curl git wget ssh build-essential ca-certificates"}
     image: localhost/ubuntu${UBUNTU_NAME}:${UBUNTU_VERSION:-22.04}
     container_name: ${PROJECT_NAME:-ubuntu}${UBUNTU_NAME}
