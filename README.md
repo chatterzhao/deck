@@ -293,7 +293,44 @@ podman rm [CONTAINER-name/ID]          # 删除容器
 podman images                     # 查看所有镜像
 podman rmi [IMAGE-name/ID]        # 删除镜像（需要先删除相关容器）
 podman build -t [IMAGE-NAME] .    # 构建镜像
+
+# 清理构建缓存
+podman builder prune -f
+
+# 清理系统资源
+podman system prune -f
 ```
+
+## 容器开发最佳实践
+
+### VS Code容器开发
+
+1. **安装必要 VS Code 扩展**：
+   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) - 容器开发支持
+
+2. **Podman配置**：
+   > 如果您安装是 docker 则不用配置，否则要配置，不然下一步连接时，会提示没有安装 docker
+   如果使用Podman而非Docker，需要在VS Code设置中添加以下配置：
+   ```json
+   {
+     "remote-containers.containerEngine": "podman",
+     "dev.containers.dockerPath": "podman"
+   }
+
+3. **连接到运行中的容器**：
+> 先把容器运行起来
+   1. 点击VS Code左下角的`><`图标
+   2. 选择"Attach to Running Container..."或"附加到正在运行的容器..."
+   3. 将列出容器，选择目标容器
+   4. 这个时候，一般 VS Code 左侧资源管理器还看不到打开的项目，你需要：
+     - 点击“资源管理器”图标
+     - 然后看到“已连接到远程。”下面有个按钮“打开文件夹”，点击它
+     - 弹窗输入框会有"/root/"，把它删除，然后输入“workspace"，然后在现实的列表找到 “workspace”，点击它
+     - 然后点输入框右侧的“确定”按钮
+     - 这个时候资源管理器就现实项目了
+     - 之后就正常进行开发
+
+   5. 如果您还没有通过上一步打开项目，你可在终端中输入 "cd /workspace"，注意要有斜杠
 
 ## 🛠️ 系统要求
 

@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  dotnet${DOTNET_VERSION_NAME}:
+  deck-dev:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.m.daocloud.io}
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.1ms.run}
         UBUNTU_VERSION: ${UBUNTU_VERSION:-22.04}
         UBUNTU_NAME: ${UBUNTU_NAME:-2204}
         DOTNET_VERSION: ${DOTNET_VERSION:-9.0}
         DOTNET_VERSION_NAME: ${DOTNET_VERSION_NAME:-90}
-        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget build-essential ca-certificates"}
+        DEPENDENCIES: ${DEPENDENCIES:-"curl git wget build-essential ca-certificates vim nano"}
         INSTALL_ANDROID_SUPPORT: ${INSTALL_ANDROID_SUPPORT:-false}
         INSTALL_WASM_TOOLS: ${INSTALL_WASM_TOOLS:-true}
         INSTALL_WASM_EXPERIMENTAL: ${INSTALL_WASM_EXPERIMENTAL:-false}
@@ -19,24 +19,27 @@ services:
         INSTALL_DOTNET_WATCH: ${INSTALL_DOTNET_WATCH:-true}
         INSTALL_DOTNET_FORMAT: ${INSTALL_DOTNET_FORMAT:-true}
         INSTALL_DOTNET_EF: ${INSTALL_DOTNET_EF:-false}
-        INSTALL_DOTNET_OUTDATED: ${INSTALL_DOTNET_OUTDATED:-false}
-        INSTALL_DOTNET_TRACE: ${INSTALL_DOTNET_TRACE:-false}
-        INSTALL_DOTNET_SERVE: ${INSTALL_DOTNET_SERVE:-false}
-    image: localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION:-9.0}
-    container_name: ${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
-    hostname: ${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
+        INSTALL_DOTNET_OUTDATED: ${INSTALL_DOTNET_OUTDATED:-true}
+        INSTALL_DOTNET_TRACE: ${INSTALL_DOTNET_TRACE:-true}
+        INSTALL_DOTNET_SERVE: ${INSTALL_DOTNET_SERVE:-true}
+    image: localhost/deck-dev:${DOTNET_VERSION:-9.0}
+    container_name: ${PROJECT_NAME:-deck}-dev
+    hostname: ${PROJECT_NAME:-deck}-dev
     volumes:
-      # Mount project workspace (relative to project root)
+      # 挂载项目工作区（相对于项目根目录）
+      # 注意：
+      # templates/dotnet-deck/compose.yaml 这个配置文件内两层 `../../:`
+      # .deck/templates/dotnet-deck/compose.yaml 这个配置文件内为三层 `../../../:`
       - ../../../:${WORKSPACE_PATH:-/workspace}
-      # Persistent cache volumes for faster rebuilds
-      # Ubuntu基础层缓存 (来自下层Ubuntu基础镜像)
+      # 持久化缓存卷以加快重新构建
+      # Ubuntu基础层缓存（来自下层Ubuntu基础镜像）
       - type: volume
         source: apt-cache
         target: /var/cache/apt
       - type: volume
         source: apt-lib-cache
         target: /var/lib/apt
-      # .NET特定缓存 (当前层新增)
+      # .NET特定缓存（当前层新增）
       - type: volume
         source: nuget-cache
         target: ${NUGET_PACKAGES:-/opt/nuget-cache}
@@ -44,29 +47,29 @@ services:
         source: dotnet-tools-cache
         target: /root/.dotnet/tools
     ports:
-      # Development server ports (runtime configurable)
+      # 开发服务器端口（运行时可配置）
       - "${DEV_PORT:-5000}:5000"
       - "${DEBUG_PORT:-9229}:9229"
-      # Web development ports
+      # Web开发端口
       - "${WEB_PORT:-8080}:8080"
       - "${HTTPS_PORT:-8443}:8443"
     env_file:
-      # Load all environment variables from .env
+      # 从.env加载所有环境变量
       - .env
     environment:
-      # Override specific runtime variables if needed
+      # 如需要可覆盖特定运行时变量
       - DOTNET_ENVIRONMENT=${DOTNET_ENVIRONMENT:-Development}
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - PROJECT_NAME=${PROJECT_NAME:-dotnet}${DOTNET_VERSION_NAME}
+      - PROJECT_NAME=${PROJECT_NAME:-deck}-dev
       - DOTNET_CLI_TELEMETRY_OPTOUT=1
       - DOTNET_NOLOGO=1
       - DOTNET_USE_POLLING_FILE_WATCHER=${DOTNET_USE_POLLING_FILE_WATCHER:-true}
       - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=${DOTNET_WATCH_RESTART_ON_RUDE_EDIT:-true}
     working_dir: ${WORKSPACE_PATH:-/workspace}
-    command: dotnet${DOTNET_VERSION_NAME} bash
+    command: deck-dev
     stdin_open: true
     tty: true
-    # Resource limits (runtime configurable)
+    # 资源限制（运行时可配置）
     deploy:
       resources:
         limits:
@@ -76,27 +79,27 @@ services:
           memory: 1g
           cpus: '0.5'
     shm_size: ${SHM_SIZE:-512m}
-    # Network configuration
+    # 网络配置
     network_mode: bridge
-    # DNS configuration for better network performance
+    # DNS配置以获得更好的网络性能
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    # Health check to ensure container is working
+    # 健康检查以确保容器正常工作
     healthcheck:
       test: ["CMD", "dotnet", "--info"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    # Restart policy
+    # 重启策略
     restart: unless-stopped
-    # Security options
+    # 安全选项
     security_opt:
       - no-new-privileges:true
-    # Enable development features
+    # 启用开发功能
     cap_add:
-      - SYS_PTRACE  # For debugging with .NET debugger
+      - SYS_PTRACE  # 用于.NET调试器调试
 
 volumes:
   apt-cache:
@@ -113,4 +116,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.22.0.0/16
+        - subnet: 172.24.0.0/16

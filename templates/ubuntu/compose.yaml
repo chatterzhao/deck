@@ -16,7 +16,7 @@ services:
     volumes:
       # 服务卷挂载配置：定义容器运行时需要挂载的卷及其目标路径
       # Mount project workspace (relative to project root)
-      - ../../../../:${WORKSPACE_PATH:-/workspace}
+      - ../../../:${WORKSPACE_PATH:-/workspace}
       # Persistent cache volumes for faster rebuilds
       # 存储APT下载的deb包文件，避免重复下载
       - type: volume

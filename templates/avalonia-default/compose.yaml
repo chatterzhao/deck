@@ -24,7 +24,7 @@ services:
     hostname: ${PROJECT_NAME:-avalonia}${AVALONIA_VERSION_NAME}
     volumes:
       # Mount project workspace (relative to project root)
-      - ../../../../:${WORKSPACE_PATH:-/workspace}
+      - ../../../:${WORKSPACE_PATH:-/workspace}
       # Persistent cache volumes for faster rebuilds
       # Ubuntu基础层缓存 (来自下层Ubuntu基础镜像)
       - type: volume
