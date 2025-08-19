@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        services.AddDeckServicesWithLogging();
+        services.AddDeckServices();
         
         // 注册命令类
         services.AddTransient<StartCommand>();

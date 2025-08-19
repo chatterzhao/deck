@@ -26,6 +26,7 @@ public class StartCommandServiceSimple : IStartCommandService
     private readonly IRemoteTemplatesService _remoteTemplatesService;
     private readonly IFileSystemService _fileSystemService;
     private readonly IEnvironmentConfigurationService _environmentConfigurationService;
+    private readonly IContainerEngineManagementService _containerEngineManagementService; // 添加容器引擎管理服务
 
     // 目录常量
     private const string DeckDir = ".deck";
@@ -41,7 +42,8 @@ public class StartCommandServiceSimple : IStartCommandService
         IConfigurationService configurationService,
         IRemoteTemplatesService remoteTemplatesService,
         IFileSystemService fileSystemService,
-        IEnvironmentConfigurationService environmentConfigurationService)
+        IEnvironmentConfigurationService environmentConfigurationService,
+        IContainerEngineManagementService containerEngineManagementService) // 注入容器引擎管理服务
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
@@ -51,6 +53,7 @@ public class StartCommandServiceSimple : IStartCommandService
         _remoteTemplatesService = remoteTemplatesService;
         _fileSystemService = fileSystemService;
         _environmentConfigurationService = environmentConfigurationService;
+        _containerEngineManagementService = containerEngineManagementService; // 初始化容器引擎管理服务
     }
 
     public async Task<StartCommandResult> ExecuteAsync(string? envType, CancellationToken cancellationToken = default)
@@ -227,53 +230,28 @@ public class StartCommandServiceSimple : IStartCommandService
         {
             // 检查容器引擎是否可用
             _consoleUIService.ShowInfo("🔍 检查容器引擎...");
-            var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-            var containerEngineInfo = await systemService.DetectContainerEngineAsync();
-            
-            // 如果容器引擎不可用但错误信息提到 Podman machine，尝试自动初始化
-            if (!containerEngineInfo.IsAvailable && 
-                containerEngineInfo.Type == ContainerEngineType.Podman && 
-                !string.IsNullOrEmpty(containerEngineInfo.ErrorMessage) &&
-                containerEngineInfo.ErrorMessage.Contains("machine"))
-            {
-                _consoleUIService.ShowInfo("🔧 检测到 Podman machine 未运行，尝试自动初始化...");
-                Console.WriteLine("🔧 [调试] 检测到 Podman machine 未运行，尝试自动初始化...");
-                Console.WriteLine($"🔧 [调试] 错误信息: {containerEngineInfo.ErrorMessage}");
-                var initResult = await systemService.TryInitializePodmanMachineAsync();
-                if (initResult)
-                {
-                    _consoleUIService.ShowSuccess("✅ Podman machine 初始化成功");
-                    Console.WriteLine("✅ [调试] Podman machine 初始化成功");
-                    // 重新检测容器引擎
-                    containerEngineInfo = await systemService.DetectContainerEngineAsync();
-                }
-                else
-                {
-                    _consoleUIService.ShowWarning("⚠️ Podman machine 自动初始化失败，请手动运行: podman machine init && podman machine start");
-                    Console.WriteLine("⚠️ [调试] Podman machine 自动初始化失败");
-                }
-            }
+            var containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             // 检查是否需要重新安装（例如brew安装的情况）
-            if (!await CheckAndHandlePodmanReinstallationAsync())
+            if (!await _containerEngineManagementService.CheckAndHandlePodmanReinstallationAsync())
             {
                 return StartCommandResult.Failure("Podman重新安装失败");
             }
             
             // 重新检测容器引擎
-            containerEngineInfo = await systemService.DetectContainerEngineAsync();
+            containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             if (containerEngineInfo.Type == ContainerEngineType.None)
             {
                 // 尝试安装容器引擎
-                var installResult = await InstallContainerEngineAsync();
+                var installResult = await _containerEngineManagementService.InstallContainerEngineAsync();
                 if (!installResult)
                 {
                     return StartCommandResult.Failure("未检测到可用的容器引擎，且自动安装失败");
                 }
                 
                 // 重新检测
-                containerEngineInfo = await systemService.DetectContainerEngineAsync();
+                containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
                 if (containerEngineInfo.Type == ContainerEngineType.None)
                 {
                     return StartCommandResult.Failure("容器引擎安装后仍无法检测到，请手动检查");
@@ -372,49 +350,28 @@ public class StartCommandServiceSimple : IStartCommandService
         {
             // 检查容器引擎是否可用
             _consoleUIService.ShowInfo("🔍 检查容器引擎...");
-            var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-            var containerEngineInfo = await systemService.DetectContainerEngineAsync();
-            
-            // 如果容器引擎不可用但错误信息提到 Podman machine，尝试自动初始化
-            if (!containerEngineInfo.IsAvailable && 
-                containerEngineInfo.Type == ContainerEngineType.Podman && 
-                !string.IsNullOrEmpty(containerEngineInfo.ErrorMessage) &&
-                containerEngineInfo.ErrorMessage.Contains("machine"))
-            {
-                _consoleUIService.ShowInfo("🔧 检测到 Podman machine 未运行，尝试自动初始化...");
-                var initResult = await systemService.TryInitializePodmanMachineAsync();
-                if (initResult)
-                {
-                    _consoleUIService.ShowSuccess("✅ Podman machine 初始化成功");
-                    // 重新检测容器引擎
-                    containerEngineInfo = await systemService.DetectContainerEngineAsync();
-                }
-                else
-                {
-                    _consoleUIService.ShowWarning("⚠️ Podman machine 自动初始化失败，请手动运行: podman machine init && podman machine start");
-                }
-            }
+            var containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             // 检查是否需要重新安装（例如brew安装的情况）
-            if (!await CheckAndHandlePodmanReinstallationAsync())
+            if (!await _containerEngineManagementService.CheckAndHandlePodmanReinstallationAsync())
             {
                 return StartCommandResult.Failure("Podman重新安装失败");
             }
             
             // 重新检测容器引擎
-            containerEngineInfo = await systemService.DetectContainerEngineAsync();
+            containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             if (containerEngineInfo.Type == ContainerEngineType.None)
             {
                 // 尝试安装容器引擎
-                var installResult = await InstallContainerEngineAsync();
+                var installResult = await _containerEngineManagementService.InstallContainerEngineAsync();
                 if (!installResult)
                 {
                     return StartCommandResult.Failure("未检测到可用的容器引擎，且自动安装失败");
                 }
                 
                 // 重新检测
-                containerEngineInfo = await systemService.DetectContainerEngineAsync();
+                containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
                 if (containerEngineInfo.Type == ContainerEngineType.None)
                 {
                     return StartCommandResult.Failure("容器引擎安装后仍无法检测到，请手动检查");
@@ -518,29 +475,28 @@ public class StartCommandServiceSimple : IStartCommandService
         {
             // 检查容器引擎是否可用
             _consoleUIService.ShowInfo("🔍 检查容器引擎...");
-            var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-            var containerEngineInfo = await systemService.DetectContainerEngineAsync();
+            var containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             // 检查是否需要重新安装（例如brew安装的情况）
-            if (!await CheckAndHandlePodmanReinstallationAsync())
+            if (!await _containerEngineManagementService.CheckAndHandlePodmanReinstallationAsync())
             {
                 return StartCommandResult.Failure("Podman重新安装失败");
             }
             
             // 重新检测容器引擎
-            containerEngineInfo = await systemService.DetectContainerEngineAsync();
+            containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
             
             if (containerEngineInfo.Type == ContainerEngineType.None)
             {
                 // 尝试安装容器引擎
-                var installResult = await InstallContainerEngineAsync();
+                var installResult = await _containerEngineManagementService.InstallContainerEngineAsync();
                 if (!installResult)
                 {
                     return StartCommandResult.Failure("未检测到可用的容器引擎，且自动安装失败");
                 }
                 
                 // 重新检测
-                containerEngineInfo = await systemService.DetectContainerEngineAsync();
+                containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
                 if (containerEngineInfo.Type == ContainerEngineType.None)
                 {
                     return StartCommandResult.Failure("容器引擎安装后仍无法检测到，请手动检查");
@@ -865,10 +821,47 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
+            // 在执行容器命令前，再次检查容器引擎是否可用
+            _consoleUIService.ShowInfo("🔍 再次检查容器引擎...");
+            var containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
+            
+            // 检查是否需要重新安装（例如brew安装的情况）
+            if (!await _containerEngineManagementService.CheckAndHandlePodmanReinstallationAsync())
+            {
+                _consoleUIService.ShowError("❌ Podman重新安装失败");
+                return false;
+            }
+            
+            // 重新检测容器引擎
+            containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
+            
+            if (containerEngineInfo.Type == ContainerEngineType.None || !containerEngineInfo.IsAvailable)
+            {
+                // 尝试安装容器引擎
+                var installResult = await _containerEngineManagementService.InstallContainerEngineAsync();
+                if (!installResult)
+                {
+                    _consoleUIService.ShowError("❌ 未检测到可用的容器引擎，且自动安装失败");
+                    return false;
+                }
+                
+                // 重新检测
+                containerEngineInfo = await _containerEngineManagementService.CheckAndHandleContainerEngineAsync();
+                if (containerEngineInfo.Type == ContainerEngineType.None || !containerEngineInfo.IsAvailable)
+                {
+                    _consoleUIService.ShowError("❌ 容器引擎安装后仍无法检测到，请手动检查");
+                    return false;
+                }
+            }
+            
+            // 确保使用正确的引擎名称
+            var engineName = containerEngineInfo.Type == ContainerEngineType.Podman ? "podman" : "docker";
+            _consoleUIService.ShowInfo($"🚀 使用容器引擎: {engineName}");
+
             // 使用compose文件构建并启动容器
             var startInfo = new ProcessStartInfo
             {
-                FileName = engine,
+                FileName = engineName,
                 Arguments = $"compose up -d --build",
                 WorkingDirectory = Path.Combine(ImagesDir, imageName),
                 RedirectStandardOutput = true,
@@ -1018,689 +1011,40 @@ public class StartCommandServiceSimple : IStartCommandService
     {
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = engine,
-                Arguments = $"start {containerName}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            _consoleUIService.ShowInfo($"🚀 启动现有容器: {containerName}");
+            
+            using var process = new Process();
+            process.StartInfo.FileName = engine;
+            process.StartInfo.Arguments = $"start {containerName}";
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
 
-            using var process = new Process { StartInfo = startInfo };
             process.Start();
-
-            // 异步读取输出，避免死锁
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-
             await process.WaitForExitAsync(cancellationToken);
 
-            var output = await outputTask;
-            var error = await errorTask;
-
-            if (process.ExitCode != 0)
-            {
-                _logger.LogError("容器启动失败: {Error}", error);
-                _consoleUIService.ShowError($"容器启动失败: {error}");
-                return false;
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "执行容器启动命令时发生异常");
-            _consoleUIService.ShowError($"容器启动异常: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 尝试安装容器引擎
-    /// </summary>
-    private async Task<bool> InstallContainerEngineAsync()
-    {
-        _consoleUIService.ShowWarning("⚠️ 未检测到容器引擎");
-        _consoleUIService.ShowInfo("💡 Deck需要Podman或Docker来运行容器");
-        
-        // 检查操作系统并提供适当建议
-        var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-        var systemInfo = await systemService.GetSystemInfoAsync();
-        
-        if (systemInfo.OperatingSystem == OperatingSystemType.MacOS)
-        {
-            _consoleUIService.ShowInfo("💡 macOS用户建议：");
-            _consoleUIService.ShowInfo("  1. 从 https://podman.io/downloads 下载官方安装包（推荐）");
-            _consoleUIService.ShowInfo("  2. 或使用包管理器安装（如Homebrew，但可能有稳定性问题）");
-        }
-        
-        var install = _consoleUIService.ShowConfirmation("是否尝试自动安装Podman？");
-        if (!install)
-        {
-            _consoleUIService.ShowInfo("💡 您可以选择手动安装Podman或Docker");
-            if (systemInfo.OperatingSystem == OperatingSystemType.MacOS)
-            {
-                _consoleUIService.ShowInfo("💡 macOS推荐从 https://podman.io/downloads 下载官方安装包");
-            }
-            return false;
-        }
-
-        // 执行Podman安装
-        _consoleUIService.ShowInfo("🔧 正在尝试安装Podman...");
-        var installSuccess = await InstallPodmanEngineAsync();
-        
-        if (installSuccess)
-        {
-            _consoleUIService.ShowSuccess("✅ Podman安装成功");
-            
-            // 初始化Podman Machine（仅限macOS/Windows)
-            if (systemInfo.OperatingSystem != OperatingSystemType.Linux)
-            {
-                _consoleUIService.ShowInfo("⚙️ 初始化 Podman Machine...");
-                await InitializePodmanMachineAsync();
-            }
-            
-            _consoleUIService.ShowSuccess("✅ Podman环境准备就绪");
-            return true;
-        }
-        else
-        {
-            _consoleUIService.ShowError("❌ Podman安装失败");
-            _consoleUIService.ShowInfo("💡 建议手动从 https://podman.io/downloads 下载并安装Podman");
-            return false;
-        }
-    }
-    
-    /// <summary>
-    /// 检查是否需要重新安装Podman（例如从brew安装的情况）
-    /// </summary>
-    private async Task<bool> CheckAndHandlePodmanReinstallationAsync()
-    {
-        var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-        var containerEngineInfo = await systemService.DetectContainerEngineAsync();
-        
-        // 检查Podman是否通过brew安装
-        if (containerEngineInfo.Type == ContainerEngineType.Podman && 
-            !string.IsNullOrEmpty(containerEngineInfo.InstallPath) &&
-            containerEngineInfo.InstallPath.Contains("brew"))
-        {
-            _consoleUIService.ShowWarning("⚠️ 检测到Podman通过Homebrew安装");
-            _consoleUIService.ShowInfo("💡 Podman官方不推荐通过Homebrew安装，可能存在稳定性问题");
-            _consoleUIService.ShowInfo("💡 建议卸载brew版本并安装官方版本以获得更好的体验");
-            
-            var reinstall = _consoleUIService.ShowConfirmation("是否卸载当前版本并重新安装官方版本？");
-            if (reinstall)
-            {
-                // 尝试卸载brew版本
-                _consoleUIService.ShowInfo("🔧 正在卸载brew版本的Podman...");
-                var uninstallSuccess = await UninstallBrewPodmanAsync();
-                if (uninstallSuccess)
-                {
-                    _consoleUIService.ShowSuccess("✅ 已卸载brew版本的Podman");
-                    return await InstallContainerEngineAsync();
-                }
-                else
-                {
-                    _consoleUIService.ShowError("❌ 卸载brew版本的Podman失败");
-                    return false;
-                }
-            }
-        }
-        
-        return true; // 不需要重新安装
-    }
-    
-    /// <summary>
-    /// 卸载通过brew安装的Podman
-    /// </summary>
-    private async Task<bool> UninstallBrewPodmanAsync()
-    {
-        try
-        {
-            using var process = new Process();
-            process.StartInfo.FileName = "/bin/bash";
-            process.StartInfo.Arguments = "-c \"brew uninstall podman\"";
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-
-            process.Start();
-            await process.WaitForExitAsync();
-
-            return process.ExitCode == 0;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "卸载brew版本的Podman时发生异常");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 获取Podman安装命令
-    /// </summary>
-    private PodmanInstallCommand? GetPodmanInstallCommand(SystemInfo systemInfo)
-    {
-        return systemInfo.OperatingSystem switch
-        {
-            OperatingSystemType.MacOS => GetMacOSInstallCommand(),
-            OperatingSystemType.Linux => GetLinuxInstallCommand(),
-            OperatingSystemType.Windows => GetWindowsInstallCommand(),
-            _ => null
-        };
-    }
-
-    /// <summary>
-    /// 获取macOS安装命令
-    /// </summary>
-    private PodmanInstallCommand? GetMacOSInstallCommand()
-    {
-        // 优先检查 Homebrew
-        if (IsCommandAvailable("brew"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "Homebrew",
-                Command = "brew install podman",
-                RequiresAdmin = false
-            };
-        }
-
-        // 检查 MacPorts
-        if (IsCommandAvailable("port"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "MacPorts",
-                Command = "sudo port install podman",
-                RequiresAdmin = true
-            };
-        }
-
-        // 如果没有包管理器，则提供从官网下载pkg安装包的选项
-        return new PodmanInstallCommand
-        {
-            PackageManager = "PKG Installer",
-            Command = "download_and_install_podman_pkg",
-            RequiresAdmin = true
-        };
-    }
-
-    /// <summary>
-    /// 获取Linux安装命令
-    /// </summary>
-    private PodmanInstallCommand? GetLinuxInstallCommand()
-    {
-        // APT (Ubuntu/Debian)
-        if (IsCommandAvailable("apt"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "APT",
-                Command = "sudo apt update && sudo apt install -y podman",
-                RequiresAdmin = true
-            };
-        }
-
-        // DNF (Fedora)
-        if (IsCommandAvailable("dnf"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "DNF",
-                Command = "sudo dnf install -y podman",
-                RequiresAdmin = true
-            };
-        }
-
-        // YUM (CentOS/RHEL)
-        if (IsCommandAvailable("yum"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "YUM",
-                Command = "sudo yum install -y podman",
-                RequiresAdmin = true
-            };
-        }
-
-        // Zypper (openSUSE)
-        if (IsCommandAvailable("zypper"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "Zypper",
-                Command = "sudo zypper install -y podman",
-                RequiresAdmin = true
-            };
-        }
-
-        // Pacman (Arch Linux)
-        if (IsCommandAvailable("pacman"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "Pacman",
-                Command = "sudo pacman -S --noconfirm podman",
-                RequiresAdmin = true
-            };
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 获取Windows安装命令
-    /// </summary>
-    private PodmanInstallCommand? GetWindowsInstallCommand()
-    {
-        // Chocolatey
-        if (IsCommandAvailable("choco"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "Chocolatey",
-                Command = "choco install podman-desktop -y",
-                RequiresAdmin = true,
-                WarningMessage = "注意：将通过Chocolatey安装Podman Desktop"
-            };
-        }
-
-        // Scoop
-        if (IsCommandAvailable("scoop"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "Scoop",
-                Command = "scoop install podman",
-                RequiresAdmin = false,
-                WarningMessage = "注意：将通过Scoop安装Podman"
-            };
-        }
-
-        // WinGet
-        if (IsCommandAvailable("winget"))
-        {
-            return new PodmanInstallCommand
-            {
-                PackageManager = "WinGet",
-                Command = "winget install RedHat.Podman",
-                RequiresAdmin = false,
-                WarningMessage = "注意：将通过WinGet安装Podman"
-            };
-        }
-
-        // 如果没有包管理器，则提供从GitHub下载MSI安装包的选项
-        return new PodmanInstallCommand
-        {
-            PackageManager = "MSI Installer",
-            Command = "download_and_install_podman_msi",
-            RequiresAdmin = true,
-            WarningMessage = "注意：将从GitHub下载Podman MSI安装包并安装"
-        };
-    }
-    
-    /// <summary>
-    /// 安装Podman引擎
-    /// </summary>
-    private async Task<bool> InstallPodmanEngineAsync()
-    {
-        try
-        {
-            var systemService = new SystemDetectionService(_loggerFactory.CreateLogger<SystemDetectionService>());
-            var systemInfo = await systemService.GetSystemInfoAsync();
-            var installCommand = GetPodmanInstallCommand(systemInfo);
-
-            if (installCommand == null)
-            {
-                _consoleUIService.ShowError("❌ 当前系统不支持自动安装 Podman");
-                return false;
-            }
-
-            // 特殊处理直接下载安装包的方式（macOS和Windows）
-            if (installCommand.Command.StartsWith("download_and_install_podman_"))
-            {
-                return await DownloadAndInstallPodmanPackageAsync(systemInfo);
-            }
-
-            // 执行包管理器安装命令
-            using var process = new Process();
-            
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = $"/c {installCommand.Command}";
-            }
-            else
-            {
-                process.StartInfo.FileName = "/bin/bash";
-                process.StartInfo.Arguments = $"-c \"{installCommand.Command}\"";
-            }
-
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-
-            _logger.LogInformation("执行安装命令: {Command}", installCommand.Command);
-
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-
-            await process.WaitForExitAsync();
-
-            var output = await outputTask;
-            var error = await errorTask;
-
             if (process.ExitCode == 0)
             {
-                _logger.LogInformation("Podman安装成功");
+                _consoleUIService.ShowSuccess($"✅ 容器已启动: {containerName}");
                 return true;
             }
             else
             {
-                _logger.LogError("Podman安装失败，退出码: {ExitCode}", process.ExitCode);
-                _consoleUIService.ShowError($"安装失败 (退出码: {process.ExitCode})");
-                if (!string.IsNullOrEmpty(error))
-                {
-                    _consoleUIService.ShowError($"错误信息: {error}");
-                }
+                var error = await process.StandardError.ReadToEndAsync();
+                _consoleUIService.ShowError($"❌ 启动容器失败: {error}");
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "执行Podman安装命令时发生异常");
-            _consoleUIService.ShowError($"安装过程中出现异常: {ex.Message}");
-            return false;
-        }
-    }
-    
-    /// <summary>
-    /// 统一下载并安装Podman安装包（支持macOS PKG和Windows MSI）
-    /// </summary>
-    private async Task<bool> DownloadAndInstallPodmanPackageAsync(SystemInfo systemInfo)
-    {
-        try
-        {
-            _consoleUIService.ShowInfo("🔍 正在获取最新Podman版本信息...");
-            
-            // 获取最新版本信息（简化处理，实际应该通过API获取）
-            var latestVersion = "5.5.1"; // 这里应该通过API动态获取
-            var architecture = GetSystemArchitectureString(systemInfo.Architecture);
-            
-            // 构造下载URL和文件路径
-            string downloadUrl, fileName, installerType, fallbackUrl;
-            if (systemInfo.OperatingSystem == OperatingSystemType.MacOS)
-            {
-                fileName = $"podman-{latestVersion}-macos-{architecture}.pkg";
-                downloadUrl = $"https://github.com/containers/podman/releases/download/v{latestVersion}/podman-installer-macos-{architecture}.pkg";
-                fallbackUrl = $"https://github.com/containers/podman/releases/download/v{latestVersion}/podman-installer-macos-{architecture}.pkg";
-                installerType = "PKG";
-            }
-            else // Windows
-            {
-                fileName = $"podman-{latestVersion}-windows-{architecture}.msi";
-                downloadUrl = $"https://github.com/containers/podman/releases/download/v{latestVersion}/podman-installer-windows-{architecture}.msi";
-                fallbackUrl = $"https://github.com/containers/podman/releases/download/v{latestVersion}/podman-installer-windows-{architecture}.msi";
-                installerType = "MSI";
-            }
-            
-            var tempPath = Path.GetTempPath();
-            var packagePath = Path.Combine(tempPath, fileName);
-            
-            _consoleUIService.ShowInfo($"📦 将下载Podman v{latestVersion} ({architecture})");
-            _consoleUIService.ShowInfo($"🔗 首先尝试从官网下载: {downloadUrl}");
-            
-            bool downloadSuccess = false;
-            
-            // 尝试从官网下载
-            try
-            {
-                _consoleUIService.ShowInfo("📥 正在从官网下载Podman安装包...");
-                using var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(downloadUrl);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var fileContent = await response.Content.ReadAsByteArrayAsync();
-                    await File.WriteAllBytesAsync(packagePath, fileContent);
-                    downloadSuccess = true;
-                    _consoleUIService.ShowSuccess("✅ Podman安装包下载完成");
-                }
-                else
-                {
-                    _consoleUIService.ShowWarning($"⚠️ 官网下载失败，HTTP状态码: {response.StatusCode}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "从官网下载Podman安装包时发生异常");
-                _consoleUIService.ShowWarning("⚠️ 官网下载失败，尝试从GitHub下载...");
-            }
-            
-            // 如果官网下载失败，尝试从GitHub下载
-            if (!downloadSuccess)
-            {
-                try
-                {
-                    _consoleUIService.ShowInfo("📥 正在从GitHub下载Podman安装包...");
-                    using var httpClient = new HttpClient();
-                    var response = await httpClient.GetAsync(fallbackUrl);
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var fileContent = await response.Content.ReadAsByteArrayAsync();
-                        await File.WriteAllBytesAsync(packagePath, fileContent);
-                        downloadSuccess = true;
-                        _consoleUIService.ShowSuccess("✅ Podman安装包下载完成");
-                    }
-                    else
-                    {
-                        _consoleUIService.ShowError($"❌ GitHub下载也失败，HTTP状态码: {response.StatusCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "从GitHub下载Podman安装包时发生异常");
-                    _consoleUIService.ShowError($"❌ GitHub下载失败: {ex.Message}");
-                }
-            }
-            
-            // 如果下载都失败了，提示用户手动下载
-            if (!downloadSuccess)
-            {
-                _consoleUIService.ShowError("❌ 无法自动下载Podman安装包");
-                _consoleUIService.ShowInfo("💡 请手动从以下地址下载并安装Podman:");
-                _consoleUIService.ShowInfo($"  官网地址: https://github.com/containers/podman/releases");
-                _consoleUIService.ShowInfo($"  GitHub地址: https://github.com/containers/podman/releases");
-                _consoleUIService.ShowInfo("💡 安装完成后请重新运行此命令");
-                return false;
-            }
-            
-            // 安装包
-            _consoleUIService.ShowInfo($"🔧 正在安装Podman {installerType}包...");
-            Process process;
-            
-            if (systemInfo.OperatingSystem == OperatingSystemType.MacOS)
-            {
-                process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "installer",
-                        Arguments = $"-pkg \"{packagePath}\" -target /",
-                        UseShellExecute = true,
-                        Verb = "runas" // 请求管理员权限
-                    }
-                };
-            }
-            else // Windows
-            {
-                process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "msiexec.exe",
-                        Arguments = $"/i \"{packagePath}\" /quiet /norestart",
-                        UseShellExecute = true,
-                        Verb = "runas" // 请求管理员权限
-                    }
-                };
-            }
-            
-            process.Start();
-            await process.WaitForExitAsync();
-            
-            // 清理下载的文件
-            try
-            {
-                File.Delete(packagePath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "清理下载的安装包时发生异常: {Message}", ex.Message);
-            }
-            
-            if (process.ExitCode == 0)
-            {
-                _consoleUIService.ShowSuccess("✅ Podman安装成功");
-                if (systemInfo.OperatingSystem == OperatingSystemType.Windows)
-                {
-                    _consoleUIService.ShowInfo("💡 请重新启动终端以使环境变量生效");
-                }
-                return true;
-            }
-            else
-            {
-                _consoleUIService.ShowError($"❌ Podman安装失败，退出码: {process.ExitCode}");
-                return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "下载并安装Podman安装包时发生异常");
-            _consoleUIService.ShowError($"安装过程中出现异常: {ex.Message}");
-            return false;
-        }
-    }
-    
-    /// <summary>
-    /// 将系统架构转换为字符串表示形式
-    /// </summary>
-    private string GetSystemArchitectureString(SystemArchitecture architecture)
-    {
-        return architecture switch
-        {
-            SystemArchitecture.X64 => "amd64",
-            SystemArchitecture.ARM64 => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "aarch64" : "arm64",
-            SystemArchitecture.X86 => "386",
-            _ => "amd64" // 默认使用amd64
-        };
-    }
-
-    /// <summary>
-    /// 检查命令是否可用
-    /// </summary>
-    private bool IsCommandAvailable(string command)
-    {
-        try
-        {
-            using var process = new Process();
-            
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                process.StartInfo.FileName = "where";
-                process.StartInfo.Arguments = command;
-            }
-            else
-            {
-                process.StartInfo.FileName = "which";
-                process.StartInfo.Arguments = command;
-            }
-
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-
-            process.Start();
-            process.WaitForExit();
-
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 初始化 Podman Machine
-    /// </summary>
-    private async Task InitializePodmanMachineAsync()
-    {
-        try
-        {
-            // 1. 初始化 machine
-            _consoleUIService.ShowInfo("🔧 初始化 Podman Machine...");
-            await ExecuteCommandAsync("podman machine init");
-
-            // 2. 启动 machine
-            _consoleUIService.ShowInfo("🚀 启动 Podman Machine...");
-            await ExecuteCommandAsync("podman machine start");
-
-            _consoleUIService.ShowSuccess("✅ Podman Machine 初始化完成");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Podman machine initialization failed");
-            _consoleUIService.ShowWarning("⚠️ Podman Machine 初始化失败，可能需要手动操作");
-            _consoleUIService.ShowInfo("💡 请尝试手动运行: podman machine init && podman machine start");
-        }
-    }
-
-    /// <summary>
-    /// 执行命令并等待完成
-    /// </summary>
-    private async Task<bool> ExecuteCommandAsync(string command)
-    {
-        try
-        {
-            using var process = new Process();
-            
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = $"/c {command}";
-            }
-            else
-            {
-                process.StartInfo.FileName = "/bin/bash";
-                process.StartInfo.Arguments = $"-c \"{command}\"";
-            }
-
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-
-            process.Start();
-            await process.WaitForExitAsync();
-
-            return process.ExitCode == 0;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "执行命令失败: {Command}", command);
+            _logger.LogError(ex, "启动容器时发生异常: {ContainerName}", containerName);
+            _consoleUIService.ShowError($"启动容器时发生异常: {ex.Message}");
             return false;
         }
     }
 
     /// <summary>
     /// Podman安装命令信息
-    /// </summary>
     private class PodmanInstallCommand
     {
         public string PackageManager { get; set; } = string.Empty;

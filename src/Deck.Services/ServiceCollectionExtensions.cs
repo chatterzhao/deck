@@ -7,72 +7,41 @@ namespace Deck.Services;
 
 public static class ServiceCollectionExtensions
 {
-    public static void AddDeckServicesWithLogging(this IServiceCollection services)
+    public static void AddDeckServices(this IServiceCollection services)
     {
-        // 添加日志服务
-        services.AddLogging(builder =>
-        {
-            builder.ClearProviders();
-            builder.AddConsole();
-#if DEBUG
-            // 调试模式下启用详细日志
-            builder.SetMinimumLevel(LogLevel.Debug);
-#else
-            // 发布模式下只显示警告及以上级别的日志
-            builder.SetMinimumLevel(LogLevel.Warning);
-#endif
-
-            // 为特定类别设置日志级别
-#if DEBUG
-            builder.AddFilter("Deck.Services.ConfigurationService", LogLevel.Information);
-            builder.AddFilter("Deck.Services.SystemDetectionService", LogLevel.Information);
-#else
-            // 发布模式下进一步限制特定服务的日志
-            builder.AddFilter("Deck.Services.ConfigurationService", LogLevel.Warning);
-            builder.AddFilter("Deck.Services.SystemDetectionService", LogLevel.Warning);
-#endif
-        });
-
-        // 添加HttpClient
+        // 添加HttpClient服务
         services.AddHttpClient();
-
-        // 注册服务
-        services.AddSingleton<ILoggingService, LoggingService>();
-        services.AddSingleton<IFileSystemService, FileSystemService>();
-        services.AddSingleton<INetworkService, NetworkService>();
-        services.AddSingleton<ISystemDetectionService, SystemDetectionService>();
-        services.AddSingleton<IRemoteTemplatesService, RemoteTemplatesService>();
-        services.AddSingleton<IImagePermissionService, ImagePermissionService>();
-        services.AddSingleton<IPortConflictService, PortConflictService>();
-        services.AddTransient<IConfigurationService, ConfigurationService>();
-        services.AddTransient<IConfigurationMerger, ConfigurationMerger>();
-        services.AddTransient<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
-        services.AddTransient<IContainerEngineFactory, ContainerEngineFactory>();
-        services.AddTransient<IContainerService, ContainerService>();
-        services.AddTransient<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
-        services.AddTransient<IInteractiveSelectionService, InteractiveSelectionService>();
-        services.AddTransient<IConsoleDisplay, ConsoleDisplayService>();
-        services.AddTransient<IConsoleUIService, ConsoleUIService>();
-        services.AddTransient<IDirectoryManagementService, DirectoryManagementService>();
-        services.AddTransient<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
-        services.AddTransient<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
-        services.AddTransient<ITemplateVariableEngine, TemplateVariableEngine>();
-        services.AddTransient<IGlobalExceptionHandler, GlobalExceptionHandler>();
-        services.AddTransient<IContainerEngine, PodmanEngine>();
-        services.AddTransient<IContainerEngine, DockerEngine>();
-        services.AddTransient<IEnvironmentConfigurationService, EnvironmentConfigurationService>();
-
-        // 注册Start命令服务
-        services.AddTransient<IStartCommandService>(provider =>
-            new StartCommandServiceSimple(
-                provider.GetRequiredService<ILogger<StartCommandServiceSimple>>(),
-                provider.GetRequiredService<ILoggerFactory>(),
-                provider.GetRequiredService<IConsoleUIService>(),
-                provider.GetRequiredService<IEnhancedFileOperationsService>(),
-                provider.GetRequiredService<IConfigurationService>(),
-                provider.GetRequiredService<IRemoteTemplatesService>(),
-                provider.GetRequiredService<IFileSystemService>(),
-                provider.GetRequiredService<IEnvironmentConfigurationService>()));
         
+        // 添加核心服务
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
+        services.AddSingleton<IConfigurationMerger, ConfigurationMerger>();
+        services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
+        services.AddSingleton<IConsoleDisplay, ConsoleDisplayService>();
+        services.AddSingleton<IConsoleUIService, ConsoleUIService>();
+        services.AddSingleton<IFileSystemService, FileSystemService>();
+        services.AddSingleton<IEnhancedFileOperationsService, EnhancedFileOperationsService>();
+        services.AddSingleton<IEnvironmentConfigurationService, EnvironmentConfigurationService>();
+        services.AddSingleton<IRemoteTemplatesService, RemoteTemplatesService>();
+        services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
+        services.AddSingleton<IAdvancedInteractiveSelectionService, AdvancedInteractiveSelectionService>();
+        services.AddSingleton<IStartCommandService, StartCommandServiceSimple>();
+        services.AddSingleton<IThreeLayerWorkflowService, ThreeLayerWorkflowService>();
+        services.AddSingleton<ITemplateVariableEngine, TemplateVariableEngine>();
+        services.AddSingleton<IPortConflictService, PortConflictService>();
+        services.AddSingleton<INetworkService, NetworkService>();
+        services.AddSingleton<ILoggingService, LoggingService>();
+        services.AddSingleton<IImagePermissionService, ImagePermissionService>();
+        services.AddSingleton<IImagesUnifiedService, ImagesUnifiedServiceSimple>();
+        services.AddSingleton<ICleaningService, CleaningService>();
+        services.AddSingleton<IGlobalExceptionHandler, GlobalExceptionHandler>();
+        services.AddSingleton<IDirectoryManagementService, DirectoryManagementService>();
+        services.AddSingleton<ISystemDetectionService, SystemDetectionService>();
+        services.AddSingleton<IContainerService, ContainerService>();
+        
+        // 添加新的容器引擎管理服务
+        services.AddSingleton<IContainerEngineManagementService, ContainerEngineManagementService>();
+        
+        // 工厂模式注册
+        services.AddSingleton<IContainerEngineFactory, ContainerEngineFactory>();
     }
 }

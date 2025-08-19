@@ -48,6 +48,13 @@ public class SystemDetectionService : ISystemDetectionService
         var podmanInfo = await CheckContainerEngineAsync(ContainerEngineType.Podman, "podman");
         if (podmanInfo.IsAvailable)
         {
+            // 检测podman-compose是否存在
+            var hasPodmanCompose = await IsToolAvailableAsync("podman-compose");
+            if (!hasPodmanCompose)
+            {
+                podmanInfo.IsAvailable = false;
+                podmanInfo.ErrorMessage = "检测到Podman但未找到podman-compose，请安装podman-compose";
+            }
             return podmanInfo;
         }
 
@@ -65,6 +72,13 @@ public class SystemDetectionService : ISystemDetectionService
         var dockerInfo = await CheckContainerEngineAsync(ContainerEngineType.Docker, "docker");
         if (dockerInfo.IsAvailable)
         {
+            // 检测docker-compose是否存在
+            var hasDockerCompose = await IsToolAvailableAsync("docker-compose");
+            if (!hasDockerCompose)
+            {
+                dockerInfo.IsAvailable = false;
+                dockerInfo.ErrorMessage = "检测到Docker但未找到docker-compose，请安装docker-compose";
+            }
             return dockerInfo;
         }
 
@@ -79,7 +93,7 @@ public class SystemDetectionService : ISystemDetectionService
         {
             Type = ContainerEngineType.None,
             IsAvailable = false,
-            ErrorMessage = "未检测到可用的容器引擎 (Podman 或 Docker)"
+            ErrorMessage = "未检测到可用的容器引擎 (Podman 或 Docker) 或对应的compose工具"
         };
     }
 
