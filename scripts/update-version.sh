@@ -32,7 +32,7 @@ NEW_VERSION_CLEAN="${NEW_VERSION#v}"
 
 # 更新 Directory.Build.props 中的版本号
 echo -e "${YELLOW}📝 更新 Directory.Build.props...${NC}"
-sed -i.bak "s/<Version>[^<]*<\/Version>/<Version>$NEW_VERSION_CLEAN<\/Version>/" Directory.Build.props
+sed -i.bak "s/<Version[^>]*>[^<]*<\/Version>/<Version>$NEW_VERSION_CLEAN<\/Version>/" Directory.Build.props
 rm Directory.Build.props.bak
 
 # 验证更新
@@ -50,9 +50,11 @@ if [[ -f "scripts/packaging/linux/rpm/deck.spec" ]]; then
     # 更新 Version 字段
     sed -i.bak "s/Version:.*/Version:        $NEW_VERSION_CLEAN/" scripts/packaging/linux/rpm/deck.spec
     
-    # 更新 changelog 条目
+    # 更新 changelog 条目 (使用简单格式避免 sed 问题)
     CURRENT_DATE=$(date "+%a %b %d %Y")
-    sed -i.bak "/%changelog/a * $CURRENT_DATE Deck Team <deck@example.com> - $NEW_VERSION_CLEAN-1\n- Update to version $NEW_VERSION_CLEAN\n" scripts/packaging/linux/rpm/deck.spec
+    echo "* $CURRENT_DATE Deck Team <deck@example.com> - $NEW_VERSION_CLEAN-1" >> scripts/packaging/linux/rpm/deck.spec
+    echo "- Update to version $NEW_VERSION_CLEAN" >> scripts/packaging/linux/rpm/deck.spec
+    echo "" >> scripts/packaging/linux/rpm/deck.spec
     
     rm scripts/packaging/linux/rpm/deck.spec.bak
     echo -e "${GREEN}✅ RPM spec 文件更新成功${NC}"
@@ -64,20 +66,20 @@ fi
 echo -e "${YELLOW}📝 更新 README.md 中的示例文件名...${NC}"
 if [[ -f "scripts/README.md" ]]; then
     # 更新 MSI 示例文件名
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-win-x64\.msi/deck-v$NEW_VERSION_CLEAN-win-x64.msi/g" scripts/README.md
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-win-arm64\.msi/deck-v$NEW_VERSION_CLEAN-win-arm64.msi/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-win-x64\.msi/deck-v$NEW_VERSION_CLEAN-win-x64.msi/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-win-arm64\.msi/deck-v$NEW_VERSION_CLEAN-win-arm64.msi/g" scripts/README.md
     
     # 更新 DEB 示例文件名
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-amd64\.deb/deck-v$NEW_VERSION_CLEAN-amd64.deb/g" scripts/README.md
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-arm64\.deb/deck-v$NEW_VERSION_CLEAN-arm64.deb/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-amd64\.deb/deck-v$NEW_VERSION_CLEAN-amd64.deb/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-arm64\.deb/deck-v$NEW_VERSION_CLEAN-arm64.deb/g" scripts/README.md
     
     # 更新 RPM 示例文件名
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-amd64\.rpm/deck-v$NEW_VERSION_CLEAN-amd64.rpm/g" scripts/README.md
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-arm64\.rpm/deck-v$NEW_VERSION_CLEAN-arm64.rpm/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-amd64\.rpm/deck-v$NEW_VERSION_CLEAN-amd64.rpm/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-arm64\.rpm/deck-v$NEW_VERSION_CLEAN-arm64.rpm/g" scripts/README.md
     
     # 更新 PKG 示例文件名
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-intel\.pkg/deck-v$NEW_VERSION_CLEAN-intel.pkg/g" scripts/README.md
-    sed -i.bak "s/deck-v[0-9]*\.[0-9]*\.[0-9]*-apple-silicon\.pkg/deck-v$NEW_VERSION_CLEAN-apple-silicon.pkg/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-intel\.pkg/deck-v$NEW_VERSION_CLEAN-intel.pkg/g" scripts/README.md
+    sed -i.bak "s/deck-v{VERSION}-apple-silicon\.pkg/deck-v$NEW_VERSION_CLEAN-apple-silicon.pkg/g" scripts/README.md
     
     rm scripts/README.md.bak
     echo -e "${GREEN}✅ README.md 示例文件名更新成功${NC}"
