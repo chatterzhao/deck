@@ -115,28 +115,34 @@ jobs:
     - name: AOT Build and Package
       shell: bash
       run: |
-        echo "🚀 Building Deck .NET v1.0.0-aot with AOT optimizations..."
+        # Extract version from tag name, removing 'v' prefix if present
+        TAG_VERSION="${GITHUB_REF_NAME#v}"
+        
+        echo "🚀 Building Deck .NET v${TAG_VERSION} with AOT optimizations..."
         
         # Make scripts executable first
-        chmod +x scripts/build.sh scripts/package.sh 2>/dev/null || true
+        chmod +x scripts/build.sh scripts/package.sh scripts/validate-version.sh 2>/dev/null || true
+        
+        # Validate version consistency
+        ./scripts/validate-version.sh "v${TAG_VERSION}"
         
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           # Windows PowerShell version - use two-step approach with fallback
           echo "📦 Step 1: Running build script with AOT..."
-          if ! pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release -Aot"; then
+          if ! pwsh -Command "& '.\scripts\build.ps1' -Version '${TAG_VERSION}' -Configuration Release -Aot"; then
             echo "⚠️  AOT build failed, trying standard build..."
-            pwsh -Command "& '.\scripts\build.ps1' -Version '1.0.0-aot' -Configuration Release"
+            pwsh -Command "& '.\scripts\build.ps1' -Version '${TAG_VERSION}' -Configuration Release"
           fi
           
           echo "📦 Step 2: Running package script..." 
-          pwsh -Command "& '.\scripts\package.ps1' -Version '1.0.0-aot' -Configuration Release"
+          pwsh -Command "& '.\scripts\package.ps1' -Version '${TAG_VERSION}' -Configuration Release"
         else
           # Unix/Linux/macOS bash version - use two-step approach
           echo "📦 Step 1: Running build script..."
-          ./scripts/build.sh --version "1.0.0-aot" --configuration Release --aot
+          ./scripts/build.sh --version "${TAG_VERSION}" --configuration Release --aot
           
           echo "📦 Step 2: Running package script..."
-          ./scripts/package.sh --version "1.0.0-aot" --configuration Release
+          ./scripts/package.sh --version "${TAG_VERSION}" --configuration Release
         fi
         
         echo "✅ Build and packaging completed"
@@ -227,16 +233,16 @@ jobs:
           1. 下载对应平台的安装包
           2. Windows: 双击 MSI 文件安装
           3. macOS: 双击 PKG 文件安装
-          4. Linux: 解压 TAR.GZ 到目标目录`tar -xzf Deck-v1.0.0-aot-linux-x64.tar.gz -C /usr/local/bin/`
+          4. Linux: 解压 TAR.GZ 到目标目录`tar -xzf Deck-${{ github.ref_name }}-linux-x64.tar.gz -C /usr/local/bin/`
 
           ### 卸载方式
           1. Windows: 打开Windows 控制面板，选择“程序” -> 找到“Deck - xx” -> “卸载”
           2. macOS: 终端执行命令`deck-uninstall`
           3. Linux: 终端执行命令`rm -rf /usr/local/bin/deck`
         files: |
-          ./aot-artifacts/aot-package-*/**/*.msi
-          ./aot-artifacts/aot-package-*/**/*.pkg
-          ./aot-artifacts/aot-package-*/**/*.tar.gz
+          ./aot-artifacts/aot-package-*/**/*-${{ github.ref_name }}-*.msi
+          ./aot-artifacts/aot-package-*/**/*-${{ github.ref_name }}-*.pkg
+          ./aot-artifacts/aot-package-*/**/*-${{ github.ref_name }}-*.tar.gz
         generate_release_notes: true
         draft: false
         prerelease: false

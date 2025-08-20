@@ -55,7 +55,9 @@ catch (Exception ex)
 static RootCommand CreateRootCommand(IServiceProvider services)
 {
     const string ProgramName = "deck";
-    const string Version = "1.0.0";
+    // 从程序集获取版本号
+    var assemblyVersion = typeof(Program).Assembly.GetName().Version;
+    var Version = assemblyVersion != null ? $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}" : "1.0.0";
     const string Description = "搭建容器化开发环境的命令行工具 - .NET 版本";
     
     var rootCommand = new RootCommand(Description)

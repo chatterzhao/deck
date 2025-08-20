@@ -376,6 +376,72 @@ git tag vxx && git push origin vxx
 git tag -d vxx && git push --delete origin vxx
 ```
 
+### 版本管理
+
+本项目使用 Git tag 作为版本号的唯一来源，确保所有构建和分发包使用一致的版本号。
+
+#### 发布流程（自动版本更新）
+
+通过设置的 Git hooks，可以实现推送 tag 时自动更新版本号：
+> 前置条件（先运行）：`./scripts/setup-hooks.sh`
+1. 创建 Git tag：`git tag -a v1.2.3 -m "Release version 1.2.3"`
+2. 推送 tag（自动更新版本号）：`git push origin v1.2.3`
+3. 推送其他更改（如果需要）：`git push`
+
+系统会自动：
+- 检测到 tag 推送
+- 更新项目中的版本号
+- 提交更改（如果需要）
+
+GitHub Actions 会自动验证版本一致性，构建所有平台的二进制文件，创建分发包，并发布到 GitHub Releases。
+
+#### 手动发布流程（可选）
+
+如果你不想使用自动版本更新，也可以手动执行：
+
+1. 更新版本号：`./scripts/update-version.sh 1.2.3`
+2. 提交更改：`git add . && git commit -m "chore: update version to 1.2.3"`
+3. 创建 Git tag：`git tag -a v1.2.3 -m "Release version 1.2.3"`
+4. 推送更改和 tag：`git push && git push origin v1.2.3`
+
+#### 版本号格式
+版本号采用 `vX.Y.Z` 格式，遵循 [语义化版本控制规范](https://semver.org/lang/zh-CN/)：
+- `v` 前缀是可选的
+- `X` 是主版本号（重大变化）
+- `Y` 是次版本号（新增功能）
+- `Z` 是修订版本号（问题修复）
+
+#### 自动版本提取
+构建脚本会自动从 Git tag 提取版本号：
+```bash
+# 提取版本号并移除 'v' 前缀
+TAG_VERSION="${GITHUB_REF_NAME#v}"
+```
+
+#### 版本管理工具
+项目提供了以下脚本来管理版本：
+
+1. **版本验证脚本** - 验证版本一致性：
+   ```bash
+   # 验证当前版本一致性
+   ./scripts/validate-version.sh
+   
+   # 验证新版本是否比当前版本大
+   ./scripts/validate-version.sh v1.2.3
+   ```
+
+2. **版本更新脚本** - 更新项目中的版本号：
+   ```bash
+   # 更新项目版本号
+   ./scripts/update-version.sh 1.2.3
+   ```
+
+3. **Git hooks 设置** - 设置 Git hooks：
+   ```bash
+   # 设置 Git hooks（包括 pre-commit 和 pre-push）
+   ./scripts/setup-hooks.sh
+   ```
+
 ### 项目结构
 
 ```
