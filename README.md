@@ -400,7 +400,7 @@ GitHub Actions 会自动验证版本一致性，构建所有平台的二进制�
 如果你不想使用自动版本更新，也可以手动执行：
 
 1. 更新版本号：`./scripts/update-version.sh 1.2.3`
-2. 提交更改：`git add . && git commit -m "chore: update version to 1.2.3"`
+2. 提交更改：`git add . && git commit -m "chore: update version to 1.2.3" && git push`
 3. 创建 Git tag：`git tag -a v1.2.3 -m "Release version 1.2.3"`
 4. 推送更改和 tag：`git push && git push origin v1.2.3`
 

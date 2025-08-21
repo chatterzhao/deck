@@ -50,11 +50,17 @@ if [[ -f "scripts/packaging/linux/rpm/deck.spec" ]]; then
     # 更新 Version 字段
     sed -i.bak "s/Version:.*/Version:        $NEW_VERSION_CLEAN/" scripts/packaging/linux/rpm/deck.spec
     
-    # 更新 changelog 条目 (使用简单格式避免 sed 问题)
-    CURRENT_DATE=$(date "+%a %b %d %Y")
-    echo "* $CURRENT_DATE Deck Team <deck@example.com> - $NEW_VERSION_CLEAN-1" >> scripts/packaging/linux/rpm/deck.spec
-    echo "- Update to version $NEW_VERSION_CLEAN" >> scripts/packaging/linux/rpm/deck.spec
-    echo "" >> scripts/packaging/linux/rpm/deck.spec
+    # 检查是否已存在相同版本的 changelog 条目，避免重复添加
+    CHANGELOG_ENTRY_EXISTS=$(grep -c "\- $NEW_VERSION_CLEAN-1" scripts/packaging/linux/rpm/deck.spec || true)
+    if [[ "$CHANGELOG_ENTRY_EXISTS" -eq 0 ]]; then
+        # 更新 changelog 条目 (使用简单格式避免 sed 问题)
+        CURRENT_DATE=$(date "+%a %b %d %Y")
+        echo "* $CURRENT_DATE Deck Team <deck@example.com> - $NEW_VERSION_CLEAN-1" >> scripts/packaging/linux/rpm/deck.spec
+        echo "- Update to version $NEW_VERSION_CLEAN" >> scripts/packaging/linux/rpm/deck.spec
+        echo "" >> scripts/packaging/linux/rpm/deck.spec
+    else
+        echo -e "${YELLOW}⚠️  RPM spec changelog 条目已存在，跳过添加${NC}"
+    fi
     
     rm scripts/packaging/linux/rpm/deck.spec.bak
     echo -e "${GREEN}✅ RPM spec 文件更新成功${NC}"
@@ -62,27 +68,19 @@ else
     echo -e "${YELLOW}⚠️  RPM spec 文件不存在，跳过更新${NC}"
 fi
 
-# 更新 README.md 中的示例文件名
-echo -e "${YELLOW}📝 更新 README.md 中的示例文件名...${NC}"
+# 更新 README.md 中的版本号
+echo -e "${YELLOW}📝 更新 README.md 中的版本号...${NC}"
 if [[ -f "scripts/README.md" ]]; then
-    # 更新 MSI 示例文件名
-    sed -i.bak "s/deck-v{VERSION}-win-x64\.msi/deck-v$NEW_VERSION_CLEAN-win-x64.msi/g" scripts/README.md
-    sed -i.bak "s/deck-v{VERSION}-win-arm64\.msi/deck-v$NEW_VERSION_CLEAN-win-arm64.msi/g" scripts/README.md
+    # 使用更通用的模式匹配现有版本号并替换
+    # 先删除可能存在的备份文件
+    rm -f scripts/README.md.bak
     
-    # 更新 DEB 示例文件名
-    sed -i.bak "s/deck-v{VERSION}-amd64\.deb/deck-v$NEW_VERSION_CLEAN-amd64.deb/g" scripts/README.md
-    sed -i.bak "s/deck-v{VERSION}-arm64\.deb/deck-v$NEW_VERSION_CLEAN-arm64.deb/g" scripts/README.md
-    
-    # 更新 RPM 示例文件名
-    sed -i.bak "s/deck-v{VERSION}-amd64\.rpm/deck-v$NEW_VERSION_CLEAN-amd64.rpm/g" scripts/README.md
-    sed -i.bak "s/deck-v{VERSION}-arm64\.rpm/deck-v$NEW_VERSION_CLEAN-arm64.rpm/g" scripts/README.md
-    
-    # 更新 PKG 示例文件名
-    sed -i.bak "s/deck-v{VERSION}-intel\.pkg/deck-v$NEW_VERSION_CLEAN-intel.pkg/g" scripts/README.md
-    sed -i.bak "s/deck-v{VERSION}-apple-silicon\.pkg/deck-v$NEW_VERSION_CLEAN-apple-silicon.pkg/g" scripts/README.md
+    # 匹配类似 deck-v1.2.3- 的模式并替换为新的版本号
+    # 使用兼容的正则表达式语法（macOS sed）
+    sed -i.bak -E "s/deck-v[0-9]+\.[0-9]+\.[0-9]+-/deck-v$NEW_VERSION_CLEAN-/g" scripts/README.md
     
     rm scripts/README.md.bak
-    echo -e "${GREEN}✅ README.md 示例文件名更新成功${NC}"
+    echo -e "${GREEN}✅ README.md 版本号更新成功${NC}"
 else
     echo -e "${YELLOW}⚠️  README.md 文件不存在，跳过更新${NC}"
 fi
