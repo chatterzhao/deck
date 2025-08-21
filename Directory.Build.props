@@ -26,7 +26,7 @@
 
   <PropertyGroup>
     <!-- 版本号管理：默认版本为 1.0.0，实际版本从 Git tag 或环境变量获取 -->
-    <Version Condition="'$(Version)' == ''">1.0.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyCompany>Deck Team</AssemblyCompany>
     <AssemblyProduct>Deck</AssemblyProduct>
     <Copyright>Copyright © 2025 Deck Team</Copyright>
