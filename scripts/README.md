@@ -132,16 +132,16 @@ dist/
 │   │   └── Deck.Console.exe
 │   ├── win-arm64/
 │   │   └── Deck.Console.exe
-│   ├── deck-v{VERSION}-win-x64.msi
-│   └── deck-v{VERSION}-win-arm64.msi
+│   ├── deck-v1.0.1-win-x64.msi
+│   └── deck-v1.0.1-win-arm64.msi
 ├── linux/                # Linux 分发包
-│   ├── deck-v{VERSION}-amd64.deb
-│   ├── deck-v{VERSION}-arm64.deb
-│   ├── deck-v{VERSION}-amd64.rpm
-│   └── deck-v{VERSION}-arm64.rpm
+│   ├── deck-v1.0.1-amd64.deb
+│   ├── deck-v1.0.1-arm64.deb
+│   ├── deck-v1.0.1-amd64.rpm
+│   └── deck-v1.0.1-arm64.rpm
 └── macos/                # macOS 分发包
-    ├── deck-v{VERSION}-intel.pkg
-    └── deck-v{VERSION}-apple-silicon.pkg
+    ├── deck-v1.0.1-intel.pkg
+    └── deck-v1.0.1-apple-silicon.pkg
 ```
 
 ## 🚀 命令使用方法
