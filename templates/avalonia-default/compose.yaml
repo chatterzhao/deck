@@ -85,7 +85,7 @@ services:
       - AVALONIA_X11_BACKENDS=x11
       - AVALONIA_ENABLE_PLATFORM_THREADING=true
     working_dir: ${WORKSPACE_PATH:-/workspace}
-    command: avalonia bash
+    command: /usr/local/bin/avalonia${AVALONIA_VERSION_NAME} bash
     stdin_open: true
     tty: true
     # Resource limits (runtime configurable)

@@ -6,7 +6,7 @@ ARG DOTNET_VERSION
 ARG DOTNET_VERSION_NAME
 ARG AVALONIA_VERSION
 
-FROM localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION} as avalonia${AVALONIA_VERSION_NAME}
+FROM localhost/dotnet${DOTNET_VERSION_NAME}:${DOTNET_VERSION} as avalonia_base
 
 # Define build arguments after FROM instruction to ensure they are in the correct scope
 ARG DEPENDENCIES
@@ -69,41 +69,42 @@ RUN mkdir -p /opt/nuget-cache \
     && chmod -R 755 /workspace/.dotnet
 
 # Create dynamic startup script for development convenience
-RUN echo '#!/bin/bash' > /usr/local/bin/avalonia && \
-    echo 'echo "🚀 Avalonia Development Environment"' >> /usr/local/bin/avalonia && \
-    echo 'echo "📁 Workspace: $(pwd)"' >> /usr/local/bin/avalonia && \
-    echo 'echo "🔷 .NET: $(dotnet --version)"' >> /usr/local/bin/avalonia && \
-    echo ""' >> /usr/local/bin/avalonia && \
-    echo 'echo "📦 Installed Features:"' >> /usr/local/bin/avalonia && \
-    echo 'if command -v android &> /dev/null || [ -d "/opt/android-sdk" ]; then echo "  ✅ Android SDK"; else echo "  ❌ Android SDK"; fi' >> /usr/local/bin/avalonia && \
-    echo 'if dotnet workload list | grep -q "wasm-tools"; then echo "  ✅ WebAssembly Tools"; else echo "  ❌ WebAssembly Tools"; fi' >> /usr/local/bin/avalonia && \
-    echo 'if command -v node &> /dev/null; then echo "  ✅ Node.js $(node --version)"; else echo "  ❌ Node.js"; fi' >> /usr/local/bin/avalonia && \
-    echo 'if dotnet new list | grep -q "avalonia"; then echo "  ✅ Avalonia Templates"; else echo "  ❌ Avalonia Templates"; fi' >> /usr/local/bin/avalonia && \
-    echo ""' >> /usr/local/bin/avalonia && \
-    echo 'echo "🔧 Core Commands:"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet run       - Run the application"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet build     - Build the application"' >> /usr/local/bin/avalonia && \
-    echo 'if command -v dotnet-watch &> /dev/null; then echo "  dotnet watch     - Watch for file changes"; fi' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet test      - Run tests"' >> /usr/local/bin/avalonia && \
-    echo ""' >> /usr/local/bin/avalonia && \
-    echo 'echo "🖥️  Desktop Platforms:"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet publish -r linux-x64   - Build for Linux"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet publish -r win-x64     - Build for Windows"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet publish -r osx-x64     - Build for macOS Intel"' >> /usr/local/bin/avalonia && \
-    echo 'echo "  dotnet publish -r osx-arm64   - Build for macOS Apple Silicon"' >> /usr/local/bin/avalonia && \
-    echo 'if [ -d "/opt/android-sdk" ]; then' >> /usr/local/bin/avalonia && \
-    echo '  echo ""; echo "📱 Mobile Platforms:"; echo "  dotnet publish -f net9.0-android  - Build for Android"' >> /usr/local/bin/avalonia && \
-    echo 'fi' >> /usr/local/bin/avalonia && \
-    echo 'if dotnet workload list | grep -q "wasm-tools"; then' >> /usr/local/bin/avalonia && \
-    echo '  echo ""; echo "🌐 Web Platforms:"; echo "  dotnet publish -f net9.0-browser  - Build for Browser/WASM"' >> /usr/local/bin/avalonia && \
-    echo '  if command -v dotnet-serve &> /dev/null; then echo "  dotnet serve                      - Serve web app locally"; fi' >> /usr/local/bin/avalonia && \
-    echo 'fi' >> /usr/local/bin/avalonia && \
-    echo 'if dotnet new list | grep -q "avalonia"; then' >> /usr/local/bin/avalonia && \
-    echo '  echo ""; echo "🔧 Development Commands:"; echo "  dotnet new avalonia               - Create Avalonia app"' >> /usr/local/bin/avalonia && \
-    echo 'fi' >> /usr/local/bin/avalonia && \
-    echo ""' >> /usr/local/bin/avalonia && \
-    echo 'exec "$@"' >> /usr/local/bin/avalonia && \
-    chmod +x /usr/local/bin/avalonia
+RUN SCRIPT_NAME="avalonia${AVALONIA_VERSION_NAME}" && \
+    echo '#!/bin/bash' > /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "🚀 Avalonia Development Environment"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "📁 Workspace: $(pwd)"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "🔷 .NET: $(dotnet --version)"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo ""' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "📦 Installed Features:"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if command -v android &> /dev/null || [ -d "/opt/android-sdk" ]; then echo "  ✅ Android SDK"; else echo "  ❌ Android SDK"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if dotnet workload list | grep -q "wasm-tools"; then echo "  ✅ WebAssembly Tools"; else echo "  ❌ WebAssembly Tools"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if command -v node &> /dev/null; then echo "  ✅ Node.js $(node --version)"; else echo "  ❌ Node.js"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if dotnet new list | grep -q "avalonia"; then echo "  ✅ Avalonia Templates"; else echo "  ❌ Avalonia Templates"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo ""' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "🔧 Core Commands:"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet run       - Run the application"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet build     - Build the application"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if command -v dotnet-watch &> /dev/null; then echo "  dotnet watch     - Watch for file changes"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet test      - Run tests"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo ""' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "🖥️  Desktop Platforms:"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet publish -r linux-x64   - Build for Linux"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet publish -r win-x64     - Build for Windows"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet publish -r osx-x64     - Build for macOS Intel"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'echo "  dotnet publish -r osx-arm64   - Build for macOS Apple Silicon"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if [ -d "/opt/android-sdk" ]; then' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo '  echo ""; echo "📱 Mobile Platforms:"; echo "  dotnet publish -f net9.0-android  - Build for Android"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if dotnet workload list | grep -q "wasm-tools"; then' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo '  echo ""; echo "🌐 Web Platforms:"; echo "  dotnet publish -f net9.0-browser  - Build for Browser/WASM"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo '  if command -v dotnet-serve &> /dev/null; then echo "  dotnet serve                      - Serve web app locally"; fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'if dotnet new list | grep -q "avalonia"; then' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo '  echo ""; echo "🔧 Development Commands:"; echo "  dotnet new avalonia               - Create Avalonia app"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'fi' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo ""' >> /usr/local/bin/${SCRIPT_NAME} && \
+    echo 'exec "$@"' >> /usr/local/bin/${SCRIPT_NAME} && \
+    chmod +x /usr/local/bin/${SCRIPT_NAME}
 
 # Set default environment variables
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
@@ -118,7 +119,7 @@ EXPOSE 5000 9229
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5000/health || dotnet --info > /dev/null || exit 1
 
-CMD ["avalonia", "bash"]
+CMD ["/usr/local/bin/avalonia${AVALONIA_VERSION_NAME}", "bash"]
 
 # =============================================================================
 # Production Stage - 可选的生产环境 (注释掉，需要时可启用)

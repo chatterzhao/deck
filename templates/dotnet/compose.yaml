@@ -63,7 +63,7 @@ services:
       - DOTNET_USE_POLLING_FILE_WATCHER=${DOTNET_USE_POLLING_FILE_WATCHER:-true}
       - DOTNET_WATCH_RESTART_ON_RUDE_EDIT=${DOTNET_WATCH_RESTART_ON_RUDE_EDIT:-true}
     working_dir: ${WORKSPACE_PATH:-/workspace}
-    command: dotnet${DOTNET_VERSION_NAME} bash
+    command: /usr/local/bin/dotnet${DOTNET_VERSION_NAME}
     stdin_open: true
     tty: true
     # Resource limits (runtime configurable)
