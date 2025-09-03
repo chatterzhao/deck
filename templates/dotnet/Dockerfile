@@ -123,4 +123,4 @@ RUN SCRIPT_NAME="dotnet${DOTNET_VERSION_NAME}" && \
 WORKDIR /workspace
 EXPOSE 5000 9229
 
-CMD ["/usr/local/bin/dotnet${DOTNET_VERSION_NAME}"]
+CMD ["/usr/local/bin/dotnet90"]
