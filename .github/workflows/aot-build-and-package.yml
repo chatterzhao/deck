@@ -126,7 +126,7 @@ jobs:
           TAG_VERSION="${GITHUB_REF_NAME#v}"
         else
           # For PR or branch push, read version from Directory.Build.props
-          TAG_VERSION=$(grep -oP '<Version>\K[^<]+' Directory.Build.props)
+          TAG_VERSION=$(grep '<Version>' Directory.Build.props | sed 's/.*<Version>\([^<]*\)<\/Version>.*/\1/')
         fi
         
         echo "🚀 Building Deck .NET v${TAG_VERSION} with AOT optimizations..."
