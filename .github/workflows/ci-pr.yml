@@ -1,0 +1,56 @@
+name: CI (Pull Request)
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_SDK_VERSION: 9.0.x
+
+jobs:
+  ci:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+
+    - name: Validate project structure
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "🔍 Validating .NET project structure..."
+        
+        # Check required files one by one
+        files=("src/Deck.Console/Deck.Console.csproj" "src/Deck.Console/Program.cs" "src/Deck.Core/Deck.Core.csproj" "src/Deck.Services/Deck.Services.csproj" "scripts/build.sh" "scripts/package.sh" "scripts/package.ps1")
+        
+        for file in "${files[@]}"; do
+          if [[ ! -f "$file" ]]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          fi
+        done
+        
+        echo "✅ Project structure validation passed"
