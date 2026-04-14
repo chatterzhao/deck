@@ -1,5 +1,5 @@
 Name:           deck
-Version:        1.0.1
+Version:        1.0.2
 Release:        1%{?dist}
 Summary:        搭建容器化开发环境的命令行工具
 
@@ -51,4 +51,7 @@ fi
 * Mon Jan 01 2025 Deck Team <deck@example.com> - 1.0.0-1
 - Initial RPM package* 四  8 21 2025 Deck Team <deck@example.com> - 1.0.1-1
 - Update to version 1.0.1
+
+* Tue Apr 14 2026 Deck Team <deck@example.com> - 1.0.2-1
+- Update to version 1.0.2
 
