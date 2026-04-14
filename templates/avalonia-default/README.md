@@ -65,7 +65,7 @@ DOCKER_REGISTRY=mcr.microsoft.com  # 微软镜像源
 deck start
 
 # 进入开发容器
-docker-compose exec avalonia-dev bash
+docker-compose exec avalonia bash
 
 # 创建新项目
 dotnet new avalonia -n MyApp

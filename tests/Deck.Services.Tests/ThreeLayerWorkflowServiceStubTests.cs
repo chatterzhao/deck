@@ -101,7 +101,7 @@ public class ThreeLayerWorkflowServiceStubTests
     public async Task ExecuteCustomConfigWorkflow_ShouldBuildNewImageFromConfig()
     {
         // Arrange
-        var configName = "my-avalonia-app";
+        var configName = "my-avalonia";
         var imageName = $"{configName}-20241022-1500";
         var customDir = $"/path/to/custom/{configName}";
         

@@ -1,0 +1,8 @@
+{
+  "remoteTemplates": {
+    "repository": "git@gitee-zhaoquan:zhaoquan/deck.git",
+    "branch": "main",
+    "cacheTtl": "24h",
+    "autoUpdate": true
+  }
+}

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        services.AddDeckServicesWithLogging();
+        services.AddDeckServices();
         
         // 注册命令类
         services.AddTransient<StartCommand>();
@@ -55,7 +55,9 @@ catch (Exception ex)
 static RootCommand CreateRootCommand(IServiceProvider services)
 {
     const string ProgramName = "deck";
-    const string Version = "1.0.0";
+    // 从程序集获取版本号
+    var assemblyVersion = typeof(Program).Assembly.GetName().Version;
+    var Version = assemblyVersion != null ? $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}" : "1.0.0";
     const string Description = "搭建容器化开发环境的命令行工具 - .NET 版本";
     
     var rootCommand = new RootCommand(Description)
@@ -779,7 +781,7 @@ static void ShowMainHelp(string programName, string description, string version)
     Console.WriteLine($"  {programName} start tauri              # 启动 Tauri 环境");
     Console.WriteLine($"  {programName} stop my-app-20241215     # 停止指定镜像");
     Console.WriteLine($"  {programName} logs -f                  # 实时查看日志");
-    Console.WriteLine($"  {programName} custom create tauri-dev  # 创建自定义配置");
+    Console.WriteLine($"  {programName} custom create tauri  # 创建自定义配置");
     Console.WriteLine($"  {programName} ps --all                 # 显示所有容器状态");
     Console.WriteLine($"  {programName} rm my-container          # 删除指定容器");
     Console.WriteLine($"  {programName} install podman           # 安装 Podman");

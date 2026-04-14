@@ -72,10 +72,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     PLATFORMS=("macos-x64" "macos-arm64")
     OS_NAME="macos"
     DIST_SUBDIR="$DIST_DIR/macos"
+    echo "🍎 检测到 macOS 环境，将创建 macOS 分发包"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     PLATFORMS=("linux-x64" "linux-arm64")
     OS_NAME="linux"
     DIST_SUBDIR="$DIST_DIR/linux"
+    echo "🐧 检测到 Linux 环境，将创建 Linux 分发包"
 else
     echo "❌ 不支持的操作系统: $OSTYPE"
     exit 1

@@ -132,16 +132,16 @@ dist/
 │   │   └── Deck.Console.exe
 │   ├── win-arm64/
 │   │   └── Deck.Console.exe
-│   ├── deck-v1.0.0-win-x64.msi
-│   └── deck-v1.0.0-win-arm64.msi
+│   ├── deck-v1.0.1-win-x64.msi
+│   └── deck-v1.0.1-win-arm64.msi
 ├── linux/                # Linux 分发包
-│   ├── deck-v1.0.0-amd64.deb
-│   ├── deck-v1.0.0-arm64.deb
-│   ├── deck-v1.0.0-amd64.rpm
-│   └── deck-v1.0.0-arm64.rpm
+│   ├── deck-v1.0.1-amd64.deb
+│   ├── deck-v1.0.1-arm64.deb
+│   ├── deck-v1.0.1-amd64.rpm
+│   └── deck-v1.0.1-arm64.rpm
 └── macos/                # macOS 分发包
-    ├── deck-v1.0.0-intel.pkg
-    └── deck-v1.0.0-apple-silicon.pkg
+    ├── deck-v1.0.1-intel.pkg
+    └── deck-v1.0.1-apple-silicon.pkg
 ```
 
 ## 🚀 命令使用方法
@@ -156,7 +156,7 @@ dist/
 ```
 
 **参数**：
-- `--version VERSION` - 版本号（默认：1.0.0）
+- `--version VERSION` - 版本号（默认：从 Git tag 获取，或 1.0.0）
 - `--configuration CONFIG` - 构建配置（默认：Release）
 - `--aot` - 启用AOT编译（默认：关闭）
 - `--help` - 显示帮助信息
@@ -196,7 +196,7 @@ dist/
 ```
 
 **参数**：
-- `-Version` - 版本号（默认：1.0.0）
+- `-Version` - 版本号（默认：从 Git tag 获取，或 1.0.0）
 - `-Configuration` - 构建配置（默认：Release）
 - `-Aot` - 启用AOT编译（默认：关闭）
 
@@ -233,7 +233,7 @@ dist/
 
 **参数**：
 - `--configuration CONFIG` - 构建配置（默认：Release）
-- `--version VERSION` - 版本号（默认：1.0.0）
+- `--version VERSION` - 版本号（默认：从 Git tag 获取，或 1.0.0）
 - `--clean` - 清理构建目录
 - `--no-aot` - 禁用AOT编译（默认：启用）
 - `--help` - 显示帮助信息
@@ -276,7 +276,7 @@ dist/
 
 **参数**：
 - `-Configuration` - 构建配置（默认：Release）
-- `-Version` - 版本号（默认：1.0.0）
+- `-Version` - 版本号（默认：从 Git tag 获取，或 1.0.0）
 - `-Clean` - 清理输出目录开关
 - `-NoAot` - 禁用AOT编译（默认：启用）
 
