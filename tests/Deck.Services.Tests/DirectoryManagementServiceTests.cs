@@ -351,9 +351,10 @@ public class DirectoryManagementServiceTests : IDisposable
         // Act
         await _service.SaveImageMetadataAsync(metadata);
 
-        // Assert
+        // Assert - 使用 Path.Combine 构造期望路径以兼容跨平台
+        var expectedPathSuffix = Path.Combine($".deck{Path.DirectorySeparatorChar}images", metadata.ImageName);
         _mockFileSystemService.Verify(x => x.EnsureDirectoryExistsAsync(
-            It.Is<string>(path => path.EndsWith($"/.deck/images/{metadata.ImageName}"))), Times.Once);
+            It.Is<string>(path => path.EndsWith(expectedPathSuffix))), Times.Once);
             
         // 验证实际的元数据文件是否被创建
         var metadataPath = Path.Combine(imageDir, ".deck-metadata");
