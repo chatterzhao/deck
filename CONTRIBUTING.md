@@ -58,6 +58,66 @@ dotnet run --project src/Deck.Console
 
 详细版本管理流程请参考 README.md 中的版本管理章节。
 
+### GitFlow 分支管理
+
+本项目采用 GitFlow 工作流：
+
+```
+develop          ← 开发分支（所有新功能合并到这里）
+   │
+   │  PR / Merge
+   ▼
+main             ← 生产分支（发布用的稳定代码）
+   │
+   │  git tag v1.x.x
+   ▼
+v1.x.x           ← 版本标签
+```
+
+**分支策略**：
+- `develop` - 开发分支，用于集成所有新功能和修复
+- `main` - 生产分支，仅包含稳定可发布的代码
+- `feature/*` - 功能分支（可选，直接在 develop 开发也可）
+- `v*` - 版本标签，用于发布
+
+**发布流程**：
+1. 在 `develop` 分支完成开发和测试
+2. 创建 PR 合并到 `main` 分支
+3. CI 自动构建、测试、打包
+4. 测试通过后，合并到 `main`
+5. 创建 tag `git tag v1.x.x` 触发正式发布
+6. GitHub Actions 自动创建 Release 并上传安装包
+
+**本地开发建议**：
+```bash
+# 同步最新代码
+git checkout develop
+git pull origin develop
+
+# 创建功能分支（可选）
+git checkout -b feature/my-feature develop
+
+# 开发完成后，合并回 develop
+git checkout develop
+git merge feature/my-feature
+
+# 推送并创建 PR
+git push origin develop
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+dotnet test
+
+# 仅运行单元测试（跳过集成测试）
+dotnet test --filter "Category!=Integration"
+
+# 运行特定测试
+dotnet test --filter "FullyQualifiedName~TestClassName"
+```
+
 ## 代码规范
 
 - 遵循项目已有的代码风格（项目配置了 StyleCop 和 EditorConfig）
