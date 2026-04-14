@@ -121,15 +121,25 @@ jobs:
       shell: bash
       run: |
         # Extract version from tag name, removing 'v' prefix if present
-        TAG_VERSION="${GITHUB_REF_NAME#v}"
+        # For PR triggers, GITHUB_REF_NAME is like "1/merge", so we use Directory.Build.props version
+        if [[ "$GITHUB_REF_NAME" == v* ]]; then
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+        else
+          # For PR or branch push, read version from Directory.Build.props
+          TAG_VERSION=$(grep -oP '<Version>\K[^<]+' Directory.Build.props)
+        fi
         
         echo "🚀 Building Deck .NET v${TAG_VERSION} with AOT optimizations..."
         
         # Make scripts executable first
         chmod +x scripts/build.sh scripts/package.sh scripts/validate-version.sh 2>/dev/null || true
         
-        # Validate version consistency
-        ./scripts/validate-version.sh "v${TAG_VERSION}"
+        # Validate version consistency (skip for PR since ref might not match)
+        if [[ "$GITHUB_REF_NAME" == v* ]]; then
+          ./scripts/validate-version.sh "v${TAG_VERSION}"
+        else
+          echo "⏭️  Skipping version validation for PR/branch push"
+        fi
         
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           # Windows PowerShell version - use two-step approach with fallback
