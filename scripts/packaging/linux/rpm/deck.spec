@@ -1,5 +1,5 @@
 Name:           deck
-Version:        1.0.1-test
+Version:        1.0.2
 Release:        1%{?dist}
 Summary:        搭建容器化开发环境的命令行工具
 
@@ -54,4 +54,7 @@ fi
 
 * Tue Apr 14 2026 Deck Team <deck@example.com> - 1.0.1-test-1
 - Update to version 1.0.1-test
+
+* Tue Apr 14 2026 Deck Team <deck@example.com> - 1.0.2-1
+- Update to version 1.0.2
 
