@@ -3,7 +3,7 @@
   "settings": {
     "documentationRules": {
       "companyName": "Deck Team",
-      "copyrightText": "Copyright © 2025 Deck Team. All rights reserved.",
+      "copyrightText": "Copyright © 2025 Deck Team. Licensed under the MIT License.",
       "documentExposedElements": false,
       "documentInternalElements": false,
       "documentPrivateElements": false,

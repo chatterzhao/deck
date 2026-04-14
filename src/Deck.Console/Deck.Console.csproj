@@ -34,6 +34,7 @@
     <AssemblyCompany>Deck Team</AssemblyCompany>
     <AssemblyProduct>Deck</AssemblyProduct>
     <Copyright>Copyright © 2025 Deck Team</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     
     <!-- 暂时禁用AOT警告，专注于功能验证 -->
     <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>

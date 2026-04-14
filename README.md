@@ -417,7 +417,9 @@ tests/
 
 ## 📄 许可证
 
+本项目基于 [MIT License](LICENSE) 开源。
 
+Copyright © 2025 Deck Team
 
 ## 🔗 相关链接
 

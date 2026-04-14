@@ -29,6 +29,9 @@
     <AssemblyCompany>Deck Team</AssemblyCompany>
     <AssemblyProduct>Deck</AssemblyProduct>
     <Copyright>Copyright © 2025 Deck Team</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/chatterzhao/deck</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/chatterzhao/deck.git</RepositoryUrl>
   </PropertyGroup>
 
   <!-- Package version management for .NET 9 -->
