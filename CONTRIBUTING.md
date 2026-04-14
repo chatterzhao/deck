@@ -81,12 +81,63 @@ v1.x.x           ← 版本标签
 - `v*` - 版本标签，用于发布
 
 **发布流程**：
-1. 在 `develop` 分支完成开发和测试
-2. 创建 PR 合并到 `main` 分支
-3. CI 自动构建、测试、打包
-4. 测试通过后，合并到 `main`
-5. 创建 tag `git tag v1.x.x` 触发正式发布
-6. GitHub Actions 自动创建 Release 并上传安装包
+
+#### 阶段一：开发分支验证
+功能开发完成后，合并到 `develop` 进行 CI 验证：
+
+```bash
+# 1. 确保在 develop 分支
+git checkout develop
+git merge feature/my-feature  # 合并功能分支（如果有）
+
+# 2. 推送到远程
+git push origin develop
+
+# 3. 观察 CI 构建状态
+gh run list --limit 5
+
+# 4. 等待构建完成（约 10-15 分钟）
+# - 观察是否全部 success
+# - 如果失败，修复问题后重新推送
+```
+
+#### 阶段二：生产发布
+`develop` 构建成功后，合并到 `main` 并打 tag：
+
+```bash
+# 1. 确保 develop 最新且 CI 通过
+git checkout develop
+git pull origin develop
+
+# 2. 合并到 main
+git checkout main
+git pull origin main
+git merge develop
+
+# 3. 推送 main（触发 CI 构建）
+git push origin main
+
+# 4. 观察 main 的 CI 构建
+gh run list --limit 5
+
+# 5. 构建成功后，创建 tag
+#    注意：版本号必须是 major.minor.patch 格式（如 1.0.2）
+git tag v1.0.2 -m "Release version 1.0.2"
+
+# 6. 推送 tag（触发正式发布）
+git push origin v1.0.2
+
+# 7. GitHub Actions 自动完成：
+#    - 构建所有平台二进制
+#    - 打包安装包（MSI/TAR.GZ/PKG）
+#    - 创建 GitHub Release
+#    - 上传构建产物
+```
+
+#### 版本号规范
+- 使用 [语义化版本](https://semver.org/lang/zh-CN/)：`major.minor.patch`
+- 示例：`v1.0.0`、`v1.0.1`、`v1.1.0`
+- **不要**使用预发布版本如 `v1.0.0-alpha`（.NET 版本不支持）
 
 **本地开发建议**：
 ```bash
