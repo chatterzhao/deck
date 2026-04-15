@@ -296,6 +296,18 @@ public class StartCommandServiceSimple : IStartCommandService
                 _consoleUIService.ShowWarning($"⚠️ {warning}");
             }
 
+            // 对于Images分支，需要根据镜像名称确定环境类型，然后构造正确的容器名称
+            var environment = DetermineEnvironmentFromImageName(imageName);
+
+            // 更新 compose.yaml 和 .env 中的环境配置（确保与当前环境类型一致）
+            var composeFilePath = Path.Combine(imagePath, "compose.yaml");
+            if (File.Exists(composeFilePath))
+            {
+                _consoleUIService.ShowInfo("⚙️ 更新环境配置...");
+                await _environmentConfigurationService.UpdateComposeEnvironmentAsync(composeFilePath, environment, imageName);
+                await _environmentConfigurationService.UpdateEnvFileEnvironmentAsync(envFilePath, environment);
+            }
+
             // 更新 PROJECT_NAME 避免容器名冲突
             _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
             var projectNameResult = await _enhancedFileOperationsService.UpdateProjectNameAsync(envFilePath, imageName);
@@ -303,9 +315,6 @@ public class StartCommandServiceSimple : IStartCommandService
             {
                 _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
             }
-            
-            // 对于Images分支，需要根据镜像名称确定环境类型，然后构造正确的容器名称
-            var environment = DetermineEnvironmentFromImageName(imageName);
             var baseName = projectNameResult.UpdatedProjectName ?? imageName;
             var containerName = EnvironmentHelper.GetContainerName(baseName, environment);
             
@@ -718,6 +727,53 @@ public class StartCommandServiceSimple : IStartCommandService
             
             await _environmentConfigurationService.UpdateComposeEnvironmentAsync(composeFilePath, environment, imageName);
             await _environmentConfigurationService.UpdateEnvFileEnvironmentAsync(envFilePath, environment);
+
+            // 处理端口冲突检测（与 DirectBuildFromTemplate 保持一致）
+            _consoleUIService.ShowInfo("🔍 检查端口配置和冲突...");
+            var detectionOptions = new EnhancedFileOperationOptions { CreateBackup = false };
+            var portResult = await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, detectionOptions);
+            if (!portResult.IsSuccess)
+            {
+                return StartCommandResult.Failure($"端口处理失败: {portResult.ErrorMessage}");
+            }
+            
+            if (portResult.ModifiedPorts.Count > 0)
+            {
+                _consoleUIService.ShowWarning("⚠️ 检测到端口冲突：");
+                foreach (var (portVar, newPort) in portResult.ModifiedPorts)
+                {
+                    _consoleUIService.ShowInfo($"  📌 {portVar}: 建议更改为端口 {newPort}");
+                }
+                
+                var applyPortChanges = _consoleUIService.ShowConfirmation("是否应用推荐的端口更改？");
+                if (!applyPortChanges)
+                {
+                    return StartCommandResult.Failure("用户取消了构建，请检查端口配置后重试");
+                }
+                
+                var updateOptions = new EnhancedFileOperationOptions { CreateBackup = true };
+                await _enhancedFileOperationsService.ProcessStandardPortsAsync(envFilePath, updateOptions);
+            }
+            else
+            {
+                _consoleUIService.ShowSuccess("✅ 所有端口配置正常，无冲突");
+            }
+            
+            foreach (var warning in portResult.Warnings.Where(w => !w.Contains("端口冲突：")))
+            {
+                _consoleUIService.ShowWarning($"⚠️ {warning}");
+            }
+
+            // 更新 PROJECT_NAME 避免容器名冲突
+            _consoleUIService.ShowInfo("🏷️ 更新项目名称...");
+            var projectNameResult = await _enhancedFileOperationsService.UpdateProjectNameAsync(envFilePath, imageName);
+            if (!projectNameResult.IsSuccess)
+            {
+                _logger.LogWarning("PROJECT_NAME更新失败: {Error}", projectNameResult.ErrorMessage);
+            }
+
+            // 显示开发环境信息
+            DisplayDevelopmentInfo(portResult.AllPorts, environment);
 
             // 2. 构建并启动容器（使用docker-compose一步完成）
             _consoleUIService.ShowInfo("🔨 正在构建并启动容器...");

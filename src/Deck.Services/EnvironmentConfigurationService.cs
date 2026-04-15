@@ -31,20 +31,22 @@ public class EnvironmentConfigurationService : IEnvironmentConfigurationService
             var envOption = EnvironmentHelper.GetEnvironmentOption(environment);
             var envSuffix = envOption.ContainerSuffix;
 
-            // 不再需要提取基础服务名，命令直接使用bash
+            // 更新服务名称: 匹配 "xxx-dev:" 或 "xxx-test:" 等模式（只在首次构建时匹配）
+            // 如果服务名已经是环境后缀（非 -dev），说明已经被更新过，跳过
+            content = Regex.Replace(content, @"^(\s*)(\w+)-dev:", $"$1$2-{envSuffix}:", RegexOptions.Multiline);
 
-            // 更新服务名称 (第一个匹配的服务名)
-            content = Regex.Replace(content, @"^\s*(\w+)-dev:", $"  $1-{envSuffix}:", RegexOptions.Multiline);
-            
-            // 更新容器名称
+            // 更新容器名称和主机名
+            // 模式1: ${PROJECT_NAME:-xxx}-dev (如 dotnet-deck 模板)
             content = Regex.Replace(content, @"container_name:\s*\$\{PROJECT_NAME[^}]*\}-dev", 
-                $"container_name: ${{PROJECT_NAME:-{projectName}}}-{envSuffix}");
-
-            // 更新主机名
+                $"container_name: ${{PROJECT_NAME:-{projectName}}}");
             content = Regex.Replace(content, @"hostname:\s*\$\{PROJECT_NAME[^}]*\}-dev", 
-                $"hostname: ${{PROJECT_NAME:-{projectName}}}-{envSuffix}");
+                $"hostname: ${{PROJECT_NAME:-{projectName}}}");
 
-            // 更新命令（直接使用bash，不需要服务名前缀）
+            // 模式2: ${PROJECT_NAME:-xxx}${VARIABLE_NAME} (如 dotnet, ubuntu, avalonia 模板)
+            // 这些模板中 container_name 使用变量后缀而非 -dev，但环境类型信息在 .env 中控制
+            // 不需要修改 container_name/hostname，因为 PROJECT_NAME 已由 .env 提供
+
+            // 更新命令（如果存在服务名前缀的 command，改为直接使用 bash）
             content = Regex.Replace(content, @"command:\s*\w+-dev\s+bash", "command: bash");
 
             await File.WriteAllTextAsync(composeFilePath, content);

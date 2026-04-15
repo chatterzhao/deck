@@ -7,6 +7,7 @@ namespace Deck.Services;
 /// <summary>
 /// 三层配置工作流程服务完整实现
 /// 实现Templates、Custom、Images三层配置的完整工作流程管理
+/// 注意：容器构建和启动逻辑委托给 IStartCommandService，确保唯一实现
 /// </summary>
 public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
 {
@@ -16,6 +17,7 @@ public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
     private readonly IInteractiveSelectionService _interactiveService;
     private readonly IContainerService _containerService;
     private readonly IConfigurationService _configurationService;
+    private readonly IStartCommandService _startCommandService;
 
     private static readonly string[] RequiredConfigFiles = { ".env", "compose.yaml", "Dockerfile" };
 
@@ -25,7 +27,8 @@ public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
         IFileSystemService fileSystemService,
         IInteractiveSelectionService interactiveService,
         IContainerService containerService,
-        IConfigurationService configurationService)
+        IConfigurationService configurationService,
+        IStartCommandService startCommandService)
     {
         _logger = logger;
         _directoryService = directoryService;
@@ -33,6 +36,7 @@ public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
         _interactiveService = interactiveService;
         _containerService = containerService;
         _configurationService = configurationService;
+        _startCommandService = startCommandService;
     }
 
     /// <inheritdoc />
@@ -473,13 +477,13 @@ public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
 
     /// <summary>
     /// 构建并启动容器
+    /// 委托给 IStartCommandService.StartFromImageAsync 以确保使用 compose up -d --build
     /// </summary>
     private async Task<ContainerBuildResult> BuildAndStartContainerAsync(string imageName, string imageDir)
     {
         var result = new ContainerBuildResult
         {
-            Success = false,
-            ContainerName = $"deck_{imageName}",
+            ContainerName = imageName,
             Messages = new List<string>()
         };
 
@@ -497,17 +501,18 @@ public class ThreeLayerWorkflowService : IThreeLayerWorkflowService
             _logger.LogInformation("开始构建容器镜像: {ImageName}", imageName);
             result.Messages.Add($"🔨 开始构建镜像: {imageName}");
 
-            // 使用容器服务启动容器（这里假设compose.yaml中定义了适当的服务）
-            var startResult = await _containerService.StartContainerAsync(result.ContainerName);
+            // 委托给 StartCommandService，它使用 compose up -d --build
+            var startResult = await _startCommandService.StartFromImageAsync(imageName);
             
-            result.Success = startResult.Success;
-            result.Messages.Add(startResult.Success ? 
+            result.Success = startResult.IsSuccess;
+            result.ContainerName = startResult.ContainerName ?? imageName;
+            result.Messages.Add(startResult.IsSuccess ? 
                 $"✅ 容器启动成功: {result.ContainerName}" : 
-                $"❌ 容器启动失败: {startResult.Message}");
+                $"❌ 容器启动失败: {startResult.ErrorMessage}");
 
-            if (!startResult.Success)
+            if (!startResult.IsSuccess)
             {
-                result.ErrorMessage = startResult.Message;
+                result.ErrorMessage = startResult.ErrorMessage;
             }
         }
         catch (Exception ex)
