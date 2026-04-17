@@ -28,29 +28,88 @@
 
 ### 开发环境搭建
 
+Deck 项目采用"吃自己的狗粮"（Dogfooding）开发模式，推荐使用 Deck 自身来搭建开发环境。
+
+#### 方式一：使用 Deck 工具（推荐）
+
+下载安装 Deck 工具后，一个命令即可自动安装 Podman、构建镜像、启动容器并将项目挂载到容器中开发。
+
 ```bash
-# 克隆仓库
+# 1. Fork 并克隆仓库
 git clone https://gitee.com/zhaoquan/deck.git
 # 或 git clone https://github.com/chatterzhao/deck.git
 cd deck
 
-# 安装依赖
-dotnet restore
+# 2. 下载并安装 Deck
+# 从 Releases 页面下载对应平台的安装包安装：
+# macOS: 下载 .pkg 安装包双击安装
+# Linux: 下载 .deb 或 .rpm 包安装
+# Windows: 下载 .msi 安装包安装
+# GitHub: https://github.com/chatterzhao/deck/releases
+# Gitee:  https://gitee.com/zhaoquan/deck/releases/
 
-# 运行测试
-dotnet test
+# 3. 启动容器化开发环境
+# deck start 将自动安装 Podman，构建 dotnet-deck 模板镜像并启动容器
+deck start dotnet-deck
 
-# 运行开发版本
-dotnet run --project src/Deck.Console
-
-# 构建
-./scripts/build.sh  # macOS/Linux
-# 或 .\scripts\build.ps1  # Windows
-
-# 打包
-./scripts/package.sh  # macOS/Linux
-# 或 .\scripts\package.ps1  # Windows
+# 4. 进入容器开发
+deck shell  # 选择 dotnet-deck 容器进入
+# 容器内项目代码挂载在 /workspace 目录
+cd /workspace
+dotnet restore       # 安装依赖
+dotnet test           # 运行测试
+dotnet run --project src/Deck.Console  # 运行开发版本
 ```
+
+> **注意**：`deck start` 会自动尝试安装 Podman 或 Docker。如果您想手工安装或者自动安装失败，请先手工安装 [Podman](https://podman.io) 和 [podman-compose](https://github.com/containers/podman-compose) 或 [Docker](https://www.docker.com) 和 [docker-compose](https://docs.docker.com/compose/)。
+
+**VS Code 容器开发**：
+
+1. 先执行 `deck start dotnet-deck` 启动容器
+2. 在 VS Code 中安装 [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) 扩展
+3. 如果使用 Podman，需在 VS Code 设置中添加：`"dev.containers.dockerPath": "podman"`
+4. 点击左下角 `><` 图标 → "Attach to Running Container..." → 选择 deck-dev 容器
+5. 打开 `/workspace` 目录即可开发
+
+#### 方式二：手动使用模板搭建环境
+
+如果尚未安装 Deck 工具，也可以直接使用项目中的 `templates/dotnet-deck` 模板配合容器工具搭建开发环境。
+
+**前置条件**：安装 [Podman](https://podman.io) 和 [podman-compose](https://github.com/containers/podman-compose) 或 [Docker](https://www.docker.com) 和 [docker-compose](https://docs.docker.com/compose/)
+
+```bash
+# 1. Fork 并克隆仓库
+git clone https://gitee.com/zhaoquan/deck.git
+# 或 git clone https://github.com/chatterzhao/deck.git
+cd deck
+
+# 2. 进入 dotnet-deck 模板目录
+cd templates/dotnet-deck
+
+# 3. 构建镜像并启动容器
+# 对于 Podman:
+podman-compose build
+podman-compose up -d
+
+# 对于 Docker:
+docker-compose build
+docker-compose up -d
+
+# 4. 进入容器开发
+# 对于 Podman:
+podman exec -it deck-dev bash
+
+# 对于 Docker:
+docker exec -it deck-dev bash
+
+# 5. 容器内开发
+cd /workspace
+dotnet restore       # 安装依赖
+dotnet test           # 运行测试
+dotnet run --project src/Deck.Console  # 运行开发版本
+```
+
+> **注意**：`templates/dotnet-deck` 是 Deck 项目自身的专用开发模板（基于 .NET 9 SDK，预装开发工具）。如需其他开发环境，可查看 `templates/` 下的其他模板。
 
 ### 版本管理
 
@@ -161,14 +220,12 @@ git push origin develop
 ### 运行测试
 
 ```bash
-# 运行所有测试
-dotnet test
-
-# 仅运行单元测试（跳过集成测试）
-dotnet test --filter "Category!=Integration"
-
-# 运行特定测试
-dotnet test --filter "FullyQualifiedName~TestClassName"
+# 在容器内运行测试（推荐）
+deck shell  # 选择 dotnet-deck 容器进入
+cd /workspace
+dotnet test                              # 运行所有测试
+dotnet test --filter "Category!=Integration"  # 跳过集成测试
+dotnet test --filter "FullyQualifiedName~TestClassName"  # 运行特定测试
 ```
 
 ## 代码规范
